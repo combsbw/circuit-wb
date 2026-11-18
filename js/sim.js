@@ -108,6 +108,15 @@ class Stamper {
     const zr = r, zi = this.omega * l, d = zr * zr + zi * zi;
     this.Y(a, b, zr / d, -zi / d);
   }
+  /** Inductive source (pickup coil): series EMF (AC stimulus only) + L + R between a (+) and b. */
+  Lsrc(a, b, l, r) {
+    this.L(a, b, l, r);
+    if (this.mode === 'ac' && this.stim != null && this.stim === this.curId) {
+      r = Math.max(r, 1e-3);
+      const zi = this.omega * l, d = r * r + zi * zi;
+      this.I(b, a, r / d, -zi / d); // Norton: 1 V × Y
+    }
+  }
   /** Independent voltage source (a = +, b = −), Norton converted. opts: {ac, rint} */
   V(a, b, v, opts = {}) {
     const r = Math.max(opts.rint || 0, RSRC);

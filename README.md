@@ -19,8 +19,19 @@ Pages and from the iOS Home Screen with no connection.
   - **Transistors**: 2N2222A, 2N3904, BC547, TIP31C, TIP120, 2N3906, BC557, TIP42C.
   - **MOSFETs**: IRLZ44N, IRFB4410, IRF540N, IRFZ44N, IRF3205, IRLB8721, IRFP260N, 2N7000, BSS138,
     AO3400, IRF9540N, IRF4905, AO3401.
-  - Sources (DC, signal generator, current source), ground, power rails, net labels, op-amps,
-    voltage regulators.
+  - **Op-amps** (symbol + real packages): TL072/TL074/TL082, LM358/LM324, NE5532, LM741, OPA2134 and
+    low-voltage / rail-to-rail MCP6001/6002/6004, LMV358, TLV9002, TLV2372, OPA2340, AD8606; LM393.
+  - **Sensors**: photoresistors (GL55xx, light slider), photodiodes (BPW34, SFH203, BPW21),
+    phototransistors (TEPT5600, PT334-6C), pickup coils (L/DCR entered or calculated from turns,
+    diameter, length, AWG and core µr), Hall sensors (A3144, SS49E, DRV5032), accelerometers
+    (ADXL335 analog, ADXL345, MPU-6050), magnetometers (QMC5883L, HMC5883L).
+  - **ADCs**: ADS1115 (module & chip), ADS1220, ADS1256 — live per-channel voltage → output code,
+    full-scale and over-voltage warnings.
+  - **Signal sources**: Si5351 clock generator (module & chip), DC / signal generator / current
+    sources, ground, power rails, net labels; voltage regulators.
+- **Custom parts**: define any ESP32 / dev board / module / IC pinout (two headers or DIP numbering,
+  logic level, VIN & rail pins, supply current). Saved to the on-device library, reusable from the
+  part drawer, and embedded in designs you save/export so they open on other devices.
 - IC blocks drawn with their real physical pinouts: TC4420 / TC4429 / TC4427 / TC4426, IR2110 / IR2104,
   TL072 / LM358 / NE5532 / MCP6002 / TL074 / LM393, NE555, PC817, ESP32-S3 SuperMini,
   ESP32-S3-DevKitC-1, ESP32 DevKit V1 (30-pin), ESP32-C3 SuperMini, Arduino Nano, and a Generic IC
@@ -68,6 +79,10 @@ Pages and from the iOS Home Screen with no connection.
   - Tap switches to toggle them. Type in a real meter reading to log it against the expected value.
 
 **Calculators** (slider + typed value for every input)
+- **Op-amp designer**: buffer, non-inverting, inverting, summing, difference, integrator / low-pass,
+  photodiode transimpedance and Sallen-Key; single or dual supply (auto VREF), any op-amp model.
+  Shows gain, ideal vs simulated output (clipping), swing limits, bandwidth from GBW and a Bode /
+  transimpedance plot, and inserts the circuit with probes placed.
 - Filters (RC, RL, LC, series-RLC band-pass, LC trap, parallel-tank band-stop, Twin-T). These show the
   theoretical value and the response simulated on the actual template circuit, and can insert it into
   your design with probes already placed.
@@ -119,6 +134,7 @@ python3 -m http.server 8000   # then open http://localhost:8000
 | `js/app.js` | App controller: modes, panels, meter, build/debug tracking, files |
 | `js/tools.js` | Calculators and circuit templates |
 | `js/store.js` | IndexedDB persistence |
+| `js/partEditor.js` | Custom part / board editor and library |
 | `sw.js`, `manifest.webmanifest` | Offline support and installability |
 
 ## Accuracy notes

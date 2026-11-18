@@ -72,10 +72,10 @@ export function logspace(a, b, n) {
 function findStimulus(ckt, inNet, refNet) {
   let best = null;
   for (const e of ckt.elems) {
-    if (e.c.type !== 'vac' && e.c.type !== 'vdc') continue;
+    if (e.c.type !== 'vac' && e.c.type !== 'vdc' && e.c.type !== 'pickup') continue;
     const [p, m] = e.nets;
     if (p === inNet || m === inNet) {
-      const score = (e.c.type === 'vac' ? 2 : 1) + ((p === inNet && m === refNet) || (m === inNet && p === refNet) ? 2 : 0);
+      const score = (e.c.type !== 'vdc' ? 2 : 1) + ((p === inNet && m === refNet) || (m === inNet && p === refNet) ? 2 : 0);
       if (!best || score > best.score) best = { id: e.c.id, score, ref: e.c.ref };
     }
   }
@@ -325,6 +325,19 @@ function icChecks(ckt, e, V, I, W) {
   const c = e.c, g = icGeom(c);
   const byName = (n) => g.pins.findIndex((p) => p.name === n);
   const v = (n) => { const i = byName(n); return i < 0 ? 0 : V[i]; };
+  const sup = g.def.supply;
+  if (sup && byName(sup.vcc) >= 0) {
+    const vs = v(sup.vcc) - v(sup.gnd);
+    if (!e.connected[byName(sup.vcc)] || !e.connected[byName(sup.gnd)]) W('warn', c, `${c.ref} ${g.title}: ${sup.vcc}/${sup.gnd} not connected`);
+    else if (vs < sup.min) W('warn', c, `${c.ref} ${g.title}: supply ${fmt(vs, 'V')} below ${sup.min} V minimum`);
+    else if (vs > sup.max) W('err', c, `${c.ref} ${g.title}: supply ${fmt(vs, 'V')} exceeds ${sup.max} V maximum`);
+  }
+  const adc = adcInfo(c, g, V);
+  if (adc) for (const ch of adc.channels) {
+    if (ch.vAbs > adc.vdd + 0.3) W('err', c, `${c.ref} ${ch.name} at ${fmt(ch.vAbs, 'V')} — above VDD + 0.3 V (damage / clamp)`);
+    else if (ch.vAbs < adc.vss - 0.3) W('err', c, `${c.ref} ${ch.name} at ${fmt(ch.vAbs, 'V')} — below GND − 0.3 V`);
+    else if (ch.clip && e.connected[ch.i]) W('warn', c, `${c.ref} ${ch.name} ${fmt(ch.v, 'V')} exceeds full-scale ±${fmt(adc.fsr, 'V')} — reading clips`);
+  }
   for (const u of g.def.units || []) {
     if (u.k === 'drv') {
       const vdd = v(u.vdd) - v(u.gnd);
@@ -359,3 +372,24 @@ function icChecks(ckt, e, V, I, W) {
 }
 
 export { Circuit };
+
+/** ADC conversion readout for ADC parts: per-channel voltage (vs ref) and output code. */
+export function adcInfo(c, g, V) {
+  const a = g.def.adc;
+  if (!a) return null;
+  const idx = (n) => g.pins.findIndex((p) => p.name === n);
+  const supply = g.def.supply || { vcc: (g.def.units[0] || {}).vcc, gnd: (g.def.units[0] || {}).gnd };
+  const vdd = V[idx(supply.vcc)] ?? 0, vss = V[idx(supply.gnd)] ?? 0;
+  const ri = idx(a.ref), vref = ri >= 0 ? V[ri] : vss;
+  const fsr = a.fsr(c.props);
+  const full = Math.pow(2, a.bits - 1);
+  const channels = a.inputs.map((name) => {
+    const i = idx(name);
+    const vAbs = V[i] ?? 0, v = vAbs - vref;
+    let code = Math.round((v / fsr) * full);
+    const clip = code >= full || code < -full;
+    code = Math.max(-full, Math.min(full - 1, code));
+    return { name, i, v, vAbs, code, clip, hex: (code < 0 ? code + 2 * full : code).toString(16).toUpperCase().padStart(Math.ceil(a.bits / 4), '0') };
+  });
+  return { channels, fsr, lsb: fsr / full, bits: a.bits, vdd, vss, ref: a.ref };
+}

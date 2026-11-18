@@ -1,9 +1,10 @@
 // Calculators: sliders + typed values. Filter & divider calculators run the real solver on a template
 // circuit and can insert it into the design.
 import { fmt, parseEng, nearestE, E12, E24 } from './units.js';
-import { newDesign, makeComp, addWire, uid, snap, nextRef, compBBox } from './doc.js';
+import { newDesign, makeComp, addWire, uid, snap, nextRef, compBBox, designBBox } from './doc.js';
 import { Circuit } from './sim.js';
-import { bode } from './analysis.js';
+import { bode, classify, logspace } from './analysis.js';
+import { PARTS } from './library.js';
 import { drawPlot } from './plot.js';
 import { icon } from './icons.js';
 
@@ -116,6 +117,158 @@ TOPOS['LC low-pass (R load)'].build = (v) => {
   return t;
 };
 
+
+// ---------- op-amp designer ----------
+const OPCFG = ['Buffer (voltage follower)', 'Non-inverting amplifier', 'Inverting amplifier', 'Summing amplifier (inverting)', 'Difference amplifier', 'Integrator / inverting low-pass', 'Transimpedance (photodiode)', 'Sallen-Key low-pass (unity)'];
+const INV_CFG = new Set(['Inverting amplifier', 'Summing amplifier (inverting)', 'Difference amplifier', 'Integrator / inverting low-pass', 'Transimpedance (photodiode)']);
+const ev = (x) => fmt(x).replace(/\s/g, '').replace('µ', 'u');
+const pe = (c, p) => ({ c: c.id, p });
+function jn(d, x, y) { const j = { id: uid('j'), x, y }; d.juncs.push(j); return { j: j.id }; }
+
+function opampDesign(v) {
+  const d = T();
+  const single = v.supply === 'Single supply';
+  const vref = single ? v.Vs / 2 : 0;
+  const cfg = v.cfg, inv = INV_CFG.has(cfg);
+  const u = put(d, 'opamp', 260, 10, { plusTop: !inv }, 0, v.model);
+  const rp = put(d, 'rail', 260, -30, { volts: String(v.Vs), name: '+V' }); W(d, rp, 0, u, 3);
+  if (single) { const g = put(d, 'ground', 260, 60); W(d, u, 4, g, 0); put(d, 'rail', -60, -130, { volts: String(+vref.toFixed(4)), name: 'VREF' }); }
+  else { const rn = put(d, 'rail', 260, 60, { volts: String(-v.Vs), name: '-V' }, 2); W(d, rn, 0, u, 4); }
+  const ref = (x, y) => { if (single) { const l = put(d, 'netlabel', x, y, { name: 'VREF' }); l.flip = true; return pe(l, 0); } return pe(put(d, 'ground', x, y), 0); };
+  let src = null;
+  if (cfg !== 'Transimpedance (photodiode)') {
+    src = put(d, 'vac', 0, 60, { amp: '1', freq: '1k', offset: String(+(vref + v.Vin).toFixed(4)) });
+    const g0 = put(d, 'ground', 0, 110); W(d, src, 1, g0, 0);
+  }
+  let inRef = src ? pe(src, 0) : null;
+  const outRef = pe(u, 2);
+  if (cfg === 'Buffer (voltage follower)' || cfg === 'Non-inverting amplifier') {
+    W(d, src, 0, u, 0);
+    const j1 = jn(d, 200, 100);
+    addWire(d, pe(u, 1), j1);
+    if (cfg === 'Buffer (voltage follower)') addWire(d, j1, pe(u, 2));
+    else {
+      const rf = put(d, 'resistor', 250, 100, { value: ev(v.Rf) }); addWire(d, j1, pe(rf, 0)); W(d, rf, 1, u, 2);
+      const rg = put(d, 'resistor', 200, 150, { value: ev(v.Rg) }, 1); addWire(d, j1, pe(rg, 0)); addWire(d, pe(rg, 1), ref(200, 200));
+    }
+  } else if (cfg === 'Sallen-Key low-pass (unity)') {
+    const C = v.Cf > 0 ? v.Cf : 10e-9;
+    const r1 = put(d, 'resistor', 60, 0, { value: ev(v.Rin) }), r2 = put(d, 'resistor', 150, 0, { value: ev(v.Rin) });
+    W(d, src, 0, r1, 0); W(d, r1, 1, r2, 0); W(d, r2, 1, u, 0);
+    const c2 = put(d, 'capacitor', 190, 40, { value: ev(C) }, 1); W(d, c2, 0, r2, 1); addWire(d, pe(c2, 1), ref(190, 90));
+    const c1 = put(d, 'capacitor', 200, -80, { value: ev(2 * C) }); W(d, c1, 0, r1, 1); W(d, c1, 1, u, 2);
+    const j1 = jn(d, 210, 80), j2 = jn(d, 320, 80);
+    addWire(d, pe(u, 1), j1); addWire(d, j1, j2); addWire(d, j2, pe(u, 2));
+  } else {
+    // inverting family: − on top (220,0), + below (220,20)
+    let fb;
+    if (cfg === 'Transimpedance (photodiode)') {
+      const pd = put(d, 'photodiode', 150, 0, { lux: String(v.lux) }, 0, 'BPW34');
+      W(d, pd, 1, u, 1); addWire(d, pe(pd, 0), ref(100, 0));
+      fb = pe(pd, 1); inRef = pe(u, 1);
+    } else {
+      const rin = put(d, 'resistor', 150, 0, { value: ev(v.Rin) });
+      W(d, src, 0, rin, 0); W(d, rin, 1, u, 1); fb = pe(rin, 1);
+      if (cfg === 'Summing amplifier (inverting)') {
+        const r2 = put(d, 'resistor', 150, -50, { value: ev(v.R2) });
+        const v2 = put(d, 'vdc', 80, -50, { volts: String(v.V2) }, 1);
+        W(d, v2, 0, r2, 0); W(d, r2, 1, rin, 1);
+        const g2 = put(d, 'ground', 50, -30); W(d, v2, 1, g2, 0);
+      }
+    }
+    const rf = put(d, 'resistor', 260, -80, { value: ev(v.Rf) });
+    addWire(d, pe(rf, 0), fb); W(d, rf, 1, u, 2);
+    if (v.Cf > 0 && cfg !== 'Summing amplifier (inverting)' && cfg !== 'Difference amplifier') {
+      const cf = put(d, 'capacitor', 260, -120, { value: ev(v.Cf) }); W(d, cf, 0, rf, 0); W(d, cf, 1, rf, 1);
+    }
+    if (cfg === 'Difference amplifier') {
+      const r3 = put(d, 'resistor', 150, 20, { value: ev(v.Rin) }); W(d, r3, 1, u, 0);
+      const r4 = put(d, 'resistor', 190, 50, { value: ev(v.Rf) }, 1); W(d, r4, 0, r3, 1); addWire(d, pe(r4, 1), ref(190, 100));
+      const v2 = put(d, 'vdc', 80, 20, { volts: String(v.V2) }, 1); W(d, v2, 0, r3, 0);
+      const g2 = put(d, 'ground', 50, 40); W(d, v2, 1, g2, 0);
+    } else if (single) { addWire(d, pe(u, 0), ref(200, 20)); }
+    else { const g = put(d, 'ground', 200, 40); addWire(d, pe(u, 0), pe(g, 0)); }
+  }
+  return { d, inRef, outRef, tia: cfg === 'Transimpedance (photodiode)' };
+}
+
+function opampCompute(v) {
+  const m = PARTS[v.model] || PARTS.TL072;
+  const single = v.supply === 'Single supply';
+  const vref = single ? v.Vs / 2 : 0, vpos = v.Vs, vneg = single ? 0 : -v.Vs;
+  const lo = vneg + m.hr[0], hi = vpos - m.hr[1];
+  const cfg = v.cfg;
+  const par = (a, b) => (a * b) / (a + b);
+  let gain = 1, ng = 1, vout, zin = 'very high (op-amp input)', extra = [];
+  const iph = (v.lux / 1000) * 70e-6;
+  switch (cfg) {
+    case 'Buffer (voltage follower)': vout = vref + v.Vin; break;
+    case 'Non-inverting amplifier': gain = 1 + v.Rf / v.Rg; ng = gain; vout = vref + gain * v.Vin; break;
+    case 'Inverting amplifier': gain = -v.Rf / v.Rin; ng = 1 + v.Rf / v.Rin; vout = vref + gain * v.Vin; zin = fmt(v.Rin, 'Ω');
+      if (v.Cf > 0) extra.push(['−3 dB (Rf·Cf)', fmt(1 / (TAU * v.Rf * v.Cf), 'Hz')]); break;
+    case 'Summing amplifier (inverting)': gain = -v.Rf / v.Rin; ng = 1 + v.Rf / par(v.Rin, v.R2); vout = vref - v.Rf * (v.Vin / v.Rin + (v.V2 - vref) / v.R2); zin = `${fmt(v.Rin, 'Ω')} / ${fmt(v.R2, 'Ω')}`;
+      extra.push(['Formula', 'Vout = Vref − Rf·(V1/Rin + (V2−Vref)/R2)']); break;
+    case 'Difference amplifier': gain = v.Rf / v.Rin; ng = 1 + v.Rf / v.Rin; vout = vref + gain * (v.V2 - (vref + v.Vin)); zin = `${fmt(v.Rin, 'Ω')} (V1), ${fmt(v.Rin + v.Rf, 'Ω')} (V2)`;
+      extra.push(['Formula', 'Vout = Vref + (Rf/R1)·(V2 − V1), R3 = R1, R4 = Rf']); break;
+    case 'Integrator / inverting low-pass': gain = -v.Rf / v.Rin; ng = 1 + v.Rf / v.Rin; vout = vref + gain * v.Vin; zin = fmt(v.Rin, 'Ω');
+      if (v.Cf > 0) { extra.push(['Corner 1/(2π·Rf·Cf)', fmt(1 / (TAU * v.Rf * v.Cf), 'Hz')]); extra.push(['Unity-gain freq 1/(2π·Rin·Cf)', fmt(1 / (TAU * v.Rin * v.Cf), 'Hz')]); }
+      else extra.push(['Tip', 'set Cf to make it an integrator / low-pass']); break;
+    case 'Transimpedance (photodiode)': gain = v.Rf; ng = 1; vout = vref + iph * v.Rf; zin = '≈ 0 (virtual ground)';
+      extra.push(['Photocurrent (BPW34)', fmt(iph, 'A')]);
+      if (v.Cf > 0) extra.push(['Bandwidth 1/(2π·Rf·Cf)', fmt(1 / (TAU * v.Rf * v.Cf), 'Hz')]);
+      else extra.push(['Tip', 'add Cf (≈ 1–10 pF) for stability']); break;
+    case 'Sallen-Key low-pass (unity)': { const C = v.Cf > 0 ? v.Cf : 10e-9; vout = vref + v.Vin; extra.push(['f₀ (Butterworth, C1 = 2·C2)', fmt(1 / (TAU * v.Rin * C * Math.SQRT2), 'Hz')], ['Parts', `R1 = R2 = ${fmt(v.Rin, 'Ω')}, C2 = ${fmt(C, 'F')}, C1 = ${fmt(2 * C, 'F')}`]); break; }
+  }
+  const clipped = vout > hi || vout < lo;
+  const gtxt = cfg === 'Transimpedance (photodiode)' ? `${fmt(gain, 'V/A')} (${fmt(gain, 'Ω')})` : `${gain.toFixed(3)} V/V (${(20 * Math.log10(Math.abs(gain) || 1e-12)).toFixed(2)} dB)`;
+  const rows = [
+    ['Ideal Vout (DC)', `${fmt(vout, 'V', 4)}${clipped ? ' ⚠ beyond output swing — will clip' : ''}`],
+    ['Output swing', `${fmt(lo, 'V', 3)} … ${fmt(hi, 'V', 3)} (${m.hr[1] < 0.1 ? 'rail-to-rail' : 'not rail-to-rail'})`],
+    ['Closed-loop BW ≈ GBW / noise gain', fmt(m.gbw / ng, 'Hz')],
+    ['Input impedance', zin],
+    ...extra,
+    ['Supply', single ? `0 / ${fmt(vpos, 'V')}, VREF = ${fmt(vref, 'V')} (bias: 2 equal resistors + 10 µF, or buffered)` : `±${fmt(v.Vs, 'V')}`],
+  ];
+  const specSupply = (m.specs || []).find(([k]) => k === 'Supply');
+  if (specSupply) rows.push([`${v.model} supply range`, specSupply[1]]);
+  const tot = single ? v.Vs : 2 * v.Vs;
+  const maxV = { MCP6001: 6, MCP6002: 6, TLV9002: 5.5, OPA2340: 5.5, AD8606: 5.5, LMV358: 5.5, TLV2372: 16 }[v.model];
+  if (maxV && tot > maxV) rows.unshift(['⚠ Supply', `${fmt(tot, 'V')} total exceeds ${v.model} maximum ${maxV} V`]);
+  const minV = { TL072: 7, TL082: 7, NE5532: 6, LM741: 10, OPA2134: 5 }[v.model];
+  if (minV && tot < minV) rows.unshift(['⚠ Supply', `${fmt(tot, 'V')} is below the ${v.model} minimum (~${minV} V) — choose a low-voltage part such as MCP6002, TLV9002, OPA2340 or LMV358`]);
+  return {
+    main: ['Gain', gtxt], rows,
+    plot: () => simOpamp(opampDesign(v)),
+    insert: () => opampDesign(v),
+    note: 'Plot & DC result come from the full solver on this exact circuit (op-amp rails, headroom and GBW included).',
+  };
+}
+
+function simOpamp(t) {
+  try {
+    const ckt = new Circuit(t.d);
+    ckt.dcop();
+    const n = ckt.nl;
+    const inNet = n.pinNet(t.inRef.c, t.inRef.p), outNet = n.pinNet(t.outRef.c, t.outRef.p);
+    const vo = ckt.V(outNet);
+    const dc = Number.isFinite(vo) ? `DC Vout (simulated) = <b>${fmt(vo, 'V', 4)}</b>` : 'DC did not converge';
+    let b;
+    if (t.tia) {
+      const f = logspace(1, 1e7, 161), db = [], ph = [];
+      for (const fr of f) {
+        const sol = ckt.solveAC(fr, { mode: 'ac', inj: [[inNet, 1]] });
+        const [re, im] = sol ? ckt.acV(sol, outNet) : [NaN, NaN];
+        db.push(20 * Math.log10(Math.hypot(re, im) || 1e-15)); ph.push((Math.atan2(im, re) * 180) / Math.PI);
+      }
+      const s = classify(f, db, ph);
+      s.type = 'Transimpedance'; s.text = `${fmt(Math.pow(10, db[0] / 20), 'Ω')} at low frequency${s.fc ? `, −3 dB at ${fmt(s.fc, 'Hz')}` : ''}`;
+      b = { f, db, ph, summary: s, y1Label: 'dBΩ' };
+    } else b = bode(ckt, inNet, outNet, null, 1, 1e7, 161);
+    if (b) b.extra = dc;
+    return b;
+  } catch (e) { console.warn(e); return null; }
+}
+
 // ---------- calculator definitions ----------
 const R_RANGE = [1, 10e6], C_RANGE = [1e-12, 0.01], L_RANGE = [1e-9, 10], F_RANGE = [0.1, 100e6], V_RANGE = [0, 60];
 const CALCS = [
@@ -132,6 +285,36 @@ const CALCS = [
       const th = t.theory(v);
       return { main: th[0], rows: th.slice(1), plot: () => simTemplate(t.build(v)), insert: () => t.build(v), note: 'Plot = full solver on this exact circuit (same engine as Measure → Freq. response).' };
     },
+  },
+  {
+    id: 'opamp', name: 'Op-amp designer', inputs: [
+      { k: 'cfg', label: 'Circuit', options: OPCFG, def: 'Non-inverting amplifier' },
+      { k: 'model', label: 'Op-amp', options: Object.keys(PARTS).filter((k) => PARTS[k].type === 'opamp'), def: 'MCP6002' },
+      { k: 'supply', label: 'Supply', options: ['Single supply', 'Dual supply (±)'], def: 'Single supply' },
+      { k: 'Vs', label: 'Supply voltage (+V, or ±V)', unit: 'V', range: [1, 36], def: 5 },
+      { k: 'Vin', label: 'Input signal DC level (vs ref)', unit: 'V', range: [-5, 5], def: 0.1 },
+      { k: 'Rin', label: 'Rin / R1', unit: 'Ω', range: R_RANGE, log: true, def: 10e3 },
+      { k: 'Rf', label: 'Rf (feedback)', unit: 'Ω', range: R_RANGE, log: true, def: 100e3 },
+      { k: 'Rg', label: 'Rg (to ref)', unit: 'Ω', range: R_RANGE, log: true, def: 10e3 },
+      { k: 'R2', label: 'R2 (2nd input)', unit: 'Ω', range: R_RANGE, log: true, def: 10e3 },
+      { k: 'V2', label: 'V2 (2nd input, absolute)', unit: 'V', range: [-15, 15], def: 2.6 },
+      { k: 'Cf', label: 'Cf / C', unit: 'F', range: [1e-12, 1e-3], log: true, def: 0, allowZero: true },
+      { k: 'lux', label: 'Light on photodiode', unit: 'lux', range: [0.1, 100000], log: true, def: 1000 },
+    ],
+    hide: (v) => {
+      const show = {
+        'Buffer (voltage follower)': ['Vin'],
+        'Non-inverting amplifier': ['Vin', 'Rf', 'Rg'],
+        'Inverting amplifier': ['Vin', 'Rin', 'Rf', 'Cf'],
+        'Summing amplifier (inverting)': ['Vin', 'Rin', 'Rf', 'R2', 'V2'],
+        'Difference amplifier': ['Vin', 'Rin', 'Rf', 'V2'],
+        'Integrator / inverting low-pass': ['Vin', 'Rin', 'Rf', 'Cf'],
+        'Transimpedance (photodiode)': ['Rf', 'Cf', 'lux'],
+        'Sallen-Key low-pass (unity)': ['Vin', 'Rin', 'Cf'],
+      }[v.cfg] || [];
+      return ['Vin', 'Rin', 'Rf', 'Rg', 'R2', 'V2', 'Cf', 'lux'].filter((k) => !show.includes(k));
+    },
+    compute: (v) => opampCompute(v),
   },
   {
     id: 'divider', name: 'Voltage divider', inputs: [
@@ -172,15 +355,6 @@ const CALCS = [
       { k: 'L', label: 'L', unit: 'H', range: L_RANGE, log: true, def: 1e-3 },
     ],
     compute: (v) => ({ main: ['XC', fmt(1 / (TAU * v.f * v.C), 'Ω')], rows: [['XL', fmt(TAU * v.f * v.L, 'Ω')], ['LC resonance', fmt(1 / (TAU * Math.sqrt(v.L * v.C)), 'Hz')], ['Z₀ = √(L/C)', fmt(Math.sqrt(v.L / v.C), 'Ω')]] }),
-  },
-  {
-    id: 'opamp', name: 'Op-amp gain', inputs: [
-      { k: 'mode', label: 'Configuration', options: ['Non-inverting', 'Inverting'], def: 'Non-inverting' },
-      { k: 'Rf', label: 'Rf (feedback)', unit: 'Ω', range: R_RANGE, log: true, def: 10e3 },
-      { k: 'Rg', label: 'Rin / Rg', unit: 'Ω', range: R_RANGE, log: true, def: 1e3 },
-      { k: 'gbw', label: 'Op-amp GBW', unit: 'Hz', range: [1e4, 1e9], log: true, def: 3e6 },
-    ],
-    compute: (v) => { const g = v.mode === 'Inverting' ? -v.Rf / v.Rg : 1 + v.Rf / v.Rg; const nG = 1 + v.Rf / v.Rg; return { main: ['Gain', `${g.toFixed(3)} V/V`], rows: [['Gain (dB)', (20 * Math.log10(Math.abs(g))).toFixed(2) + ' dB'], ['Closed-loop BW ≈ GBW/noise gain', fmt(v.gbw / nG, 'Hz')], ['Input impedance', v.mode === 'Inverting' ? fmt(v.Rg, 'Ω') : 'very high']] }; },
   },
   {
     id: 'lm317', name: 'LM317', inputs: [
@@ -269,8 +443,8 @@ export function openTools(app) {
         const b = r.plot();
         const cv = res.querySelector('#calcPlot');
         if (b && cv) {
-          drawPlot(cv, { f: b.f, y1: b.db, y2: b.ph, y1Label: 'dB', markers: [b.summary.fc, b.summary.f0].filter(Boolean) });
-          res.querySelector('#calcSim').innerHTML = `<b>Simulated:</b> ${esc(b.summary.type)} — ${esc(b.summary.text)}`;
+          drawPlot(cv, { f: b.f, y1: b.db, y2: b.ph, y1Label: b.y1Label || 'dB', markers: [b.summary.fc, b.summary.f0].filter(Boolean) });
+          res.querySelector('#calcSim').innerHTML = `<b>Simulated:</b> ${esc(b.summary.type)} — ${esc(b.summary.text)}${b.extra ? '<br>' + b.extra : ''}`;
         }
       }, 60);
     }
@@ -278,6 +452,7 @@ export function openTools(app) {
     if (ins) ins.onclick = () => { insertTemplate(app, r.insert(), r.measure || (r.plot ? 'bode' : 'V')); };
   };
   const bind = (body) => {
+    const on = body.querySelector('.tabs button.on'); if (on) on.scrollIntoView({ block: 'nearest', inline: 'center' });
     body.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; body.innerHTML = render(); bind(body); });
     const calc = CALCS.find((c) => c.id === state.tab);
     const v = vals(calc);
@@ -313,7 +488,12 @@ function insertTemplate(app, t, fn) {
   const [cx, cy] = app.editor.viewCenterWorld();
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const c of t.d.comps) { const b = compBBox(c); x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h); }
-  const dx = snap(cx - (x0 + x1) / 2, 20), dy = snap(cy - (y0 + y1) / 2, 20);
+  let dx = snap(cx - (x0 + x1) / 2, 20), dy = snap(cy - (y0 + y1) / 2, 20);
+  // keep clear of the existing circuit: drop the template to its right if it would overlap
+  const ex = designBBox(d);
+  if (ex && x0 + dx < ex.x + ex.w + 60 && x1 + dx > ex.x - 60 && y0 + dy < ex.y + ex.h + 60 && y1 + dy > ex.y - 60) {
+    dx = snap(ex.x + ex.w + 100 - x0, 20); dy = snap(ex.y - y0, 20);
+  }
   const idMap = new Map();
   for (const c of t.d.comps) {
     const n = { ...c, id: uid('c'), x: c.x + dx, y: c.y + dy, props: { ...c.props } };
@@ -332,5 +512,6 @@ function insertTemplate(app, t, fn) {
   app.closeModal();
   app.changed('insert');
   app.select({ comps: [...idMap.values()] });
+  app.editor.centerOn((x0 + x1) / 2 + dx, (y0 + y1) / 2 + dy);
   app.toast('Inserted — probes placed. Open Measure to see the live result.', () => app.setMode('measure'));
 }

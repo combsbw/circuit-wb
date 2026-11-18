@@ -12,6 +12,9 @@ import { drawPlot } from './plot.js';
 import { openTools } from './tools.js';
 import { EXAMPLES } from './examples.js';
 import { infoHtml } from './info.js';
+import { openPartEditor, loadCustomParts, customDefsFor, adoptCustomDefs } from './partEditor.js';
+import { ldrR, photoI, coilValues, defaultProps } from './library.js';
+import { adcInfo } from './analysis.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -45,10 +48,12 @@ class App {
     this.editor = new Editor($('#canvas'), this);
     this._decorate();
     this._bindUI();
+    try { await loadCustomParts(); } catch (e) { console.warn('custom parts', e); }
     try {
       const sess = await store.getState('session');
       if (sess && sess.doc) {
         this.doc = sess.doc;
+        await adoptCustomDefs(this.doc);
         normalize(this.doc);
         Object.assign(this, { mode: sess.mode || 'edit', simOn: sess.simOn ?? true, showTags: sess.showTags ?? true, meterFn: sess.meterFn || 'V', dirty: !!sess.dirty });
         if (sess.probes) this.probes = sess.probes;
@@ -407,6 +412,11 @@ class App {
     for (const o of propDefs(c)) h += this.propField(c, o);
     h += '</div>';
     if (c.type === 'ic' && (icGeom(c).def.units || []).some((u) => u.k === 'mcu')) h += this.gpioTable(c);
+    if (c.type === 'ic') {
+      const def = ICS[c.props.part] || {};
+      if (def.custom) h += `<div class="actions">${this.btn('editpart', 'Edit part definition', 'edit')}</div>`;
+      else if (def.layout === 'header' || def.customInline) h += `<div class="actions">${this.btn('editpart', 'Customize pinout → save as new part', 'chip')}</div>`;
+    }
     h += `<div class="actions">`;
     if (def.toggle) h += this.btn('toggle', 'Toggle', 'toggle', 'pri');
     h += this.btn('rotate', 'Rotate', 'rotate') + this.btn('flip', 'Flip', 'flip') + this.btn('dup', 'Copy', 'copy') + this.btn('detach', 'Detach', 'unlink') + this.btn('delete', 'Delete', 'trash', 'danger');
@@ -431,6 +441,12 @@ class App {
       ctl = `<select class="inp" id="${id}" data-cid="${c.id}" data-prop="${o.key}">${o.options.map((p) => `<option ${p === v ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>`;
     } else if (o.bool) {
       ctl = `<button class="toggle ${v ? 'on' : ''}" data-act="bool" data-cid="${c.id}" data-key="${o.key}" aria-label="${esc(o.label)}"></button>`;
+    } else if (o.range) {
+      const [a, b, st] = o.range;
+      const x = num(v, a);
+      const sv = o.log ? Math.log10(Math.max(x, a > 0 ? a : 0.01)) : x;
+      const smin = o.log ? Math.log10(a > 0 ? a : 0.01) : a, smax = o.log ? Math.log10(b) : b;
+      ctl = `<div class="valrow"><input type="range" min="${smin}" max="${smax}" step="${o.log ? 0.01 : st}" value="${sv}" data-cid="${c.id}" data-prop="${o.key}" ${o.log ? 'data-log="1"' : ''} style="flex:1;min-width:80px"><input class="inp" style="flex:0 0 84px" type="text" id="${id}" value="${esc(v)}" data-cid="${c.id}" data-prop="${o.key}" autocomplete="off" autocapitalize="off" spellcheck="false"><span class="unit">${esc(o.unit || '')}</span></div>`;
     } else if (o.slider) {
       const [a, b, st] = o.slider;
       ctl = `<div class="valrow"><input type="range" min="${a}" max="${b}" step="${st}" value="${num(v, 0.5)}" data-cid="${c.id}" data-prop="${o.key}"><span class="unit" data-live="slv">${Math.round(num(v, 0.5) * 100)}%</span></div>`;
@@ -443,10 +459,12 @@ class App {
   gpioTable(c) {
     const g = icGeom(c);
     const unit = g.def.units.find((u) => u.k === 'mcu');
-    const io = g.pins.map((p, i) => [p, i]).filter(([p]) => p.fn === 'io');
+    const io = g.pins.map((p, i) => [p, i]).filter(([p]) => p.fn === 'io' && (!g.def.gpioPins || g.def.gpioPins.includes(p.name)));
     const only = new Set((g.def.inputOnly || []).map((n) => 'IO' + n));
+    const clocks = !!g.def.gpioPins;
     const modes = [['in', 'Input (Hi-Z)'], ['in_pu', 'Input + pull-up'], ['in_pd', 'Input + pull-down'], ['high', 'Output HIGH'], ['low', 'Output LOW'], ['pwm', 'PWM (avg)']];
-    let h = `<div class="sec">GPIO states · ${unit.vlogic} V logic</div><table class="pins-table"><tr><th>Pin</th><th>Mode</th><th>V</th></tr>`;
+    if (clocks) modes.splice(0, modes.length, ['low', 'Disabled (LOW)'], ['pwm', 'Enabled (square, avg)'], ['high', 'Forced HIGH']);
+    let h = `<div class="sec">${clocks ? 'Clock outputs' : 'GPIO states'} · ${unit.vlogic} V logic</div><table class="pins-table"><tr><th>Pin</th><th>Mode</th><th>V</th></tr>`;
     for (const [p, i] of io) {
       const m = (c.props.gpio || {})[p.name] || 'in';
       const isOnly = only.has(p.name.split('/')[0]);
@@ -465,18 +483,29 @@ class App {
       el?.classList.remove('bad');
     }
     if (o.slider) { const live = el?.parentElement?.querySelector('[data-live=slv]'); if (live) live.textContent = Math.round(val * 100) + '%'; }
-    const sliding = o.slider && el?.type === 'range';
+    if (o.range && el?.type === 'range') {
+      let x = +val;
+      if (el.dataset.log) x = Math.pow(10, x);
+      x = +x.toPrecision(3);
+      val = String(x);
+      const t = el.parentElement.querySelector('input[type=text]'); if (t) t.value = val;
+    } else if (o.range) {
+      const x = parseEng(val);
+      const r = el?.parentElement?.querySelector('input[type=range]');
+      if (r && Number.isFinite(x)) r.value = el && r.dataset.log ? Math.log10(Math.max(x, 1e-3)) : x;
+    }
+    const sliding = (o.slider || o.range) && el?.type === 'range';
     if (!sliding || !this._sliding) { this.checkpoint(); this._sliding = sliding; }
     if (sliding) { clearTimeout(this._slideT); this._slideT = setTimeout(() => { this._sliding = false; }, 600); }
     c.props[key] = o.slider ? +val : val;
     if (key === 'part') {
-      applyPartFill(c.type, c.props);
       if (c.type === 'ic') { c.props.gpio = {}; c.props.duty = {}; }
+      applyPartFill(c.type, c.props);
       this.changed('prop');
       if (this.settings.autoInfo && (PARTS[val]?.pinout || ICS[val])) this.showInfo(c);
       return;
     }
-    const rerender = c.type === 'ic' && ['pinCount', 'pinNames', 'title'].includes(key);
+    const rerender = c.type === 'ic' && ['pinCount', 'pinNames', 'title', 'leftPins', 'rightPins', 'vinPin', 'railPin', 'vlogic'].includes(key) || key === 'mode';
     this.changed('prop', { keepSheet: !rerender });
   }
 
@@ -627,6 +656,14 @@ class App {
     const V = pins.map((_, i) => ckt.pinV(c.id, i));
     let h = '';
     const two = pins.length === 2 && !['ground', 'rail', 'netlabel'].includes(c.type);
+    if (c.type === 'ldr') h += `<dt>Resistance</dt><dd>${fmt(ldrR(c), 'Ω', 4)} @ ${fmt(num(c.props.lux, 0), 'lux')}</dd>`;
+    if (c.type === 'photodiode') h += `<dt>Photocurrent</dt><dd>${fmt(photoI(c), 'A')} @ ${fmt(num(c.props.lux, 0), 'lux')}</dd>`;
+    if (c.type === 'pickup') {
+      const k = coilValues(c);
+      h += `<dt>Inductance</dt><dd>${fmt(k.L, 'H', 4)}</dd><dt>DC resistance</dt><dd>${fmt(k.R, 'Ω', 4)}</dd><dt>L/R corner</dt><dd>${fmt(k.R / (2 * Math.PI * k.L), 'Hz')}</dd>`;
+      if (k.dWire) h += `<dt>Wire</dt><dd>⌀${k.dWire.toFixed(4)} mm · ${fmt(k.wireLen, 'm')}</dd>`;
+      h += `<dt>Resonance w/ 470 pF cable</dt><dd>${fmt(1 / (2 * Math.PI * Math.sqrt(k.L * 470e-12)), 'Hz')}</dd>`;
+    }
     if (two) {
       const vd = V[0] - V[1];
       h += `<dt>Voltage across</dt><dd>${fmt(vd, 'V', 4)}</dd><dt>Current</dt><dd>${fmt(I[0], 'A', 3)}</dd>`;
@@ -635,12 +672,17 @@ class App {
     } else if (c.type === 'ic') {
       const g = icGeom(c);
       const rows = g.pins.map((p, i) => [p, i]).filter(([p]) => p.fn !== 'nc');
+      const adc = adcInfo(c, g, V);
+      if (adc) h += `<dt><b>ADC</b></dt><dd>${adc.bits}-bit · FSR ±${fmt(adc.fsr, 'V', 4)} · LSB ${fmt(adc.lsb, 'V', 3)}</dd>` + adc.channels.map((ch) => `<dt>${esc(ch.name)} → code</dt><dd>${fmt(ch.v, 'V', 5)} → ${ch.code} (0x${ch.hex})${ch.clip ? ' ⚠ clipped' : ''}</dd>`).join('');
+      const def = g.def;
+      if (def.gpioPins && def.extraProps) h += def.gpioPins.map((pn, k) => `<dt>${pn}</dt><dd>${(c.props.gpio || {})[pn] === 'pwm' ? fmt(parseEng(c.props['f' + k]), 'Hz') + ' square' : 'off'}</dd>`).join('');
       h += rows.map(([p, i]) => `<dt>${esc(p.num)} ${esc(p.name)}</dt><dd>${fmtV(V[i])}${Math.abs(I[i] || 0) > 1e-5 ? ' · ' + fmt(-I[i], 'A', 2) : ''}</dd>`).join('');
     } else {
       h += pins.map((p, i) => `<dt>${esc(p.name)}</dt><dd>${fmtV(V[i])}${Math.abs(I[i] || 0) > 1e-6 ? ' · ' + fmt(-I[i], 'A', 3) + ' out' : ''}</dd>`).join('');
       if (c.type === 'nmos' || c.type === 'pmos') h += `<dt>VGS / VDS</dt><dd>${fmtV(V[0] - V[2])} / ${fmtV(V[1] - V[2])}</dd><dt>ID</dt><dd>${fmt(Math.abs(I[1] || 0), 'A')}</dd>`;
       if (c.type === 'npn' || c.type === 'pnp') h += `<dt>VBE / VCE</dt><dd>${fmtV(V[0] - V[2])} / ${fmtV(V[1] - V[2])}</dd><dt>IC / IB</dt><dd>${fmt(Math.abs(I[1] || 0), 'A')} / ${fmt(Math.abs(I[0] || 0), 'A')}</dd>`;
       if (c.type === 'reg') h += `<dt>Dissipation</dt><dd>${fmt(Math.abs((V[0] - V[1]) * (I[1] || 0)), 'W')}</dd>`;
+      if (c.type === 'phototransistor') h += `<dt>Light current</dt><dd>${fmt(photoI(c), 'A')}</dd>`;
     }
     return h;
   }
@@ -765,6 +807,8 @@ class App {
         break;
       case 'toggle': if (sel1) this.toggleSwitch(sel1); break;
       case 'info': if (sel1) this.showInfo(sel1); break;
+      case 'editpart': if (sel1) openPartEditor(this, sel1.props.part === 'Custom board' ? null : sel1.props.part); break;
+      case 'newpart': this.closeParts(); openPartEditor(this); break;
       case 'ref': if (sel1 && el.value.trim()) { this.checkpoint(); sel1.ref = el.value.trim(); this.changed('ref', { keepSheet: true }); } break;
       case 'bool': {
         const c = this.comp(el.dataset.cid);
@@ -895,8 +939,12 @@ class App {
       const desc = p.part ? (PARTS[p.part]?.desc || ICS[p.part]?.desc || '') : '';
       h += `<button class="ptile" data-i="${i}">${this.thumb(p)}<b>${esc(p.label)}</b>${desc ? `<small>${esc(desc.length > 38 ? desc.slice(0, 36) + '…' : desc)}</small>` : ''}</button>`;
     });
-    $('#partGrid').innerHTML = h || '<div class="hint" style="grid-column:1/-1">No parts match. Try “Generic IC” to make a custom pinout.</div>';
-    $('#partGrid').querySelectorAll('.ptile').forEach((b) => b.onclick = () => this.addPart(PALETTE[+b.dataset.i]));
+    if (!q || 'custom new board esp32 module part pinout'.includes(q) || q.includes('custom')) {
+      if (['All', 'MCU boards', 'ICs', 'Sensors', 'ADCs', 'Signal sources'].includes(this._partCat) || q) h = `<button class="ptile" data-act="newpart" style="border-style:dashed">${icon('chip', 'icon')}<b>New custom part</b><small>define any ESP32 / module pinout</small></button>` + h;
+    }
+    $('#partGrid').innerHTML = h || '<div class="hint" style="grid-column:1/-1">No parts match. Use “New custom part” to define your own pinout.</div>';
+    const np = $('#partGrid [data-act=newpart]'); if (np) np.onclick = () => this.act('newpart');
+    $('#partGrid').querySelectorAll('.ptile[data-i]').forEach((b) => b.onclick = () => this.addPart(PALETTE[+b.dataset.i]));
   }
   thumb(p) {
     const c = { id: 't', type: p.type, x: 0, y: 0, rot: 0, props: { ...defaultPropsSafe(p) } };
@@ -916,10 +964,17 @@ class App {
     this.checkpoint();
     let [x, y] = this.editor.viewCenterWorld();
     x = snap(x, 20); y = snap(y, 20);
-    // avoid stacking on an existing part
-    for (let tries = 0; tries < 12 && this.doc.comps.some((c) => Math.abs(c.x - x) < 30 && Math.abs(c.y - y) < 30); tries++) { x += 40; y += 20; }
     const c = makeComp(this.doc, p.type, p.part, x, y);
     if (p.preset) Object.assign(c.props, p.preset);
+    // find a free spot (no bounding-box overlap) spiralling out from the view centre
+    const boxes = this.doc.comps.map((o) => compBBox(o));
+    const hits = () => { const b = compBBox(c); return boxes.some((o) => b.x < o.x + o.w + 16 && b.x + b.w + 16 > o.x && b.y < o.y + o.h + 16 && b.y + b.h + 16 > o.y); };
+    outer: for (let r = 0; r < 14 && hits(); r++) {
+      for (let a = 0; a < 8; a++) {
+        c.x = snap(x + Math.cos((a * Math.PI) / 4) * (r + 1) * 50, 20); c.y = snap(y + Math.sin((a * Math.PI) / 4) * (r + 1) * 50, 20);
+        if (!hits()) break outer;
+      }
+    }
     this.doc.comps.push(c);
     this.changed('add');
     this.select({ comps: [c.id] });
@@ -999,7 +1054,7 @@ class App {
         if (this.dirty && this.doc.comps.length && !confirm('Start a new design? Unsaved changes to the current one will be lost (save it first to keep it).')) return;
         this.doc = newDesign(); this.undoStack = []; this.redoStack = []; this.probes = { red: null, black: null }; this.dirty = false;
         this.closeModal(); this.select({}); this.changed(null, { noDirty: true }); this.editor.fit(); break;
-      case 'f-export': this.download(slug(this.doc.name) + '.cwb.json', JSON.stringify(stripDesign(this.doc), null, 1), 'application/json'); break;
+      case 'f-export': this.doc.customParts = customDefsFor(this.doc); this.download(slug(this.doc.name) + '.cwb.json', JSON.stringify(stripDesign(this.doc), null, 1), 'application/json'); break;
       case 'f-import': $('#fileImport').value = ''; $('#fileImport').click(); break;
       case 'f-svg': this.download(slug(this.doc.name) + '.svg', designSvg(this.doc), 'image/svg+xml'); break;
       case 'f-png': this.exportPng(); break;
@@ -1009,6 +1064,7 @@ class App {
 
   async saveDesign() {
     this.doc.updated = Date.now();
+    this.doc.customParts = customDefsFor(this.doc);
     const rec = { ...JSON.parse(JSON.stringify(this.doc)), thumb: designSvg(this.doc, { pad: 20 }) };
     await store.putDesign(rec);
     this.dirty = false;
@@ -1032,6 +1088,7 @@ class App {
     this._updateTitle();
   }
   _setDoc(d) {
+    adoptCustomDefs(d).then((n) => { if (n) { this.changed(null, { noDirty: true }); this.toast(`Added ${n} custom part definition(s) to your library`); } });
     normalize(d);
     this.doc = d;
     this.undoStack = []; this.redoStack = [];
@@ -1177,12 +1234,8 @@ class App {
 
 // ---------- helpers ----------
 function defaultPropsSafe(p) {
-  const d = TYPES[p.type];
-  const props = {};
-  for (const o of d.props) props[o.key] = o.default;
-  if (p.part) props.part = p.part;
+  const props = defaultProps(p.type, p.part);
   if (p.preset) Object.assign(props, p.preset);
-  if (p.type === 'ic') { props.gpio = {}; props.pinCount = 8; props.pinNames = ''; props.title = 'IC'; }
   return props;
 }
 function normalize(d) {
