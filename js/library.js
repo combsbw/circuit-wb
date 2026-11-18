@@ -1,0 +1,802 @@
+// Component library: symbols, pin geometry, editable properties, part spec bank & simulation models.
+import { parseEng, short, fmt } from './units.js';
+
+export const GRID = 10;
+const VT = 0.025852;
+
+// ---------- math helpers for device models ----------
+const sig = (x) => (x > 40 ? 1 : x < -40 ? 0 : 1 / (1 + Math.exp(-x)));
+const spos = (x, e = 1e-7) => (x + Math.sqrt(x * x + e * e)) / 2;
+const smin = (a, b, e = 0.05) => (a + b - Math.sqrt((a - b) * (a - b) + e * e)) / 2;
+function limexp(x, xmax) { return x > xmax ? Math.exp(xmax) * (1 + x - xmax) : Math.exp(x); }
+function diodeI(v, Is, n, bv = 0) {
+  const nvt = n * VT;
+  const xmax = Math.log(50 / Is);
+  let i = Is * (limexp(v / nvt, xmax) - 1);
+  if (bv > 0) i -= 5e-3 * limexp((-v - bv) / 0.03, 9.2); // reverse breakdown: 5 mA at VZ
+  return i + v * 1e-12;
+}
+// Output stage: sourced current toward target with resistance & current limit
+const drive = (vo, vt, rout, ilim) => ilim * Math.tanh((vt - vo) / (rout * ilim));
+// Split a bidirectional output current s (+ = sourcing) into the part drawn from the positive rail.
+// Sourcing needs the rail above the output, which keeps floating rails from running away.
+const fromRail = (s, vrail, vo) => spos(s, 1e-4) * sig((vrail - vo + 0.3) / 0.05);
+
+const num = (v, d) => { const x = parseEng(v); return Number.isFinite(x) ? x : d; };
+
+// ---------- SVG helpers ----------
+const P = (d, cls = 's') => `<path class="${cls}" d="${d}"/>`;
+const T = (x, y, s, cls = 'tn', a = 'middle') => [x, y, s, cls, a];
+
+// ---------- Part data (spec bank) ----------
+export const PARTS = {
+  // Diodes
+  '1N4148': { type: 'diode', desc: 'Small-signal fast switching diode', pkg: 'DO-35', Is: 2.52e-9, n: 1.75, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VRRM', '100 V'], ['IF(AV)', '200 mA'], ['IFSM', '1 A (1 s) / 4 A (1 µs)'], ['VF', '0.72 V typ @ 5 mA, 1.0 V max @ 10 mA'], ['trr', '4 ns'], ['CT', '4 pF']], imax: 0.2 },
+  '1N4007': { type: 'diode', desc: 'General-purpose 1 A rectifier', pkg: 'DO-41', Is: 7e-9, n: 1.8, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VRRM', '1000 V'], ['IF(AV)', '1 A'], ['IFSM', '30 A'], ['VF', '1.1 V max @ 1 A'], ['trr', '~2 µs (slow)']], imax: 1 },
+  'UF4007': { type: 'diode', desc: 'Ultra-fast 1 A rectifier — good bootstrap / flyback diode', pkg: 'DO-41', Is: 3e-8, n: 2.0, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VRRM', '1000 V'], ['IF(AV)', '1 A'], ['VF', '1.7 V max @ 1 A'], ['trr', '75 ns']], imax: 1 },
+  '1N5819': { type: 'schottky', desc: 'Schottky barrier rectifier, low VF', pkg: 'DO-41', Is: 3e-6, n: 1.3, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VRRM', '40 V'], ['IF(AV)', '1 A'], ['VF', '0.60 V max @ 1 A'], ['IR', '1 mA @ 40 V']], imax: 1 },
+  '1N5822': { type: 'schottky', desc: 'Schottky barrier rectifier 3 A', pkg: 'DO-201AD', Is: 1e-5, n: 1.3, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VRRM', '40 V'], ['IF(AV)', '3 A'], ['VF', '0.525 V max @ 3 A']], imax: 3 },
+  'SS34': { type: 'schottky', desc: 'SMD Schottky 3 A', pkg: 'SMA / DO-214AC', Is: 1e-5, n: 1.3, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VRRM', '40 V'], ['IF(AV)', '3 A'], ['VF', '0.5 V @ 3 A']], imax: 3 },
+  '1N4728A': { type: 'zener', desc: 'Zener 3.3 V, 1 W', pkg: 'DO-41', vz: 3.3, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VZ', '3.3 V @ 76 mA'], ['PD', '1 W'], ['IZM', '276 mA']] },
+  '1N4733A': { type: 'zener', desc: 'Zener 5.1 V, 1 W', pkg: 'DO-41', vz: 5.1, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VZ', '5.1 V @ 49 mA'], ['PD', '1 W'], ['IZM', '178 mA']] },
+  '1N4742A': { type: 'zener', desc: 'Zener 12 V, 1 W', pkg: 'DO-41', vz: 12, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VZ', '12 V @ 21 mA'], ['PD', '1 W'], ['IZM', '76 mA']] },
+  '1N4744A': { type: 'zener', desc: 'Zener 15 V, 1 W — gate clamp', pkg: 'DO-41', vz: 15, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VZ', '15 V @ 17 mA'], ['PD', '1 W'], ['IZM', '61 mA']] },
+  // BJTs  (pinout listed flat face toward you, legs down, left→right)
+  '2N2222A': { type: 'npn', desc: 'General-purpose NPN switch/amp', pkg: 'TO-92 (PN2222A) / TO-18', beta: 150, Is: 1e-14, pinout: [['1', 'E'], ['2', 'B'], ['3', 'C']], specs: [['VCEO', '40 V'], ['IC max', '600 mA'], ['hFE', '100–300 @ 150 mA'], ['VCE(sat)', '0.3 V @ 150 mA'], ['fT', '300 MHz'], ['PD', '625 mW']], icmax: 0.6 },
+  '2N3904': { type: 'npn', desc: 'Small-signal NPN', pkg: 'TO-92', beta: 150, Is: 6.7e-15, pinout: [['1', 'E'], ['2', 'B'], ['3', 'C']], specs: [['VCEO', '40 V'], ['IC max', '200 mA'], ['hFE', '100–300 @ 10 mA'], ['fT', '300 MHz'], ['PD', '625 mW']], icmax: 0.2 },
+  'BC547': { type: 'npn', desc: 'Small-signal NPN (EU)', pkg: 'TO-92', beta: 300, Is: 1.8e-14, pinout: [['1', 'C'], ['2', 'B'], ['3', 'E']], specs: [['VCEO', '45 V'], ['IC max', '100 mA'], ['hFE', '110–800 (B: 200–450)'], ['PD', '500 mW']], icmax: 0.1 },
+  'TIP31C': { type: 'npn', desc: 'Medium-power NPN', pkg: 'TO-220', beta: 50, Is: 1e-12, pinout: [['1', 'B'], ['2', 'C (tab)'], ['3', 'E']], specs: [['VCEO', '100 V'], ['IC max', '3 A'], ['hFE', '25–50'], ['PD', '40 W (case)']], icmax: 3 },
+  'TIP120': { type: 'npn', desc: 'NPN Darlington power transistor', pkg: 'TO-220', beta: 1000, Is: 1e-12, nf: 2, pinout: [['1', 'B'], ['2', 'C (tab)'], ['3', 'E']], specs: [['VCEO', '60 V'], ['IC max', '5 A'], ['hFE', '1000 min'], ['VBE(on)', '2.5 V max'], ['VCE(sat)', '2 V @ 3 A'], ['PD', '65 W (case)']], icmax: 5 },
+  '2N3906': { type: 'pnp', desc: 'Small-signal PNP', pkg: 'TO-92', beta: 150, Is: 1.4e-14, pinout: [['1', 'E'], ['2', 'B'], ['3', 'C']], specs: [['VCEO', '-40 V'], ['IC max', '-200 mA'], ['hFE', '100–300'], ['PD', '625 mW']], icmax: 0.2 },
+  'BC557': { type: 'pnp', desc: 'Small-signal PNP (EU)', pkg: 'TO-92', beta: 250, Is: 1e-14, pinout: [['1', 'C'], ['2', 'B'], ['3', 'E']], specs: [['VCEO', '-45 V'], ['IC max', '-100 mA'], ['hFE', '125–800'], ['PD', '500 mW']], icmax: 0.1 },
+  'TIP42C': { type: 'pnp', desc: 'Medium-power PNP', pkg: 'TO-220', beta: 40, Is: 1e-12, pinout: [['1', 'B'], ['2', 'C (tab)'], ['3', 'E']], specs: [['VCEO', '-100 V'], ['IC max', '-6 A'], ['hFE', '15–75'], ['PD', '65 W (case)']], icmax: 6 },
+  // MOSFETs  (TO-220 front view, legs down: G D S)
+  'IRF540N': { type: 'nmos', desc: 'N-ch power MOSFET 100 V', pkg: 'TO-220', vth: 3.0, rds: 0.044, vgsSpec: 10, pinout: [['1', 'G'], ['2', 'D (tab)'], ['3', 'S']], specs: [['VDSS', '100 V'], ['ID', '33 A'], ['RDS(on)', '44 mΩ @ VGS 10 V'], ['VGS(th)', '2–4 V'], ['Qg', '71 nC'], ['Ciss', '1960 pF'], ['VGS max', '±20 V']], logic: false, idmax: 33 },
+  'IRFZ44N': { type: 'nmos', desc: 'N-ch power MOSFET 55 V', pkg: 'TO-220', vth: 3.0, rds: 0.0175, vgsSpec: 10, pinout: [['1', 'G'], ['2', 'D (tab)'], ['3', 'S']], specs: [['VDSS', '55 V'], ['ID', '49 A'], ['RDS(on)', '17.5 mΩ @ VGS 10 V'], ['VGS(th)', '2–4 V'], ['Qg', '63 nC'], ['Ciss', '1470 pF'], ['VGS max', '±20 V']], logic: false, idmax: 49 },
+  'IRLZ44N': { type: 'nmos', desc: 'Logic-level N-ch MOSFET 55 V', pkg: 'TO-220', vth: 1.5, rds: 0.022, vgsSpec: 5, pinout: [['1', 'G'], ['2', 'D (tab)'], ['3', 'S']], specs: [['VDSS', '55 V'], ['ID', '47 A'], ['RDS(on)', '22 mΩ @ 5 V, 35 mΩ @ 4 V'], ['VGS(th)', '1–2 V'], ['Qg', '48 nC'], ['VGS max', '±16 V']], logic: true, idmax: 47 },
+  'IRF3205': { type: 'nmos', desc: 'N-ch power MOSFET 55 V, 110 A', pkg: 'TO-220', vth: 3.0, rds: 0.008, vgsSpec: 10, pinout: [['1', 'G'], ['2', 'D (tab)'], ['3', 'S']], specs: [['VDSS', '55 V'], ['ID', '110 A'], ['RDS(on)', '8 mΩ @ 10 V'], ['VGS(th)', '2–4 V'], ['Qg', '146 nC'], ['Ciss', '3250 pF']], logic: false, idmax: 110 },
+  'IRLB8721': { type: 'nmos', desc: 'Logic-friendly N-ch MOSFET 30 V', pkg: 'TO-220', vth: 1.8, rds: 0.0087, vgsSpec: 10, pinout: [['1', 'G'], ['2', 'D (tab)'], ['3', 'S']], specs: [['VDSS', '30 V'], ['ID', '62 A'], ['RDS(on)', '8.7 mΩ @ 10 V, 16 mΩ @ 4.5 V'], ['VGS(th)', '1.35–2.35 V'], ['Qg', '7.6 nC']], logic: true, idmax: 62 },
+  'IRFP260N': { type: 'nmos', desc: 'N-ch power MOSFET 200 V', pkg: 'TO-247', vth: 3.0, rds: 0.04, vgsSpec: 10, pinout: [['1', 'G'], ['2', 'D (tab)'], ['3', 'S']], specs: [['VDSS', '200 V'], ['ID', '50 A'], ['RDS(on)', '40 mΩ @ 10 V'], ['VGS(th)', '2–4 V'], ['Qg', '234 nC'], ['Ciss', '4057 pF']], logic: false, idmax: 50 },
+  '2N7000': { type: 'nmos', desc: 'Small-signal N-ch MOSFET', pkg: 'TO-92', vth: 2.1, rds: 1.8, vgsSpec: 10, pinout: [['1', 'S'], ['2', 'G'], ['3', 'D']], specs: [['VDSS', '60 V'], ['ID', '200 mA'], ['RDS(on)', '1.8 Ω typ, 5 Ω max @ 10 V'], ['VGS(th)', '0.8–3 V']], logic: false, idmax: 0.2 },
+  'BSS138': { type: 'nmos', desc: 'SMD small N-ch (level shifters)', pkg: 'SOT-23', vth: 1.3, rds: 1.4, vgsSpec: 10, pinout: [['1', 'G'], ['2', 'S'], ['3', 'D']], specs: [['VDSS', '50 V'], ['ID', '220 mA'], ['RDS(on)', '3.5 Ω max @ 10 V'], ['VGS(th)', '0.8–1.5 V']], logic: true, idmax: 0.22 },
+  'AO3400': { type: 'nmos', desc: 'SMD logic-level N-ch 30 V', pkg: 'SOT-23', vth: 1.05, rds: 0.028, vgsSpec: 4.5, pinout: [['1', 'G'], ['2', 'S'], ['3', 'D']], specs: [['VDSS', '30 V'], ['ID', '5.7 A'], ['RDS(on)', '28 mΩ @ 4.5 V, 48 mΩ @ 2.5 V'], ['VGS(th)', '0.65–1.45 V']], logic: true, idmax: 5.7 },
+  'IRF9540N': { type: 'pmos', desc: 'P-ch power MOSFET -100 V', pkg: 'TO-220', vth: 3.0, rds: 0.117, vgsSpec: 10, pinout: [['1', 'G'], ['2', 'D (tab)'], ['3', 'S']], specs: [['VDSS', '-100 V'], ['ID', '-23 A'], ['RDS(on)', '117 mΩ @ VGS -10 V'], ['VGS(th)', '-2 to -4 V'], ['Qg', '97 nC']], idmax: 23 },
+  'IRF4905': { type: 'pmos', desc: 'P-ch power MOSFET -55 V', pkg: 'TO-220', vth: 3.0, rds: 0.02, vgsSpec: 10, pinout: [['1', 'G'], ['2', 'D (tab)'], ['3', 'S']], specs: [['VDSS', '-55 V'], ['ID', '-74 A'], ['RDS(on)', '20 mΩ @ -10 V'], ['VGS(th)', '-2 to -4 V'], ['Qg', '180 nC']], idmax: 74 },
+  'AO3401': { type: 'pmos', desc: 'SMD P-ch 30 V (high-side switch)', pkg: 'SOT-23', vth: 0.9, rds: 0.05, vgsSpec: 4.5, pinout: [['1', 'G'], ['2', 'S'], ['3', 'D']], specs: [['VDSS', '-30 V'], ['ID', '-4 A'], ['RDS(on)', '50 mΩ @ -4.5 V'], ['VGS(th)', '-0.5 to -1.3 V']], idmax: 4 },
+  // Op-amps (symbol)
+  'Ideal': { type: 'opamp', desc: 'Ideal op-amp (rail-to-rail, very high GBW)', gbw: 1e9, hr: [0, 0], iq: 0, ilim: 1, specs: [['Gain', '100 dB'], ['GBW', '1 GHz'], ['Output', 'rail-to-rail']] },
+  'TL072': { type: 'opamp', desc: 'Low-noise JFET-input op-amp (single unit of TL072)', gbw: 3e6, hr: [1.5, 1.5], iq: 1.4e-3, ilim: 0.04, specs: [['Supply', '±3.5 … ±18 V (7–36 V)'], ['GBW', '3 MHz'], ['Slew rate', '13 V/µs'], ['Vos', '3 mV typ'], ['Output swing', '±13.5 V @ ±15 V'], ['Input CM', 'NOT to V− (phase reversal)'], ['Iq', '1.4 mA / amp']] },
+  'LM358': { type: 'opamp', desc: 'Single-supply op-amp (single unit of LM358)', gbw: 0.7e6, hr: [0.02, 1.5], iq: 0.35e-3, ilim: 0.04, specs: [['Supply', '3–32 V (±1.5 … ±16 V)'], ['GBW', '0.7 MHz'], ['Slew rate', '0.3 V/µs'], ['Input CM', 'includes V− (ground)'], ['Output', 'to ~V−, V+ − 1.5 V'], ['Iq', '0.7 mA total']] },
+  'NE5532': { type: 'opamp', desc: 'Low-noise audio op-amp', gbw: 10e6, hr: [2, 2], iq: 4e-3, ilim: 0.038, specs: [['Supply', '±3 … ±20 V'], ['GBW', '10 MHz'], ['Slew rate', '9 V/µs'], ['Noise', '5 nV/√Hz'], ['Iq', '8 mA total']] },
+  'MCP6002': { type: 'opamp', desc: 'Low-power rail-to-rail I/O op-amp', gbw: 1e6, hr: [0.025, 0.025], iq: 0.1e-3, ilim: 0.023, specs: [['Supply', '1.8–6.0 V'], ['GBW', '1 MHz'], ['Slew rate', '0.6 V/µs'], ['I/O', 'rail-to-rail'], ['Iq', '100 µA / amp']] },
+  'LM741': { type: 'opamp', desc: 'Classic general-purpose op-amp', gbw: 1e6, hr: [2, 2], iq: 1.7e-3, ilim: 0.025, specs: [['Supply', '±5 … ±18 V'], ['GBW', '1 MHz'], ['Slew rate', '0.5 V/µs'], ['Iq', '1.7 mA']] },
+  // Regulators: pin order in our symbol = [IN, OUT, GND/ADJ]; pkgPins = physical numbering
+  '7805': { type: 'reg', desc: 'Positive linear regulator 5 V, 1.5 A', pkg: 'TO-220', vout: 5, drop: 2.0, iq: 5e-3, ilim: 1.5, vinMax: 35, nums: ['1', '3', '2'], pinout: [['1', 'IN'], ['2', 'GND (tab)'], ['3', 'OUT']], specs: [['Vout', '5 V ±4%'], ['Vin', '7–35 V'], ['Dropout', '2 V typ'], ['Iout', '1.5 A (with heatsink)'], ['Iq', '5 mA'], ['Caps', '0.33 µF in, 0.1 µF out'], ['θJA', '65 °C/W (no heatsink)']] },
+  '7809': { type: 'reg', desc: 'Positive linear regulator 9 V', pkg: 'TO-220', vout: 9, drop: 2.0, iq: 5e-3, ilim: 1.5, vinMax: 35, nums: ['1', '3', '2'], pinout: [['1', 'IN'], ['2', 'GND (tab)'], ['3', 'OUT']], specs: [['Vout', '9 V'], ['Vin', '11–35 V'], ['Dropout', '2 V'], ['Iout', '1.5 A']] },
+  '7812': { type: 'reg', desc: 'Positive linear regulator 12 V', pkg: 'TO-220', vout: 12, drop: 2.0, iq: 5e-3, ilim: 1.5, vinMax: 35, nums: ['1', '3', '2'], pinout: [['1', 'IN'], ['2', 'GND (tab)'], ['3', 'OUT']], specs: [['Vout', '12 V ±4%'], ['Vin', '14.5–35 V'], ['Dropout', '2 V'], ['Iout', '1.5 A'], ['Iq', '5 mA'], ['Caps', '0.33 µF in, 0.1 µF out']] },
+  '7815': { type: 'reg', desc: 'Positive linear regulator 15 V', pkg: 'TO-220', vout: 15, drop: 2.0, iq: 5e-3, ilim: 1.5, vinMax: 35, nums: ['1', '3', '2'], pinout: [['1', 'IN'], ['2', 'GND (tab)'], ['3', 'OUT']], specs: [['Vout', '15 V'], ['Vin', '17.5–35 V'], ['Dropout', '2 V'], ['Iout', '1.5 A']] },
+  'LM317': { type: 'reg', adj: true, desc: 'Adjustable positive regulator 1.25–37 V', pkg: 'TO-220', vout: 1.25, drop: 2.0, iq: 0, ilim: 1.5, vinMax: 40, nums: ['3', '2', '1'], pinout: [['1', 'ADJ'], ['2', 'OUT (tab)'], ['3', 'IN']], specs: [['Vref', '1.25 V (OUT−ADJ)'], ['Vout', '1.25 × (1 + R2/R1) + IADJ·R2'], ['IADJ', '50 µA'], ['Dropout', '~2 V'], ['Iout', '1.5 A'], ['Min load', '~3.5–10 mA'], ['Vin−Vout', '≤ 40 V'], ['Typical', 'R1 = 240 Ω (OUT→ADJ)']] },
+  'AMS1117-3.3': { type: 'reg', desc: 'LDO 3.3 V, 1 A', pkg: 'SOT-223', vout: 3.3, drop: 1.1, iq: 5e-3, ilim: 1.0, vinMax: 15, nums: ['3', '2', '1'], pinout: [['1', 'GND/ADJ'], ['2', 'OUT (tab)'], ['3', 'IN']], specs: [['Vout', '3.3 V ±1%'], ['Vin', '4.5–15 V'], ['Dropout', '1.1 V typ @ 800 mA'], ['Iout', '1 A'], ['Iq', '5 mA'], ['Caps', '≥10 µF tantalum out (ESR!)']] },
+  'AMS1117-5.0': { type: 'reg', desc: 'LDO 5.0 V, 1 A', pkg: 'SOT-223', vout: 5.0, drop: 1.1, iq: 5e-3, ilim: 1.0, vinMax: 15, nums: ['3', '2', '1'], pinout: [['1', 'GND/ADJ'], ['2', 'OUT (tab)'], ['3', 'IN']], specs: [['Vout', '5.0 V'], ['Vin', '6.5–15 V'], ['Dropout', '1.1 V'], ['Iout', '1 A']] },
+  'LM2940-5': { type: 'reg', desc: 'Low-dropout 5 V, 1 A', pkg: 'TO-220', vout: 5, drop: 0.5, iq: 10e-3, ilim: 1.0, vinMax: 26, nums: ['1', '3', '2'], pinout: [['1', 'IN'], ['2', 'GND (tab)'], ['3', 'OUT']], specs: [['Vout', '5 V'], ['Dropout', '0.5 V @ 1 A'], ['Iout', '1 A'], ['Cout', '≥22 µF required']] },
+  'MCP1700-3302': { type: 'reg', desc: 'Micro-power LDO 3.3 V, 250 mA', pkg: 'TO-92', vout: 3.3, drop: 0.178, iq: 1.6e-6, ilim: 0.25, vinMax: 6, nums: ['2', '3', '1'], pinout: [['1', 'GND'], ['2', 'IN'], ['3', 'OUT']], specs: [['Vout', '3.3 V'], ['Vin', '≤ 6 V'], ['Dropout', '178 mV @ 250 mA'], ['Iq', '1.6 µA'], ['Caps', '1 µF in/out']] },
+};
+
+// ---------- IC / module definitions (block symbols with physical pinouts) ----------
+// fn: pwr, gnd, in, out, io, nc, ctl
+export const ICS = {
+  'TC4420': { cat: 'Gate drivers', desc: '6 A high-speed single MOSFET driver, non-inverting', pkg: 'DIP-8 / SOIC-8', layout: 'dip',
+    pins: [['VDD', 'pwr'], ['IN', 'in'], ['NC', 'nc'], ['GND', 'gnd'], ['GND', 'gnd'], ['OUT', 'out'], ['OUT', 'out'], ['VDD', 'pwr']],
+    units: [{ k: 'drv', in: 'IN', out: 'OUT', vdd: 'VDD', gnd: 'GND', inv: false, rout: 2.5, ilim: 6, th: 1.6, uvlo: 4.0 }],
+    specs: [['VDD', '4.5–18 V'], ['Peak out', '6 A'], ['Rout', '2.5 Ω typ'], ['tR / tF', '25 ns @ 2500 pF'], ['Delay', '55 ns'], ['Input', 'VIH 2.4 V, VIL 0.8 V (3.3 V logic OK)'], ['Iq', '~0.5 mA']],
+    notes: 'Pins 1&8 and 4&5, 6&7 are internally common — connect both. Bypass VDD with 1 µF + 0.1 µF close to pins.' },
+  'TC4429': { cat: 'Gate drivers', desc: '6 A high-speed single MOSFET driver, INVERTING', pkg: 'DIP-8 / SOIC-8', layout: 'dip',
+    pins: [['VDD', 'pwr'], ['IN', 'in'], ['NC', 'nc'], ['GND', 'gnd'], ['GND', 'gnd'], ['OUT', 'out'], ['OUT', 'out'], ['VDD', 'pwr']],
+    units: [{ k: 'drv', in: 'IN', out: 'OUT', vdd: 'VDD', gnd: 'GND', inv: true, rout: 2.5, ilim: 6, th: 1.6, uvlo: 4.0 }],
+    specs: [['VDD', '4.5–18 V'], ['Peak out', '6 A'], ['Logic', 'OUT = NOT IN'], ['Input', 'VIH 2.4 V, VIL 0.8 V']], notes: 'Same pinout as TC4420 but inverting.' },
+  'TC4427': { cat: 'Gate drivers', desc: '1.5 A dual MOSFET driver, non-inverting', pkg: 'DIP-8 / SOIC-8', layout: 'dip',
+    pins: [['NC', 'nc'], ['INA', 'in'], ['GND', 'gnd'], ['INB', 'in'], ['OUTB', 'out'], ['VDD', 'pwr'], ['OUTA', 'out'], ['NC', 'nc']],
+    units: [{ k: 'drv', in: 'INA', out: 'OUTA', vdd: 'VDD', gnd: 'GND', inv: false, rout: 7, ilim: 1.5, th: 1.6, uvlo: 4.0 }, { k: 'drv', in: 'INB', out: 'OUTB', vdd: 'VDD', gnd: 'GND', inv: false, rout: 7, ilim: 1.5, th: 1.6, uvlo: 4.0 }],
+    specs: [['VDD', '4.5–18 V'], ['Peak out', '1.5 A'], ['Rout', '7 Ω'], ['tR / tF', '19 ns @ 1000 pF'], ['Input', 'TTL/CMOS']] },
+  'TC4426': { cat: 'Gate drivers', desc: '1.5 A dual MOSFET driver, inverting', pkg: 'DIP-8 / SOIC-8', layout: 'dip',
+    pins: [['NC', 'nc'], ['INA', 'in'], ['GND', 'gnd'], ['INB', 'in'], ['OUTB', 'out'], ['VDD', 'pwr'], ['OUTA', 'out'], ['NC', 'nc']],
+    units: [{ k: 'drv', in: 'INA', out: 'OUTA', vdd: 'VDD', gnd: 'GND', inv: true, rout: 7, ilim: 1.5, th: 1.6, uvlo: 4.0 }, { k: 'drv', in: 'INB', out: 'OUTB', vdd: 'VDD', gnd: 'GND', inv: true, rout: 7, ilim: 1.5, th: 1.6, uvlo: 4.0 }],
+    specs: [['VDD', '4.5–18 V'], ['Peak out', '1.5 A'], ['Logic', 'OUTx = NOT INx']] },
+  'IR2110': { cat: 'Gate drivers', desc: 'High & low side driver, 500 V, 2 A', pkg: 'DIP-14', layout: 'dip',
+    pins: [['LO', 'out'], ['COM', 'gnd'], ['VCC', 'pwr'], ['NC', 'nc'], ['VS', 'io'], ['VB', 'pwr'], ['HO', 'out'], ['NC', 'nc'], ['VDD', 'pwr'], ['HIN', 'in'], ['SD', 'in'], ['LIN', 'in'], ['VSS', 'gnd'], ['NC', 'nc']],
+    units: [{ k: 'ir2110' }],
+    specs: [['VOFFSET', '500 V (IR2113: 600 V)'], ['VCC / VBS', '10–20 V'], ['VDD logic', '3.3–20 V'], ['Io+ / Io−', '2 A / 2 A'], ['ton / toff', '120 / 94 ns'], ['UVLO', 'VCC & VBS ≈ 8.6 V on / 8.2 V off'], ['SD', 'HIGH = shutdown (both outputs low)']],
+    notes: 'Bootstrap: diode VCC→VB (UF4007) + cap VB–VS (≥ 0.47 µF). HO is referenced to VS (switch node). No dead-time — add it in firmware.' },
+  'IR2104': { cat: 'Gate drivers', desc: 'Half-bridge driver, single input + shutdown, 600 V', pkg: 'DIP-8 / SOIC-8', layout: 'dip',
+    pins: [['VCC', 'pwr'], ['IN', 'in'], ['SD̅', 'in'], ['COM', 'gnd'], ['LO', 'out'], ['VS', 'io'], ['HO', 'out'], ['VB', 'pwr']],
+    units: [{ k: 'ir2104' }],
+    specs: [['VOFFSET', '600 V'], ['VCC', '10–20 V'], ['Io+ / Io−', '130 / 270 mA'], ['Dead time', '520 ns internal'], ['Logic', 'IN high → HO on; IN low → LO on'], ['SD̅', 'LOW = shutdown'], ['UVLO', '8.9 V / 8.2 V']],
+    notes: 'Bootstrap diode VCC→VB + cap VB–VS. Logic thresholds 2.5/0.8 V (3.3 V OK).' },
+  'TL072-IC': { cat: 'Op-amps', name: 'TL072', desc: 'Dual JFET-input op-amp', pkg: 'DIP-8', layout: 'dip',
+    pins: [['OUT1', 'out'], ['IN1−', 'in'], ['IN1+', 'in'], ['V−', 'pwr'], ['IN2+', 'in'], ['IN2−', 'in'], ['OUT2', 'out'], ['V+', 'pwr']],
+    units: [{ k: 'opamp', model: 'TL072', inp: 'IN1+', inn: 'IN1−', out: 'OUT1', vp: 'V+', vn: 'V−' }, { k: 'opamp', model: 'TL072', inp: 'IN2+', inn: 'IN2−', out: 'OUT2', vp: 'V+', vn: 'V−' }],
+    specs: PARTS.TL072.specs },
+  'LM358-IC': { cat: 'Op-amps', name: 'LM358', desc: 'Dual single-supply op-amp', pkg: 'DIP-8', layout: 'dip',
+    pins: [['OUT1', 'out'], ['IN1−', 'in'], ['IN1+', 'in'], ['GND', 'gnd'], ['IN2+', 'in'], ['IN2−', 'in'], ['OUT2', 'out'], ['V+', 'pwr']],
+    units: [{ k: 'opamp', model: 'LM358', inp: 'IN1+', inn: 'IN1−', out: 'OUT1', vp: 'V+', vn: 'GND' }, { k: 'opamp', model: 'LM358', inp: 'IN2+', inn: 'IN2−', out: 'OUT2', vp: 'V+', vn: 'GND' }],
+    specs: PARTS.LM358.specs },
+  'NE5532-IC': { cat: 'Op-amps', name: 'NE5532', desc: 'Dual low-noise op-amp', pkg: 'DIP-8', layout: 'dip',
+    pins: [['OUT1', 'out'], ['IN1−', 'in'], ['IN1+', 'in'], ['V−', 'pwr'], ['IN2+', 'in'], ['IN2−', 'in'], ['OUT2', 'out'], ['V+', 'pwr']],
+    units: [{ k: 'opamp', model: 'NE5532', inp: 'IN1+', inn: 'IN1−', out: 'OUT1', vp: 'V+', vn: 'V−' }, { k: 'opamp', model: 'NE5532', inp: 'IN2+', inn: 'IN2−', out: 'OUT2', vp: 'V+', vn: 'V−' }],
+    specs: PARTS.NE5532.specs },
+  'MCP6002-IC': { cat: 'Op-amps', name: 'MCP6002', desc: 'Dual rail-to-rail low-power op-amp', pkg: 'DIP-8 / SOIC-8', layout: 'dip',
+    pins: [['OUTA', 'out'], ['INA−', 'in'], ['INA+', 'in'], ['VSS', 'gnd'], ['INB+', 'in'], ['INB−', 'in'], ['OUTB', 'out'], ['VDD', 'pwr']],
+    units: [{ k: 'opamp', model: 'MCP6002', inp: 'INA+', inn: 'INA−', out: 'OUTA', vp: 'VDD', vn: 'VSS' }, { k: 'opamp', model: 'MCP6002', inp: 'INB+', inn: 'INB−', out: 'OUTB', vp: 'VDD', vn: 'VSS' }],
+    specs: PARTS.MCP6002.specs },
+  'TL074-IC': { cat: 'Op-amps', name: 'TL074', desc: 'Quad JFET-input op-amp (LM324 same pinout)', pkg: 'DIP-14', layout: 'dip',
+    pins: [['OUT1', 'out'], ['IN1−', 'in'], ['IN1+', 'in'], ['V+', 'pwr'], ['IN2+', 'in'], ['IN2−', 'in'], ['OUT2', 'out'], ['OUT3', 'out'], ['IN3−', 'in'], ['IN3+', 'in'], ['V−', 'pwr'], ['IN4+', 'in'], ['IN4−', 'in'], ['OUT4', 'out']],
+    units: [1, 2, 3, 4].map((i) => ({ k: 'opamp', model: 'TL072', inp: `IN${i}+`, inn: `IN${i}−`, out: `OUT${i}`, vp: 'V+', vn: 'V−' })),
+    specs: [['Supply', '±3.5 … ±18 V'], ['GBW', '3 MHz'], ['Slew rate', '13 V/µs'], ['Note', 'V+ is pin 4, V− pin 11']] },
+  'LM393-IC': { cat: 'Op-amps', name: 'LM393', desc: 'Dual open-collector comparator', pkg: 'DIP-8', layout: 'dip',
+    pins: [['OUT1', 'out'], ['IN1−', 'in'], ['IN1+', 'in'], ['GND', 'gnd'], ['IN2+', 'in'], ['IN2−', 'in'], ['OUT2', 'out'], ['VCC', 'pwr']],
+    units: [{ k: 'cmp', inp: 'IN1+', inn: 'IN1−', out: 'OUT1', vp: 'VCC', vn: 'GND' }, { k: 'cmp', inp: 'IN2+', inn: 'IN2−', out: 'OUT2', vp: 'VCC', vn: 'GND' }],
+    specs: [['Supply', '2–36 V'], ['Output', 'open collector — needs pull-up'], ['Sink', '16 mA typ'], ['Response', '1.3 µs'], ['Input CM', '0 to VCC−1.5 V']] },
+  'NE555': { cat: 'ICs', desc: 'Timer (astable / monostable) — pinout reference, no DC model', pkg: 'DIP-8', layout: 'dip',
+    pins: [['GND', 'gnd'], ['TRIG', 'in'], ['OUT', 'out'], ['RESET', 'in'], ['CTRL', 'io'], ['THRES', 'in'], ['DISCH', 'io'], ['VCC', 'pwr']],
+    units: [],
+    specs: [['Supply', '4.5–16 V'], ['Output', '200 mA source/sink'], ['Astable f', '1.44 / ((R1 + 2·R2)·C)'], ['Duty', '(R1+R2)/(R1+2R2)'], ['Monostable t', '1.1·R·C']], notes: 'Tie RESET (4) to VCC if unused; 10 nF from CTRL (5) to GND.' },
+  'PC817': { cat: 'ICs', desc: 'Optocoupler, phototransistor output', pkg: 'DIP-4', layout: 'dip',
+    pins: [['A', 'in'], ['K', 'in'], ['E', 'io'], ['C', 'io']],
+    units: [{ k: 'opto', a: 'A', kk: 'K', e: 'E', c: 'C', ctr: 1.0 }],
+    specs: [['CTR', '50–600 % (rank A–D)'], ['IF max', '50 mA'], ['VF', '1.2 V @ 20 mA'], ['VCEO', '35 V'], ['Isolation', '5 kVrms']] },
+  // ---------- MCU boards (header layout: left/right lists top→bottom, USB at top) ----------
+  'ESP32-S3 SuperMini': { cat: 'MCU boards', desc: 'ESP32-S3 SuperMini (ESP32-S3FH4R2) — 3.3 V logic', pkg: '2 × 9 header, USB-C top', layout: 'header',
+    left: ['IO43/TX', 'IO44/RX', 'IO1', 'IO2', 'IO3', 'IO4', 'IO5', 'IO6', 'IO7'],
+    right: ['5V', 'GND', '3V3', 'IO13', 'IO12', 'IO11', 'IO10', 'IO9', 'IO8'],
+    units: [{ k: 'mcu', vlogic: 3.3, v5: '5V', v3: '3V3', gnd: 'GND', drop: 0.25, ilim: 0.5, load: 0.05 }],
+    specs: [['MCU', 'ESP32-S3, dual-core LX7 240 MHz'], ['Memory', '4 MB flash, 2 MB PSRAM'], ['Radio', 'Wi-Fi 2.4 GHz + BLE 5'], ['Logic', '3.3 V — NOT 5 V tolerant'], ['GPIO current', '≤ 20 mA rec. (40 mA max)'], ['5V pin', 'USB 5 V in/out → onboard LDO → 3V3 (~500 mA)'], ['ADC', 'ADC1: IO1–IO10; ADC2: IO11–IO20 (not with Wi-Fi)'], ['Strapping', 'IO0 (BOOT btn), IO3, IO45, IO46'], ['USB', 'native USB on IO19/IO20'], ['LED', 'RGB WS2812 on IO48']],
+    notes: 'Pin order shown with USB-C at the top, components facing you. Header layouts vary between vendors — verify against your board silkscreen.' },
+  'ESP32-S3-DevKitC-1': { cat: 'MCU boards', desc: 'Espressif ESP32-S3-DevKitC-1 (WROOM-1) — 3.3 V logic', pkg: '2 × 22 header', layout: 'header',
+    left: ['3V3', '3V3', 'RST', 'IO4', 'IO5', 'IO6', 'IO7', 'IO15', 'IO16', 'IO17', 'IO18', 'IO8', 'IO3', 'IO46', 'IO9', 'IO10', 'IO11', 'IO12', 'IO13', 'IO14', '5V', 'GND'],
+    right: ['GND', 'IO43/TX', 'IO44/RX', 'IO1', 'IO2', 'IO42', 'IO41', 'IO40', 'IO39', 'IO38', 'IO37', 'IO36', 'IO35', 'IO0', 'IO45', 'IO48', 'IO47', 'IO21', 'IO20', 'IO19', 'GND', 'GND'],
+    units: [{ k: 'mcu', vlogic: 3.3, v5: '5V', v3: '3V3', gnd: 'GND', drop: 0.3, ilim: 0.8, load: 0.06 }],
+    specs: [['MCU', 'ESP32-S3 dual-core 240 MHz'], ['Logic', '3.3 V'], ['5V', 'from USB; LDO → 3V3'], ['Note', 'IO35–37 used by octal PSRAM on N8R8/N16R8'], ['RGB LED', 'IO48 (v1.0) / IO38 (v1.1)'], ['USB', 'IO19/IO20 native USB']],
+    notes: 'J1 on the left, J3 on the right (USB ports at the bottom). Verify with your board revision.' },
+  'ESP32 DevKit V1 (30p)': { cat: 'MCU boards', desc: 'ESP32-WROOM-32 DevKit V1, 30-pin — 3.3 V logic', pkg: '2 × 15 header', layout: 'header',
+    left: ['EN', 'IO36/VP', 'IO39/VN', 'IO34', 'IO35', 'IO32', 'IO33', 'IO25', 'IO26', 'IO27', 'IO14', 'IO12', 'IO13', 'GND', 'VIN'],
+    right: ['IO23', 'IO22', 'IO1/TX', 'IO3/RX', 'IO21', 'IO19', 'IO18', 'IO5', 'IO17', 'IO16', 'IO4', 'IO2', 'IO15', 'GND', '3V3'],
+    inputOnly: [34, 35, 36, 39],
+    units: [{ k: 'mcu', vlogic: 3.3, v5: 'VIN', v3: '3V3', gnd: 'GND', drop: 1.1, ilim: 0.8, load: 0.08 }],
+    specs: [['MCU', 'ESP32 dual-core 240 MHz'], ['Logic', '3.3 V'], ['VIN', '5 V (USB) → AMS1117-3.3'], ['Input-only', 'IO34, 35, 36 (VP), 39 (VN) — no pull-ups'], ['ADC2', 'unusable while Wi-Fi on'], ['Strapping', 'IO0, IO2, IO5, IO12, IO15'], ['LED', 'IO2 (blue)']],
+    notes: 'Antenna at the top. IO12 must be LOW at boot (flash voltage strap).' },
+  'ESP32-C3 SuperMini': { cat: 'MCU boards', desc: 'ESP32-C3 SuperMini — RISC-V, 3.3 V logic', pkg: '2 × 8 header, USB-C top', layout: 'header',
+    left: ['IO5', 'IO6', 'IO7', 'IO8', 'IO9', 'IO10', 'IO20/RX', 'IO21/TX'],
+    right: ['5V', 'GND', '3V3', 'IO4', 'IO3', 'IO2', 'IO1', 'IO0'],
+    units: [{ k: 'mcu', vlogic: 3.3, v5: '5V', v3: '3V3', gnd: 'GND', drop: 0.25, ilim: 0.5, load: 0.04 }],
+    specs: [['MCU', 'ESP32-C3 RISC-V 160 MHz'], ['Logic', '3.3 V'], ['ADC', 'IO0–IO4'], ['Strapping', 'IO2, IO8, IO9'], ['LED', 'blue on IO8'], ['BOOT', 'IO9']],
+    notes: 'Verify against your board silkscreen.' },
+  'Arduino Nano': { cat: 'MCU boards', desc: 'Arduino Nano (ATmega328P) — 5 V logic', pkg: '2 × 15 header', layout: 'header',
+    left: ['D1/TX', 'D0/RX', 'RST', 'GND', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9', 'D10', 'D11', 'D12'],
+    right: ['VIN', 'GND', 'RST', '5V', 'A7', 'A6', 'A5', 'A4', 'A3', 'A2', 'A1', 'A0', 'AREF', '3V3', 'D13'],
+    units: [{ k: 'mcu', vlogic: 5, v5: 'VIN', v3: '5V', gnd: 'GND', vreg: 5, drop: 1.2, ilim: 0.5, load: 0.02 }],
+    specs: [['MCU', 'ATmega328P 16 MHz'], ['Logic', '5 V'], ['VIN', '7–12 V'], ['IO current', '20 mA rec., 40 mA abs max'], ['PWM', 'D3, D5, D6, D9, D10, D11'], ['I²C', 'A4 SDA, A5 SCL'], ['SPI', 'D10–D13'], ['A6/A7', 'analog input only']] },
+  'Generic IC': { cat: 'ICs', desc: 'Generic IC — edit pin names in properties', pkg: 'DIP', layout: 'dip', generic: true,
+    pins: [['P1', 'io'], ['P2', 'io'], ['P3', 'io'], ['P4', 'io'], ['P5', 'io'], ['P6', 'io'], ['P7', 'io'], ['P8', 'io']], units: [], specs: [] },
+};
+
+// ---------- geometry for IC blocks ----------
+const icCache = new Map();
+function pinFn(name, fnGiven) {
+  if (fnGiven) return fnGiven;
+  if (/^GND$/i.test(name)) return 'gnd';
+  if (/^(5V|3V3|VIN|VCC|VDD)$/i.test(name)) return 'pwr';
+  if (/^(EN|RST|AREF)$/i.test(name)) return 'ctl';
+  if (/^(IO|D|A)\d+/.test(name)) return 'io';
+  return 'io';
+}
+function icPartDef(c) {
+  const id = c.props.part;
+  let d = ICS[id] || ICS['Generic IC'];
+  if (d.generic) {
+    const names = String(c.props.pinNames || '').split(',').map((s) => s.trim()).filter(Boolean);
+    const count = Math.max(2, Math.min(64, Math.round(num(c.props.pinCount, names.length || 8)) & ~1));
+    const pins = [];
+    for (let i = 0; i < count; i++) pins.push([names[i] || 'P' + (i + 1), 'io']);
+    d = { ...d, pins, name: c.props.title || 'IC' };
+  }
+  return d;
+}
+export function icGeom(c) {
+  const d = icPartDef(c);
+  const key = (c.props.part || '') + '|' + (d.generic ? c.props.pinNames + c.props.pinCount + c.props.title : '');
+  if (icCache.has(key)) return icCache.get(key);
+  let pins = [], left = [], right = [];
+  if (d.layout === 'header') {
+    d.left.forEach((n, i) => { pins.push({ name: n, num: String(i + 1), fn: pinFn(n) }); left.push(pins.length - 1); });
+    d.right.forEach((n, i) => { pins.push({ name: n, num: String(d.left.length + i + 1), fn: pinFn(n) }); right.push(pins.length - 1); });
+  } else {
+    d.pins.forEach(([n, fn], i) => pins.push({ name: n, num: String(i + 1), fn }));
+    const h = pins.length / 2;
+    for (let i = 0; i < h; i++) left.push(i);
+    for (let i = pins.length - 1; i >= h; i--) right.push(i);
+  }
+  const rows = Math.max(left.length, right.length);
+  const maxL = Math.max(0, ...left.map((i) => pins[i].name.length));
+  const maxR = Math.max(0, ...right.map((i) => pins[i].name.length));
+  const title = d.name || c.props.part;
+  const halfW = Math.max(30, Math.ceil(Math.max((maxL + maxR) * 6.2 + 26, title.length * 7 + 10) / 2 / 10) * 10);
+  const y0 = -((rows - 1) / 2) * 20;
+  left.forEach((pi, r) => Object.assign(pins[pi], { x: -halfW - 20, y: y0 + r * 20, side: 'L' }));
+  right.forEach((pi, r) => Object.assign(pins[pi], { x: halfW + 20, y: y0 + r * 20, side: 'R' }));
+  const top = y0 - 32, bot = -y0 + 16;
+  // bridges: same-name pins (except NC) are internally connected
+  const groups = new Map();
+  pins.forEach((p, i) => { if (p.fn !== 'nc' && !/^NC$/i.test(p.name)) { const k = p.name.toUpperCase(); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); } });
+  const bridges = [...groups.values()].filter((g) => g.length > 1);
+  const g = { pins, halfW, top, bot, bridges, def: d, title, bbox: { x: -halfW - 20, y: top - 4, w: 2 * halfW + 40, h: bot - top + 8 } };
+  icCache.set(key, g);
+  return g;
+}
+
+// ---------- shared model builders ----------
+const gainOf = (S) => (S.hom >= 1 ? 1e5 : Math.pow(10, 1 + 4 * S.hom));
+export const OPAMP_A = 1e5;
+const widthOf = (S, w) => (S.hom >= 1 ? w : w * (1 + 60 * (1 - S.hom)));
+function opampFn(m, rails, A = 1e5) {
+  // m: part params. rails: null → supply pins in v[3], v[4]; else [vpos, vneg] fixed
+  const iq = m.iq || 0, ilim = m.ilim || 0.04, rout = 1;
+  return (v) => {
+    const vp = rails ? rails[0] : v[3], vn = rails ? rails[1] : v[4];
+    const lo = vn + m.hr[0], hi = vp - m.hr[1];
+    const mid = (lo + hi) / 2, half = Math.max((hi - lo) / 2, 1e-3);
+    const vt = mid + half * Math.tanh((A * (v[0] - v[1]) - mid) / half);
+    const s = (vt - v[2]) / rout; // linear output stage (current limit reported as a warning)
+    if (rails) return [v[0] * 1e-12, v[1] * 1e-12, -s];
+    const sp = fromRail(s, vp, v[2]);
+    const iqI = iq * Math.tanh(Math.max(vp - vn, 0) / 2);
+    return [v[0] * 1e-12, v[1] * 1e-12, -s, sp + iqI, s - sp - iqI];
+  };
+}
+function opampAC(gbw) {
+  const A = 1e5, wp = (2 * Math.PI * gbw) / A;
+  return (w) => { const r = w / wp, d = 1 + r * r; const f = [1 / d, -r / d]; return [f, f]; };
+}
+
+// ---------- Type definitions ----------
+const opt = (key, label, def, extra = {}) => ({ key, label, default: def, ...extra });
+
+export const TYPES = {
+  resistor: {
+    name: 'Resistor', prefix: 'R', cat: 'Passive',
+    pins: [{ x: -30, y: 0, name: '1' }, { x: 30, y: 0, name: '2' }],
+    bbox: { x: -30, y: -9, w: 60, h: 18 },
+    props: [opt('value', 'Resistance', '10k', { unit: 'Ω', eng: true, estep: true }), opt('power', 'Power rating', '0.25', { unit: 'W', eng: true })],
+    draw: () => ({ s: P('M-30,0H-21L-18,-7L-12,7L-6,-7L0,7L6,-7L12,7L18,-7L21,0H30') }),
+    label: (c) => short(num(c.props.value, 0), 'Ω'),
+    stamp: (S, n, c) => S.R(n[0], n[1], Math.max(num(c.props.value, 1e3), 1e-6)),
+  },
+  pot: {
+    name: 'Potentiometer', prefix: 'RV', cat: 'Passive',
+    pins: [{ x: -30, y: 0, name: '1' }, { x: 30, y: 0, name: '3' }, { x: 0, y: -30, name: 'W' }],
+    bbox: { x: -30, y: -30, w: 60, h: 39 },
+    props: [opt('value', 'Total resistance', '10k', { unit: 'Ω', eng: true, estep: true }), opt('pos', 'Wiper position', 0.5, { slider: [0, 1, 0.01] })],
+    draw: () => ({ s: P('M-30,0H-21L-18,-7L-12,7L-6,-7L0,7L6,-7L12,7L18,-7L21,0H30') + P('M0,-30V-11') + P('M0,-9L-4,-16H4Z', 'f') }),
+    label: (c) => short(num(c.props.value, 0), 'Ω') + ' @' + Math.round(num(c.props.pos, 0.5) * 100) + '%',
+    stamp: (S, n, c) => {
+      const R = num(c.props.value, 1e4), p = Math.min(1, Math.max(0, num(c.props.pos, 0.5)));
+      S.R(n[0], n[2], Math.max(R * p, 0.01)); S.R(n[2], n[1], Math.max(R * (1 - p), 0.01));
+    },
+  },
+  capacitor: {
+    name: 'Capacitor', prefix: 'C', cat: 'Passive',
+    pins: [{ x: -30, y: 0, name: '1' }, { x: 30, y: 0, name: '2' }],
+    bbox: { x: -30, y: -13, w: 60, h: 26 },
+    props: [opt('value', 'Capacitance', '100n', { unit: 'F', eng: true, estep: true }), opt('vmax', 'Voltage rating', '50', { unit: 'V', eng: true })],
+    draw: () => ({ s: P('M-30,0H-4M-4,-12V12M4,-12V12M4,0H30') }),
+    label: (c) => short(num(c.props.value, 0), 'F'),
+    stamp: (S, n, c) => S.C(n[0], n[1], num(c.props.value, 1e-7)),
+  },
+  cap_pol: {
+    name: 'Electrolytic cap', prefix: 'C', cat: 'Passive',
+    pins: [{ x: -30, y: 0, name: '+' }, { x: 30, y: 0, name: '−' }],
+    bbox: { x: -30, y: -13, w: 60, h: 26 },
+    props: [opt('value', 'Capacitance', '10u', { unit: 'F', eng: true, estep: true }), opt('vmax', 'Voltage rating', '25', { unit: 'V', eng: true })],
+    draw: () => ({ s: P('M-30,0H-4M-4,-12V12M8,-12Q2,0 8,12M5,0H30'), t: [T(-13, -8, '+', 'tp')] }),
+    label: (c) => short(num(c.props.value, 0), 'F'),
+    stamp: (S, n, c) => S.C(n[0], n[1], num(c.props.value, 1e-5)),
+  },
+  inductor: {
+    name: 'Inductor', prefix: 'L', cat: 'Passive',
+    pins: [{ x: -30, y: 0, name: '1' }, { x: 30, y: 0, name: '2' }],
+    bbox: { x: -30, y: -8, w: 60, h: 12 },
+    props: [opt('value', 'Inductance', '10m', { unit: 'H', eng: true, estep: true }), opt('dcr', 'DC resistance', '0.1', { unit: 'Ω', eng: true })],
+    draw: () => ({ s: P('M-30,0H-20a5,5 0 0 1 10,0a5,5 0 0 1 10,0a5,5 0 0 1 10,0a5,5 0 0 1 10,0H30') }),
+    label: (c) => short(num(c.props.value, 0), 'H'),
+    stamp: (S, n, c) => S.L(n[0], n[1], num(c.props.value, 1e-2), num(c.props.dcr, 0.1)),
+  },
+  fuse: {
+    name: 'Fuse', prefix: 'F', cat: 'Passive',
+    pins: [{ x: -30, y: 0, name: '1' }, { x: 30, y: 0, name: '2' }],
+    bbox: { x: -30, y: -7, w: 60, h: 14 },
+    props: [opt('rating', 'Rating', '1', { unit: 'A', eng: true }), opt('blown', 'Blown', false, { bool: true })],
+    draw: (c) => ({ s: P('M-30,0H-15M15,0H30') + `<rect class="s" x="-15" y="-6" width="30" height="12" rx="2"/>` + (c.props.blown ? P('M-15,0H-4M4,0H15M-3,-4L3,4') : P('M-15,0H15')) }),
+    label: (c) => short(num(c.props.rating, 1), 'A') + (c.props.blown ? ' ✕' : ''),
+    stamp: (S, n, c) => { if (!c.props.blown) S.R(n[0], n[1], 0.05); },
+  },
+  switch: {
+    name: 'Switch (SPST)', prefix: 'SW', cat: 'Passive', toggle: 'closed',
+    pins: [{ x: -30, y: 0, name: '1' }, { x: 30, y: 0, name: '2' }],
+    bbox: { x: -30, y: -14, w: 60, h: 18 },
+    props: [opt('closed', 'Closed', false, { bool: true })],
+    draw: (c) => ({ s: P('M-30,0H-13M13,0H30') + `<circle class="s" cx="-11" cy="0" r="2.5"/><circle class="s" cx="11" cy="0" r="2.5"/>` + (c.props.closed ? P('M-9,-1L10,-3') : P('M-9,-1L9,-13')) }),
+    label: (c) => (c.props.closed ? 'closed' : 'open'),
+    stamp: (S, n, c) => { if (c.props.closed) S.R(n[0], n[1], 0.01); },
+  },
+  button: {
+    name: 'Push button', prefix: 'SW', cat: 'Passive', toggle: 'pressed',
+    pins: [{ x: -30, y: 0, name: '1' }, { x: 30, y: 0, name: '2' }],
+    bbox: { x: -30, y: -18, w: 60, h: 22 },
+    props: [opt('pressed', 'Pressed', false, { bool: true })],
+    draw: (c) => { const y = c.props.pressed ? -3 : -9; return { s: P('M-30,0H-13M13,0H30') + `<circle class="s" cx="-11" cy="0" r="2.5"/><circle class="s" cx="11" cy="0" r="2.5"/>` + P(`M-14,${y}H14M0,${y}V${y - 8}M-6,${y - 8}H6`) }; },
+    label: (c) => (c.props.pressed ? 'pressed' : ''),
+    stamp: (S, n, c) => { if (c.props.pressed) S.R(n[0], n[1], 0.01); },
+  },
+  spdt: {
+    name: 'Switch (SPDT)', prefix: 'SW', cat: 'Passive', toggle: 'pos',
+    pins: [{ x: -30, y: 0, name: 'COM' }, { x: 30, y: -10, name: 'A' }, { x: 30, y: 10, name: 'B' }],
+    bbox: { x: -30, y: -14, w: 60, h: 28 },
+    props: [opt('pos', 'Position B', false, { bool: true })],
+    draw: (c) => ({ s: P('M-30,0H-13M13,-10H30M13,10H30') + `<circle class="s" cx="-11" cy="0" r="2.5"/><circle class="s" cx="11" cy="-10" r="2.5"/><circle class="s" cx="11" cy="10" r="2.5"/>` + (c.props.pos ? P('M-9,1L9,9') : P('M-9,-1L9,-9')) }),
+    label: (c) => (c.props.pos ? '→B' : '→A'),
+    stamp: (S, n, c) => S.R(n[0], c.props.pos ? n[2] : n[1], 0.01),
+  },
+  // ----- sources -----
+  ground: {
+    name: 'Ground', prefix: 'GND', cat: 'Sources', noRef: true,
+    pins: [{ x: 0, y: 0, name: 'GND' }],
+    bbox: { x: -11, y: 0, w: 22, h: 18 },
+    props: [],
+    draw: () => ({ s: P('M0,0V8M-11,8H11M-7,12.5H7M-3,17H3') }),
+  },
+  rail: {
+    name: 'Power rail', prefix: 'VCC', cat: 'Sources', noRef: true,
+    pins: [{ x: 0, y: 0, name: '+' }],
+    bbox: { x: -14, y: -26, w: 28, h: 26 },
+    props: [opt('volts', 'Voltage', '5', { unit: 'V', eng: true }), opt('name', 'Net name', '+5V')],
+    draw: (c) => ({ s: P('M0,0V-12M-9,-12H9'), t: [T(0, -17, c.props.name || '', 'tl')] }),
+    stamp: (S, n, c, e) => {
+      // rails with the same net only stamped once
+      const key = '__rail' + n[0];
+      if (S[key] != null) return;
+      S[key] = 1;
+      S.V(n[0], 0, num(c.props.volts, 5));
+    },
+  },
+  netlabel: {
+    name: 'Net label', prefix: 'NET', cat: 'Sources', noRef: true,
+    pins: [{ x: 0, y: 0, name: '•' }],
+    bbox: { x: 0, y: -8, w: 60, h: 16 },
+    props: [opt('name', 'Name', 'SIG')],
+    draw: (c) => { const w = Math.max(20, String(c.props.name || '').length * 7 + 8); return { s: `<path class="s lbl" d="M0,0H5L11,-7H${11 + w}V7H11L5,0"/>`, t: [T(11 + w / 2, 0, c.props.name || '', 'tl')] }; },
+  },
+  vdc: {
+    name: 'DC source / battery', prefix: 'V', cat: 'Sources',
+    pins: [{ x: 0, y: -30, name: '+' }, { x: 0, y: 30, name: '−' }],
+    bbox: { x: -13, y: -30, w: 26, h: 60 },
+    props: [opt('volts', 'Voltage', '12', { unit: 'V', eng: true }), opt('rint', 'Internal resistance', '0', { unit: 'Ω', eng: true })],
+    draw: () => ({ s: P('M0,-30V-4M-13,-4H13M-6,4H6M0,4V30') + `<path class="s thick" d="M-6,4H6"/>`, t: [T(11, -13, '+', 'tp')] }),
+    label: (c) => short(num(c.props.volts, 0), 'V'),
+    stamp: (S, n, c) => S.V(n[0], n[1], num(c.props.volts, 12), { rint: num(c.props.rint, 0) }),
+  },
+  vac: {
+    name: 'Signal generator', prefix: 'VS', cat: 'Sources',
+    pins: [{ x: 0, y: -30, name: '+' }, { x: 0, y: 30, name: '−' }],
+    bbox: { x: -16, y: -30, w: 32, h: 60 },
+    props: [opt('amp', 'AC amplitude', '1', { unit: 'V', eng: true }), opt('freq', 'Frequency', '1k', { unit: 'Hz', eng: true }), opt('offset', 'DC offset', '0', { unit: 'V', eng: true })],
+    draw: () => ({ s: `<circle class="s" cx="0" cy="0" r="16"/>` + P('M0,-30V-16M0,16V30M-9,0Q-4.5,-12 0,0T9,0'), t: [T(11, -21, '+', 'tp')] }),
+    label: (c) => short(num(c.props.amp, 1), 'V') + ' ' + short(num(c.props.freq, 1e3), 'Hz'),
+    stamp: (S, n, c) => S.V(n[0], n[1], num(c.props.offset, 0)),
+  },
+  idc: {
+    name: 'Current source', prefix: 'I', cat: 'Sources',
+    pins: [{ x: 0, y: -30, name: 'out' }, { x: 0, y: 30, name: 'in' }],
+    bbox: { x: -16, y: -30, w: 32, h: 60 },
+    props: [opt('amps', 'Current', '10m', { unit: 'A', eng: true })],
+    draw: () => ({ s: `<circle class="s" cx="0" cy="0" r="16"/>` + P('M0,-30V-16M0,16V30M0,9V-8M-4,-3L0,-9L4,-3') }),
+    label: (c) => short(num(c.props.amps, 0), 'A'),
+    stamp: (S, n, c) => S.Isrc(n[1], n[0], num(c.props.amps, 0.01)),
+  },
+  // ----- semiconductors -----
+  diode: {
+    name: 'Diode', prefix: 'D', cat: 'Diodes', nonlinear: true, partsOf: 'diode',
+    pins: [{ x: -30, y: 0, name: 'A' }, { x: 30, y: 0, name: 'K' }],
+    bbox: { x: -30, y: -10, w: 60, h: 20 },
+    props: [opt('part', 'Part', '1N4148', { parts: 'diode' })],
+    draw: () => ({ s: P('M-30,0H-8M8,0H30') + P('M-8,-9L8,0L-8,9Z', 'f') + P('M8,-9V9') }),
+    label: (c) => c.props.part,
+    stamp: (S, n, c) => { const m = PARTS[c.props.part] || PARTS['1N4148']; S.nl([n[0], n[1]], (v) => { const i = diodeI(v[0] - v[1], m.Is, m.n); return [i, -i]; }); },
+  },
+  schottky: {
+    name: 'Schottky diode', prefix: 'D', cat: 'Diodes', nonlinear: true, partsOf: 'schottky',
+    pins: [{ x: -30, y: 0, name: 'A' }, { x: 30, y: 0, name: 'K' }],
+    bbox: { x: -30, y: -10, w: 60, h: 20 },
+    props: [opt('part', 'Part', '1N5819', { parts: 'schottky' })],
+    draw: () => ({ s: P('M-30,0H-8M8,0H30') + P('M-8,-9L8,0L-8,9Z', 'f') + P('M12,-6V-9H8V9H4V6') }),
+    label: (c) => c.props.part,
+    stamp: (S, n, c) => { const m = PARTS[c.props.part] || PARTS['1N5819']; S.nl([n[0], n[1]], (v) => { const i = diodeI(v[0] - v[1], m.Is, m.n); return [i, -i]; }); },
+  },
+  zener: {
+    name: 'Zener diode', prefix: 'D', cat: 'Diodes', nonlinear: true, partsOf: 'zener',
+    pins: [{ x: -30, y: 0, name: 'A' }, { x: 30, y: 0, name: 'K' }],
+    bbox: { x: -30, y: -11, w: 60, h: 22 },
+    props: [opt('part', 'Part', '1N4733A', { parts: 'zener', fill: { vz: 'vz' } }), opt('vz', 'Zener voltage', '5.1', { unit: 'V', eng: true })],
+    draw: () => ({ s: P('M-30,0H-8M8,0H30') + P('M-8,-9L8,0L-8,9Z', 'f') + P('M4,-11L8,-9V9L12,11') }),
+    label: (c) => short(num(c.props.vz, 5.1), 'V') + ' Z',
+    stamp: (S, n, c) => { const bv = num(c.props.vz, 5.1); S.nl([n[0], n[1]], (v) => { const i = diodeI(v[0] - v[1], 1e-12, 1.5, bv); return [i, -i]; }); },
+  },
+  led: {
+    name: 'LED', prefix: 'D', cat: 'Diodes', nonlinear: true,
+    pins: [{ x: -30, y: 0, name: 'A' }, { x: 30, y: 0, name: 'K' }],
+    bbox: { x: -30, y: -20, w: 60, h: 30 },
+    props: [opt('color', 'Color', 'red', { options: ['red', 'yellow', 'green', 'blue', 'white'] }), opt('imax', 'Max current', '20m', { unit: 'A', eng: true })],
+    draw: (c) => ({ s: P('M-30,0H-8M8,0H30') + `<path class="led-${c.props.color}" d="M-8,-9L8,0L-8,9Z"/>` + P('M8,-9V9') + P('M0,-11L6,-18M5,-11L11,-18') + P('M6,-18l-4,1l3,3ZM11,-18l-4,1l3,3Z', 'f') }),
+    label: (c) => c.props.color,
+    vf: { red: 1.8, yellow: 2.0, green: 2.2, blue: 3.0, white: 3.0 },
+    stamp: (S, n, c) => {
+      const vf = TYPES.led.vf[c.props.color] || 2; const Is = 0.01 / Math.exp(vf / (2 * VT));
+      S.nl([n[0], n[1]], (v) => { const i = diodeI(v[0] - v[1], Is, 2); return [i, -i]; });
+    },
+  },
+  npn: {
+    name: 'NPN transistor', prefix: 'Q', cat: 'Transistors', nonlinear: true,
+    pins: [{ x: -30, y: 0, name: 'B' }, { x: 10, y: -30, name: 'C' }, { x: 10, y: 30, name: 'E' }],
+    bbox: { x: -30, y: -30, w: 52, h: 60 },
+    props: [opt('part', 'Part', '2N2222A', { parts: 'npn', fill: { beta: 'beta' } }), opt('beta', 'hFE (β)', '150', { eng: true })],
+    draw: () => ({ s: `<circle class="s thin" cx="2" cy="0" r="18"/>` + P('M-30,0H-6M-6,-5L10,-16V-30M-6,5L10,16V30') + `<path class="s thick" d="M-6,-12V12"/>` + P('M7.6,14.35L0.96,13.42L4.36,8.48Z', 'f') }),
+    label: (c) => c.props.part,
+    stamp: (S, n, c) => bjtStamp(S, n, c, 1),
+  },
+  pnp: {
+    name: 'PNP transistor', prefix: 'Q', cat: 'Transistors', nonlinear: true,
+    pins: [{ x: -30, y: 0, name: 'B' }, { x: 10, y: 30, name: 'C' }, { x: 10, y: -30, name: 'E' }],
+    bbox: { x: -30, y: -30, w: 52, h: 60 },
+    props: [opt('part', 'Part', '2N3906', { parts: 'pnp', fill: { beta: 'beta' } }), opt('beta', 'hFE (β)', '150', { eng: true })],
+    draw: () => ({ s: `<circle class="s thin" cx="2" cy="0" r="18"/>` + P('M-30,0H-6M-6,-5L10,-16V-30M-6,5L10,16V30') + `<path class="s thick" d="M-6,-12V12"/>` + P('M0.4,-9.4L3.64,-15.27L7.04,-10.33Z', 'f') }),
+    label: (c) => c.props.part,
+    stamp: (S, n, c) => bjtStamp(S, n, c, -1),
+  },
+  nmos: {
+    name: 'N-channel MOSFET', prefix: 'Q', cat: 'MOSFETs', nonlinear: true,
+    pins: [{ x: -30, y: 0, name: 'G' }, { x: 10, y: -30, name: 'D' }, { x: 10, y: 30, name: 'S' }],
+    bbox: { x: -30, y: -30, w: 52, h: 60 },
+    props: [opt('part', 'Part', 'IRLZ44N', { parts: 'nmos', fill: { vth: 'vth', rds: 'rds' } }), opt('vth', 'VGS(th)', '1.5', { unit: 'V', eng: true }), opt('rds', 'RDS(on)', '0.022', { unit: 'Ω', eng: true })],
+    draw: () => ({ s: `<circle class="s thin" cx="2" cy="0" r="18"/>` + P('M-30,0H-12M-12,-12V12M-6,-14V-6M-6,-4V4M-6,6V14M-6,-10H10V-30M-6,10H10V30M-6,0H10V10') + P('M-5,0L1,-3V3Z', 'f') }),
+    label: (c) => c.props.part,
+    stamp: (S, n, c) => mosStamp(S, n, c, 1),
+  },
+  pmos: {
+    name: 'P-channel MOSFET', prefix: 'Q', cat: 'MOSFETs', nonlinear: true,
+    pins: [{ x: -30, y: 0, name: 'G' }, { x: 10, y: 30, name: 'D' }, { x: 10, y: -30, name: 'S' }],
+    bbox: { x: -30, y: -30, w: 52, h: 60 },
+    props: [opt('part', 'Part', 'AO3401', { parts: 'pmos', fill: { vth: 'vth', rds: 'rds' } }), opt('vth', '|VGS(th)|', '0.9', { unit: 'V', eng: true }), opt('rds', 'RDS(on)', '0.05', { unit: 'Ω', eng: true })],
+    draw: () => ({ s: `<circle class="s thin" cx="2" cy="0" r="18"/>` + P('M-30,0H-12M-12,-12V12M-6,-14V-6M-6,-4V4M-6,6V14M-6,-10H10V-30M-6,10H10V30M-6,0H10V-10') + P('M5,0L-1,-3V3Z', 'f') }),
+    label: (c) => c.props.part,
+    stamp: (S, n, c) => mosStamp(S, n, c, -1),
+  },
+  opamp: {
+    name: 'Op-amp', prefix: 'U', cat: 'Op-amps', nonlinear: true,
+    pins: (c) => {
+      const t = c.props.plusTop !== false;
+      return [{ x: -40, y: t ? -10 : 10, name: '+' }, { x: -40, y: t ? 10 : -10, name: '−' }, { x: 40, y: 0, name: 'OUT' }, { x: 0, y: -30, name: 'V+' }, { x: 0, y: 30, name: 'V−' }];
+    },
+    bbox: { x: -40, y: -30, w: 80, h: 60 },
+    props: [opt('part', 'Model', 'TL072', { parts: 'opamp' }), opt('plusTop', '+ input on top', true, { bool: true }), opt('vpos', 'V+ if unconnected', '15', { unit: 'V', eng: true }), opt('vneg', 'V− if unconnected', '-15', { unit: 'V', eng: true })],
+    draw: (c) => {
+      const t = c.props.plusTop !== false;
+      return { s: P('M-30,-30L-30,30L30,0Z') + P('M-40,-10H-30M-40,10H-30M30,0H40M0,-15V-30M0,15V30'), t: [T(-23, t ? -10 : 10, '+', 'tp'), T(-23, t ? 10 : -10, '−', 'tp')] };
+    },
+    label: (c) => c.props.part,
+    stamp: (S, n, c, e) => {
+      const m = PARTS[c.props.part] || PARTS.TL072;
+      const ac = { acScale: opampAC(m.gbw) };
+      if (e.connected[3] && e.connected[4]) S.nl([n[0], n[1], n[2], n[3], n[4]], opampFn(m, null, gainOf(S)), ac);
+      else S.nl([n[0], n[1], n[2]], opampFn(m, [num(c.props.vpos, 15), num(c.props.vneg, -15)], gainOf(S)), ac);
+    },
+  },
+  reg: {
+    name: 'Voltage regulator', prefix: 'U', cat: 'Regulators', nonlinear: true,
+    pins: (c) => { const m = PARTS[c.props.part] || PARTS['7805']; const nn = m.nums || ['1', '3', '2']; return [{ x: -50, y: 0, name: 'IN', num: nn[0] }, { x: 50, y: 0, name: 'OUT', num: nn[1] }, { x: 0, y: 40, name: m.adj ? 'ADJ' : 'GND', num: nn[2] }]; },
+    bbox: { x: -50, y: -20, w: 100, h: 60 },
+    props: [opt('part', 'Part', '7805', { parts: 'reg' })],
+    draw: (c) => {
+      const m = PARTS[c.props.part] || PARTS['7805'];
+      return { s: `<rect class="s body" x="-36" y="-20" width="72" height="40" rx="3"/>` + P('M-50,0H-36M36,0H50M0,20V40'), t: [T(0, -6, c.props.part, 'tic'), T(-31, 9, 'IN', 'tpin', 'start'), T(31, 9, 'OUT', 'tpin', 'end'), T(0, 15, m.adj ? 'ADJ' : 'GND', 'tpin')] };
+    },
+    label: () => '',
+    stamp: (S, n, c) => {
+      const m = PARTS[c.props.part] || PARTS['7805'];
+      S.nl([n[0], n[1], n[2]], (v) => {
+        const [vi, vo, vg] = v;
+        let vt;
+        if (m.adj) vt = smin(vg + 1.25, vi - m.drop);
+        else vt = vg + spos(smin(m.vout, vi - vg - m.drop), 0.02);
+        const s = drive(vo, vt, 0.05, m.ilim), sp = fromRail(s, vi, vo);
+        const iq = m.adj ? 0 : m.iq * Math.tanh(spos(vi - vg, 0.01) / 3);
+        const iadj = m.adj ? 50e-6 * Math.tanh(spos(vi - vg, 0.01)) : 0;
+        return [sp + iq + iadj, -s, s - sp - iq - iadj];
+      });
+    },
+  },
+  ic: {
+    name: 'IC / module', prefix: 'U', cat: 'ICs', nonlinear: true,
+    pins: (c) => icGeom(c).pins,
+    bbox: (c) => icGeom(c).bbox,
+    props: [opt('part', 'Part', 'TC4420', { parts: 'ic' })],
+    draw: (c) => drawIC(c),
+    label: () => '',
+    stamp: (S, n, c, e) => icStamp(S, n, c, e),
+  },
+};
+
+// Generic IC extra props (only for "Generic IC")
+export const GENERIC_IC_PROPS = [opt('title', 'Title', 'IC'), opt('pinCount', 'Pin count', '8', { eng: true }), opt('pinNames', 'Pin names (comma separated)', '')];
+
+function bjtStamp(S, n, c, pol) {
+  const m = PARTS[c.props.part] || (pol > 0 ? PARTS['2N2222A'] : PARTS['2N3906']);
+  const bf = num(c.props.beta, m.beta || 100), br = 2, Is = m.Is || 1e-14, nf = m.nf || 1;
+  const xmax = Math.log(50 / Is);
+  // terminals: [C, B, E] nodes; our pins are [B, C, E]
+  S.nl([n[1], n[0], n[2]], (v) => {
+    const vbe = pol * (v[1] - v[2]), vbc = pol * (v[1] - v[0]);
+    const ef = limexp(vbe / (nf * VT), xmax) - 1, er = limexp(vbc / (nf * VT), xmax) - 1;
+    const ic = Is * (ef - er) - (Is / br) * er;
+    const ib = (Is / bf) * ef + (Is / br) * er;
+    return [pol * ic, pol * ib, -pol * (ic + ib)];
+  });
+}
+function mosStamp(S, n, c, pol) {
+  const m = PARTS[c.props.part] || {};
+  const vth = Math.abs(num(c.props.vth, m.vth ?? 2)), rds = num(c.props.rds, m.rds ?? 0.05);
+  const vgsSpec = m.vgsSpec || 10;
+  const K = 1 / (rds * Math.max(vgsSpec - vth, 0.5));
+  const lam = 0.01, nvt = 0.06;
+  const sp = (x) => { const y = x / (2 * nvt); return y > 30 ? x : 2 * nvt * Math.log1p(Math.exp(y)); };
+  const F = (x) => { const q = sp(x); return q * q; };
+  // pins: [G, D, S]  → nodes [D, G, S]
+  S.nl([n[1], n[0], n[2]], (v) => {
+    const vd = pol * v[0], vg = pol * v[1], vs = pol * v[2];
+    const id = (K / 2) * (F(vg - vs - vth) - F(vg - vd - vth)) * (1 + lam * Math.abs(vd - vs));
+    const body = diodeI(vs - vd, 1e-12, 1.3); // body diode S→D
+    const i = pol * (id - body);
+    return [i, pol * (vg - vs) * 1e-12, -i];
+  });
+}
+
+// ---------- IC models ----------
+function icStamp(S, n, c, e) {
+  const g = icGeom(c);
+  const w5 = widthOf(S, 0.05), w1 = widthOf(S, 1e-3);
+  const d = g.def;
+  const idx = (name) => g.pins.findIndex((p) => p.name === name);
+  const node = (name) => { const i = idx(name); return i < 0 ? 0 : n[i]; };
+  for (const u of d.units || []) {
+    if (u.k === 'opamp') {
+      const m = PARTS[u.model] || PARTS.TL072;
+      S.nl([node(u.inp), node(u.inn), node(u.out), node(u.vp), node(u.vn)], opampFn(m, null, gainOf(S)), { acScale: opampAC(m.gbw) });
+    } else if (u.k === 'cmp') {
+      S.nl([node(u.inp), node(u.inn), node(u.out), node(u.vp), node(u.vn)], (v) => {
+        const on = sig(-(v[0] - v[1]) / w1) * sig((v[3] - v[4] - 1.5) / 0.1);
+        const isink = 0.016 * Math.tanh((v[2] - v[4]) / (50 * 0.016)) * on;
+        const iq = 0.4e-3 * Math.tanh(spos(v[3] - v[4], 0.01) / 2);
+        return [v[0] * 1e-12, v[1] * 1e-12, isink, iq, -isink - iq];
+      });
+    } else if (u.k === 'drv') {
+      S.nl([node(u.in), node(u.out), node(u.vdd), node(u.gnd)], (v) => {
+        const [vin, vo, vdd, vg] = v;
+        let l = sig((vin - vg - u.th) / w5);
+        if (u.inv) l = 1 - l;
+        l *= sig((vdd - vg - u.uvlo) / 0.1);
+        const vt = vg + l * (vdd - vg);
+        const s = drive(vo, vt, u.rout, u.ilim), sp = fromRail(s, vdd, vo);
+        const iq = 0.5e-3 * Math.tanh(spos(vdd - vg, 0.01) / 3);
+        return [vin * 1e-12, -s, sp + iq, s - sp - iq];
+      });
+    } else if (u.k === 'ir2110') {
+      S.nl(['LO', 'COM', 'VCC', 'VS', 'VB', 'HO', 'VDD', 'HIN', 'SD', 'LIN', 'VSS'].map(node), (v) => {
+        const [lo, com, vcc, vs, vb, ho, vdd, hin, sd, lin, vss] = v;
+        const th = Math.max(1, 0.5 * (vdd - vss));
+        const en = 1 - sig((sd - vss - th) / w5);
+        const uvc = sig((vcc - com - 8.6) / 0.1), uvb = sig((vb - vs - 8.6) / 0.1);
+        const lL = sig((lin - vss - th) / w5) * en * uvc;
+        const lH = sig((hin - vss - th) / w5) * en * uvc * uvb;
+        const sL = drive(lo, com + lL * (vcc - com), 6, 2.5), sLp = fromRail(sL, vcc, lo);
+        const sH = drive(ho, vs + lH * (vb - vs), 6, 2.5), sHp = fromRail(sH, vb, ho);
+        const iqc = 0.23e-3 * Math.tanh(spos(vcc - com, 0.01) / 3), iqb = 0.125e-3 * Math.tanh(spos(vb - vs, 0.01) / 3);
+        // [LO, COM, VCC, VS, VB, HO, VDD, HIN, SD, LIN, VSS]
+        return [-sL, sL - sLp - iqc, sLp + iqc, sH - sHp - iqb, sHp + iqb, -sH, 0, hin * 1e-12, sd * 1e-12, lin * 1e-12, 0];
+      });
+    } else if (u.k === 'ir2104') {
+      S.nl(['VCC', 'IN', 'SD̅', 'COM', 'LO', 'VS', 'HO', 'VB'].map(node), (v) => {
+        const [vcc, vin, sd, com, lo, vs, ho, vb] = v;
+        const en = sig((sd - com - 1.6) / w5);
+        const inH = sig((vin - com - 1.6) / w5);
+        const uvc = sig((vcc - com - 8.9) / 0.1), uvb = sig((vb - vs - 8.9) / 0.1);
+        const lH = inH * en * uvc * uvb, lL = (1 - inH) * en * uvc;
+        const sL = drive(lo, com + lL * (vcc - com), 60, 0.27), sLp = fromRail(sL, vcc, lo);
+        const sH = drive(ho, vs + lH * (vb - vs), 60, 0.27), sHp = fromRail(sH, vb, ho);
+        const iqc = 0.15e-3 * Math.tanh(spos(vcc - com, 0.01) / 3), iqb = 0.06e-3 * Math.tanh(spos(vb - vs, 0.01) / 3);
+        return [sLp + iqc, vin * 1e-12, sd * 1e-12, sL - sLp - iqc, -sL, sH - sHp - iqb, -sH, sHp + iqb];
+      });
+    } else if (u.k === 'opto') {
+      S.nl([node(u.a), node(u.kk), node(u.e), node(u.c)], (v) => {
+        const iF = diodeI(v[0] - v[1], 1.25e-13, 1.8);
+        const ic = (u.ctr || 1) * spos(iF, 1e-9) * Math.tanh(spos(v[3] - v[2], 1e-3) / 0.15);
+        return [iF, -iF, -ic, ic];
+      });
+    } else if (u.k === 'mcu') {
+      const i5 = idx(u.v5), i3 = idx(u.v3), ig = idx(u.gnd);
+      const n5 = i5 >= 0 ? n[i5] : 0, n3 = n[i3], ng = n[ig];
+      const vreg = u.vreg || 3.3;
+      // onboard regulator 5V/VIN → 3V3 (or VIN → 5V for Nano)
+      if (i5 >= 0 && e.connected[i5]) {
+        S.nl([n5, n3, ng], (v) => {
+          const vt = v[2] + spos(smin(vreg, v[0] - v[2] - u.drop), 0.02);
+          const s = drive(v[1], vt, 0.05, u.ilim), sp = fromRail(s, v[0], v[1]);
+          return [sp, -s, s - sp];
+        });
+      }
+      S.R(n3, ng, vreg / u.load); // board / MCU current draw
+      const gpio = c.props.gpio || {};
+      g.pins.forEach((p, i) => {
+        if (p.fn !== 'io') return;
+        const mode = gpio[p.name] || 'in';
+        if (mode === 'in_pu') S.R(n[i], n3, 45e3);
+        else if (mode === 'in_pd') S.R(n[i], ng, 45e3);
+        else if (mode === 'high' || mode === 'low' || mode === 'pwm') {
+          const lvl = mode === 'high' ? 1 : mode === 'low' ? 0 : Math.min(1, Math.max(0, num((c.props.duty || {})[p.name], 50) / 100));
+          S.nl([n[i], n3, ng], (v) => {
+            const vt = v[2] + lvl * (v[1] - v[2]);
+            const s = drive(v[0], vt, 35, 0.04), sp = fromRail(s, v[1], v[0]);
+            return [-s, sp, s - sp];
+          });
+        }
+      });
+    }
+  }
+}
+
+function drawIC(c) {
+  const g = icGeom(c);
+  let s = `<rect class="s body" x="${-g.halfW}" y="${g.top}" width="${2 * g.halfW}" height="${g.bot - g.top}" rx="3"/>`;
+  if (g.def.layout === 'dip') s += P(`M-7,${g.top}a7,7 0 0 0 14,0`);
+  else s += `<rect class="s thin" x="-12" y="${g.top - 4}" width="24" height="8" rx="2"/>`;
+  const t = [T(0, g.top + 13, g.title, 'tic')];
+  const gpio = c.props.gpio || {};
+  for (const p of g.pins) {
+    const L = p.side === 'L';
+    const xb = L ? -g.halfW : g.halfW;
+    s += P(`M${p.x},${p.y}H${xb}`, 's pinl');
+    t.push(T(xb + (L ? 4 : -4), p.y, p.name, 'tpin pf-' + p.fn, L ? 'start' : 'end'));
+    t.push(T((p.x + xb) / 2, p.y - 6, p.num, 'tnum'));
+    const mode = gpio[p.name];
+    if (mode && mode !== 'in') {
+      const tag = { high: 'H', low: 'L', pwm: '~', in_pu: '↑', in_pd: '↓' }[mode] || '';
+      t.push(T(xb + (L ? 1 : -1) * (p.name.length * 6 + 11), p.y, tag, 'tgpio g-' + mode));
+    }
+  }
+  return { s, t };
+}
+
+// ---------- public geometry helpers ----------
+export function getDef(c) { return TYPES[c.type]; }
+export function getPins(c) {
+  const d = TYPES[c.type];
+  if (!d) return [];
+  return typeof d.pins === 'function' ? d.pins(c) : d.pins;
+}
+export function getBBox(c) {
+  const d = TYPES[c.type];
+  if (!d) return { x: -10, y: -10, w: 20, h: 20 };
+  if (c.type === 'netlabel') { const w = Math.max(20, String(c.props.name || '').length * 7 + 8); return { x: 0, y: -8, w: 11 + w, h: 16 }; }
+  if (c.type === 'rail') { const w = Math.max(28, String(c.props.name || '').length * 7 + 6); return { x: -w / 2, y: -26, w, h: 26 }; }
+  return typeof d.bbox === 'function' ? d.bbox(c) : d.bbox;
+}
+export function getBridges(c) { return c.type === 'ic' ? icGeom(c).bridges : []; }
+export function drawSymbol(c) { const d = TYPES[c.type]; return d ? d.draw(c) : { s: '' }; }
+export function compLabel(c) { const d = TYPES[c.type]; return d && d.label ? d.label(c) : ''; }
+export function propDefs(c) {
+  const d = TYPES[c.type];
+  if (!d) return [];
+  if (c.type === 'ic' && (ICS[c.props.part] || {}).generic) return [...d.props, ...GENERIC_IC_PROPS];
+  return d.props;
+}
+
+/** Options for a 'parts' dropdown. */
+export function partOptions(kind) {
+  if (kind === 'ic') return Object.keys(ICS);
+  if (kind === 'diode') return Object.keys(PARTS).filter((k) => PARTS[k].type === 'diode');
+  return Object.keys(PARTS).filter((k) => PARTS[k].type === kind);
+}
+
+/** Default props for a new component. */
+export function defaultProps(type, part) {
+  const d = TYPES[type];
+  const p = {};
+  for (const o of d.props) p[o.key] = o.default;
+  if (part) { p.part = part; applyPartFill(type, p); }
+  if (type === 'ic') { p.gpio = {}; p.duty = {}; for (const o of GENERIC_IC_PROPS) p[o.key] = o.default; }
+  return p;
+}
+export function applyPartFill(type, props) {
+  const d = TYPES[type];
+  const po = d.props.find((o) => o.key === 'part');
+  const m = PARTS[props.part];
+  if (po && po.fill && m) for (const [k, src] of Object.entries(po.fill)) if (m[src] != null) props[k] = String(m[src]);
+}
+
+/** Spec card info for a component. */
+export function partInfo(c) {
+  const d = TYPES[c.type];
+  if (c.type === 'ic') {
+    const g = icGeom(c);
+    const def = g.def;
+    return {
+      title: def.name || c.props.part, desc: def.desc, pkg: def.pkg,
+      pinout: g.pins.map((p) => [p.num, p.name, fnLabel(p.fn)]), specs: def.specs || [], notes: def.notes, ic: g,
+    };
+  }
+  const m = PARTS[c.props.part];
+  if (m) return { title: c.props.part, desc: m.desc, pkg: m.pkg, pinout: m.pinout, specs: m.specs || [], notes: m.notes, type: c.type };
+  return { title: d.name, desc: GENERIC_INFO[c.type] || '', specs: [], type: c.type };
+}
+const fnLabel = (f) => ({ pwr: 'power', gnd: 'ground', in: 'input', out: 'output', io: 'I/O', nc: 'not connected', ctl: 'control' }[f] || f);
+const GENERIC_INFO = {
+  resistor: 'Fixed resistor. Enter values like 4.7k, 4k7, 100, 1M. Power rating is used to warn about overheating.',
+  pot: 'Potentiometer. Drag the wiper slider to sweep the divider live.',
+  capacitor: 'Non-polarised capacitor (ceramic / film). Open at DC, impedance 1/(2πfC) in AC analysis.',
+  cap_pol: 'Polarised electrolytic. Keep + at the higher potential; a reverse-bias warning is shown.',
+  inductor: 'Inductor with DC resistance. Short (DCR) at DC, impedance 2πfL in AC analysis.',
+  vdc: 'Ideal DC voltage source / battery with optional internal resistance.',
+  vac: 'Signal generator. DC offset is used for the operating point; it is used as the stimulus for frequency-response analysis.',
+  idc: 'Ideal DC current source (current flows out of the "out" pin).',
+  led: 'Light-emitting diode. Forward voltage depends on colour (red ≈ 1.8 V, blue/white ≈ 3 V). Lights up in the simulation when current flows.',
+  ground: 'Ground reference (0 V). All ground symbols are the same net.',
+  rail: 'Power rail symbol: a voltage source from this net to ground. Rails with the same name are the same net.',
+  netlabel: 'Net label. All labels with the same name are connected without drawing a wire.',
+  switch: 'SPST switch. Tap “Toggle” (or the switch in Debug/Measure mode) to open/close it.',
+  button: 'Momentary push button (normally open).',
+  spdt: 'Single-pole double-throw switch.',
+  fuse: 'Fuse. Mark as blown to simulate an open fuse during troubleshooting.',
+  zener: 'Zener diode: conducts in reverse above VZ. Useful as a gate clamp or simple reference.',
+};
+
+// ---------- Palette (the part bank shown in the Add drawer) ----------
+export const PALETTE = [
+  { type: 'resistor', label: 'Resistor', cat: 'Basic' },
+  { type: 'capacitor', label: 'Capacitor', cat: 'Basic' },
+  { type: 'cap_pol', label: 'Electrolytic', cat: 'Basic' },
+  { type: 'inductor', label: 'Inductor', cat: 'Basic' },
+  { type: 'pot', label: 'Potentiometer', cat: 'Basic' },
+  { type: 'switch', label: 'Switch', cat: 'Basic' },
+  { type: 'button', label: 'Push button', cat: 'Basic' },
+  { type: 'spdt', label: 'SPDT switch', cat: 'Basic' },
+  { type: 'fuse', label: 'Fuse', cat: 'Basic' },
+  { type: 'ground', label: 'Ground', cat: 'Sources' },
+  { type: 'rail', label: 'Power rail', cat: 'Sources' },
+  { type: 'netlabel', label: 'Net label', cat: 'Sources' },
+  { type: 'vdc', label: 'DC source', cat: 'Sources' },
+  { type: 'vac', label: 'Signal gen', cat: 'Sources' },
+  { type: 'idc', label: 'Current src', cat: 'Sources' },
+  { type: 'led', label: 'LED', cat: 'Diodes' },
+  ...['1N4148', '1N4007', 'UF4007'].map((p) => ({ type: 'diode', part: p, label: p, cat: 'Diodes' })),
+  ...['1N5819', '1N5822', 'SS34'].map((p) => ({ type: 'schottky', part: p, label: p, cat: 'Diodes' })),
+  ...['1N4728A', '1N4733A', '1N4742A', '1N4744A'].map((p) => ({ type: 'zener', part: p, label: p + ' (' + PARTS[p].vz + 'V)', cat: 'Diodes' })),
+  ...['2N2222A', '2N3904', 'BC547', 'TIP31C', 'TIP120'].map((p) => ({ type: 'npn', part: p, label: p, cat: 'Transistors' })),
+  ...['2N3906', 'BC557', 'TIP42C'].map((p) => ({ type: 'pnp', part: p, label: p, cat: 'Transistors' })),
+  ...['IRLZ44N', 'IRF540N', 'IRFZ44N', 'IRF3205', 'IRLB8721', 'IRFP260N', '2N7000', 'BSS138', 'AO3400'].map((p) => ({ type: 'nmos', part: p, label: p, cat: 'MOSFETs' })),
+  ...['IRF9540N', 'IRF4905', 'AO3401'].map((p) => ({ type: 'pmos', part: p, label: p, cat: 'MOSFETs' })),
+  ...['TL072', 'LM358', 'NE5532', 'MCP6002', 'LM741', 'Ideal'].map((p) => ({ type: 'opamp', part: p, label: p === 'Ideal' ? 'Ideal op-amp' : p + ' (symbol)', cat: 'Op-amps' })),
+  ...['TL072-IC', 'LM358-IC', 'NE5532-IC', 'MCP6002-IC', 'TL074-IC', 'LM393-IC'].map((p) => ({ type: 'ic', part: p, label: ICS[p].name + ' ' + ICS[p].pkg.split(' ')[0], cat: 'Op-amps' })),
+  ...['7805', '7809', '7812', '7815', 'LM317', 'AMS1117-3.3', 'AMS1117-5.0', 'LM2940-5', 'MCP1700-3302'].map((p) => ({ type: 'reg', part: p, label: p, cat: 'Regulators' })),
+  ...['TC4420', 'TC4429', 'TC4427', 'TC4426', 'IR2110', 'IR2104'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'Gate drivers' })),
+  ...['ESP32-S3 SuperMini', 'ESP32-S3-DevKitC-1', 'ESP32 DevKit V1 (30p)', 'ESP32-C3 SuperMini', 'Arduino Nano'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'MCU boards' })),
+  ...['NE555', 'PC817', 'Generic IC'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'ICs' })),
+];
+export const CATEGORIES = ['Basic', 'Sources', 'Diodes', 'Transistors', 'MOSFETs', 'Op-amps', 'Regulators', 'Gate drivers', 'MCU boards', 'ICs'];
+
+export const helpers = { sig, spos, smin, diodeI, num, fmt };

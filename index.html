@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Circuit Workbench</title>
+  <meta name="description" content="Offline circuit design, build tracking, troubleshooting & measurement workbench.">
+  <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#11151b" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Workbench">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <button class="ib" id="btnFiles" title="Designs (open / save / export)" aria-label="Designs"></button>
+      <button id="docTitle" title="Rename design"><span id="docName">Untitled</span><i id="dirtyDot" title="Unsaved changes"></i></button>
+      <nav id="modes" class="seg" role="tablist" aria-label="Mode">
+        <button data-mode="edit" class="on"><span class="mi" data-icon="edit"></span><b>Edit</b></button>
+        <button data-mode="build"><span class="mi" data-icon="build"></span><b>Build</b></button>
+        <button data-mode="debug"><span class="mi" data-icon="debug"></span><b>Debug</b></button>
+        <button data-mode="measure"><span class="mi" data-icon="meter"></span><b>Measure</b></button>
+      </nav>
+      <div class="tb-right">
+        <button class="ib" id="btnUndo" title="Undo (Ctrl+Z)" aria-label="Undo"></button>
+        <button class="ib" id="btnRedo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"></button>
+        <button class="ib" id="btnSim" title="Live voltages" aria-label="Live voltages"></button>
+        <button class="ib" id="btnTools" title="Calculators" aria-label="Calculators"></button>
+        <button class="ib" id="btnInstall" title="Download / offline install" aria-label="Install"></button>
+      </div>
+    </header>
+
+    <main id="stage">
+      <svg id="canvas" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="gridPat" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="0" cy="0" r="1" class="griddot"/>
+          </pattern>
+          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+        </defs>
+        <rect id="gridRect" x="0" y="0" width="100%" height="100%" fill="url(#gridPat)"/>
+        <g id="world">
+          <g id="lyUnder"></g>
+          <g id="lyWires"></g>
+          <g id="lyComps"></g>
+          <g id="lyJuncs"></g>
+          <g id="lyOver"></g>
+        </g>
+      </svg>
+
+      <div id="hud">
+        <div id="progressPill" hidden></div>
+        <div id="warnPill" hidden></div>
+      </div>
+
+      <div class="fabs left">
+        <button class="fab primary" id="btnAdd" title="Add component (A)" aria-label="Add component"></button>
+        <button class="fab" id="btnBox" title="Box select" aria-label="Box select"></button>
+      </div>
+      <div class="fabs right">
+        <button class="fab sm" id="btnZoomIn" aria-label="Zoom in"></button>
+        <button class="fab sm" id="btnZoomOut" aria-label="Zoom out"></button>
+        <button class="fab sm" id="btnFit" title="Fit to screen" aria-label="Fit"></button>
+      </div>
+      <div id="toast" role="status" aria-live="polite"></div>
+    </main>
+
+    <section id="sheet" class="collapsed-no">
+      <div id="sheetGrip" aria-label="Collapse panel"><i></i></div>
+      <div id="sheetBody"></div>
+    </section>
+  </div>
+
+  <!-- Parts drawer -->
+  <div id="partsDrawer" class="drawer" hidden>
+    <div class="drawer-card">
+      <div class="drawer-head">
+        <input id="partSearch" type="search" placeholder="Search parts: TC4420, 7812, ESP32, 10k…" autocomplete="off" autocorrect="off" spellcheck="false">
+        <button class="ib" id="partsClose" aria-label="Close"></button>
+      </div>
+      <div id="partCats" class="chips"></div>
+      <div id="partGrid"></div>
+    </div>
+  </div>
+
+  <!-- Generic modal -->
+  <div id="modal" class="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true">
+      <div class="modal-head"><h2 id="modalTitle"></h2><button class="ib" id="modalClose" aria-label="Close"></button></div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <input type="file" id="fileImport" accept=".json,.cwb,application/json" hidden>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
