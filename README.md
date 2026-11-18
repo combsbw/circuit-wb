@@ -7,9 +7,20 @@ Pages and from the iOS Home Screen with no connection.
 ## Features
 
 **Schematic editor**
-- Standard symbols: resistor, potentiometer, capacitors, inductor, fuse, switches (SPST / SPDT / push
-  button), DC & signal sources, current source, ground, power rails, net labels, diodes (signal,
-  rectifier, Schottky, Zener, LED), NPN/PNP BJTs, N/P MOSFETs, op-amps, voltage regulators.
+- Standard symbols and a searchable part bank, grouped by category:
+  - **Passives / coils**: resistors (incl. 5 W power), potentiometer, ceramic & electrolytic caps,
+    inductors / coils (10 µH – 10 mH presets, 12 V relay coil).
+  - **Switches & fuses**: toggle (SPST), changeover (SPDT), push buttons NO / NC, fuses 0.5–10 A
+    (mark a fuse "blown" to troubleshoot).
+  - **LEDs** (red, yellow, green, blue, white).
+  - **Diodes**: switching (1N4148, 1N914, BAT54), rectifier (1N4001, 1N4007, 1N5408, UF4007, FR107),
+    Schottky (1N5819, 1N5822, SS34), **Zeners** (3.3–27 V), **TVS** (SMAJ/SMBJ 5–24 V incl.
+    bidirectional SMBJ12CA, P6KE6.8A/15A/33A, 1.5KE18A).
+  - **Transistors**: 2N2222A, 2N3904, BC547, TIP31C, TIP120, 2N3906, BC557, TIP42C.
+  - **MOSFETs**: IRLZ44N, IRFB4410, IRF540N, IRFZ44N, IRF3205, IRLB8721, IRFP260N, 2N7000, BSS138,
+    AO3400, IRF9540N, IRF4905, AO3401.
+  - Sources (DC, signal generator, current source), ground, power rails, net labels, op-amps,
+    voltage regulators.
 - IC blocks drawn with their real physical pinouts: TC4420 / TC4429 / TC4427 / TC4426, IR2110 / IR2104,
   TL072 / LM358 / NE5532 / MCP6002 / TL074 / LM393, NE555, PC817, ESP32-S3 SuperMini,
   ESP32-S3-DevKitC-1, ESP32 DevKit V1 (30-pin), ESP32-C3 SuperMini, Arduino Nano, and a Generic IC

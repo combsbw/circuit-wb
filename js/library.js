@@ -37,6 +37,25 @@ export const PARTS = {
   '1N5819': { type: 'schottky', desc: 'Schottky barrier rectifier, low VF', pkg: 'DO-41', Is: 3e-6, n: 1.3, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VRRM', '40 V'], ['IF(AV)', '1 A'], ['VF', '0.60 V max @ 1 A'], ['IR', '1 mA @ 40 V']], imax: 1 },
   '1N5822': { type: 'schottky', desc: 'Schottky barrier rectifier 3 A', pkg: 'DO-201AD', Is: 1e-5, n: 1.3, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VRRM', '40 V'], ['IF(AV)', '3 A'], ['VF', '0.525 V max @ 3 A']], imax: 3 },
   'SS34': { type: 'schottky', desc: 'SMD Schottky 3 A', pkg: 'SMA / DO-214AC', Is: 1e-5, n: 1.3, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VRRM', '40 V'], ['IF(AV)', '3 A'], ['VF', '0.5 V @ 3 A']], imax: 3 },
+  '1N4001': { type: 'diode', desc: 'General-purpose 1 A rectifier, 50 V', pkg: 'DO-41', Is: 7e-9, n: 1.8, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VRRM', '50 V'], ['IF(AV)', '1 A'], ['IFSM', '30 A'], ['VF', '1.1 V max @ 1 A']], imax: 1 },
+  '1N5408': { type: 'diode', desc: 'General-purpose 3 A rectifier, 1000 V', pkg: 'DO-201AD', Is: 2e-8, n: 1.8, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VRRM', '1000 V'], ['IF(AV)', '3 A'], ['IFSM', '200 A'], ['VF', '1.2 V max @ 3 A']], imax: 3 },
+  'FR107': { type: 'diode', desc: 'Fast-recovery 1 A rectifier, 1000 V', pkg: 'DO-41', Is: 2e-8, n: 1.9, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VRRM', '1000 V'], ['IF(AV)', '1 A'], ['VF', '1.3 V max @ 1 A'], ['trr', '500 ns']], imax: 1 },
+  '1N914': { type: 'diode', desc: 'Small-signal fast switching diode (1N4148 equivalent)', pkg: 'DO-35', Is: 2.52e-9, n: 1.75, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VRRM', '100 V'], ['IF(AV)', '200 mA'], ['VF', '1.0 V max @ 10 mA'], ['trr', '4 ns']], imax: 0.2 },
+  'BAT54': { type: 'schottky', desc: 'Small-signal Schottky switching diode', pkg: 'SOT-23', Is: 2e-7, n: 1.05, pinout: [['1', 'A'], ['2', 'NC'], ['3', 'K']], specs: [['VRRM', '30 V'], ['IF', '200 mA'], ['VF', '0.32 V @ 1 mA, 0.8 V max @ 100 mA'], ['trr', '5 ns']], imax: 0.2 },
+  '1N4740A': { type: 'zener', desc: 'Zener 10 V, 1 W', pkg: 'DO-41', vz: 10, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VZ', '10 V @ 25 mA'], ['PD', '1 W'], ['IZM', '91 mA']] },
+  '1N4750A': { type: 'zener', desc: 'Zener 27 V, 1 W', pkg: 'DO-41', vz: 27, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VZ', '27 V @ 9.5 mA'], ['PD', '1 W'], ['IZM', '34 mA']] },
+  'BZX55C3V3': { type: 'zener', desc: 'Zener 3.3 V, 500 mW', pkg: 'DO-35', vz: 3.3, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VZ', '3.3 V @ 5 mA'], ['PD', '500 mW']] },
+  // TVS diodes (vbr = breakdown at IT; bidirectional CA parts have no polarity)
+  'SMAJ5.0A': { type: 'tvs', desc: 'TVS 400 W, 5 V stand-off, unidirectional', pkg: 'SMA / DO-214AC', vbr: 6.4, vc: 9.2, ipp: 43.5, bi: false, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VWM (stand-off)', '5.0 V'], ['VBR', '6.40–7.07 V @ 10 mA'], ['VC', '9.2 V @ 43.5 A'], ['PPP', '400 W (10/1000 µs)']] },
+  'SMBJ5.0A': { type: 'tvs', desc: 'TVS 600 W, 5 V stand-off, unidirectional', pkg: 'SMB / DO-214AA', vbr: 6.4, vc: 9.2, ipp: 65.2, bi: false, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VWM (stand-off)', '5.0 V'], ['VBR', '6.40–7.07 V @ 10 mA'], ['VC', '9.2 V @ 65.2 A'], ['PPP', '600 W (10/1000 µs)']] },
+  'SMBJ12A': { type: 'tvs', desc: 'TVS 600 W, 12 V stand-off, unidirectional', pkg: 'SMB / DO-214AA', vbr: 13.3, vc: 19.9, ipp: 30.2, bi: false, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VWM (stand-off)', '12 V'], ['VBR', '13.3–14.7 V @ 1 mA'], ['VC', '19.9 V @ 30.2 A'], ['PPP', '600 W']] },
+  'SMBJ15A': { type: 'tvs', desc: 'TVS 600 W, 15 V stand-off, unidirectional', pkg: 'SMB / DO-214AA', vbr: 16.7, vc: 24.4, ipp: 24.6, bi: false, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VWM (stand-off)', '15 V'], ['VBR', '16.7–18.5 V @ 1 mA'], ['VC', '24.4 V @ 24.6 A'], ['PPP', '600 W']] },
+  'SMBJ24A': { type: 'tvs', desc: 'TVS 600 W, 24 V stand-off, unidirectional', pkg: 'SMB / DO-214AA', vbr: 26.7, vc: 38.9, ipp: 15.4, bi: false, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VWM (stand-off)', '24 V'], ['VBR', '26.7–29.5 V @ 1 mA'], ['VC', '38.9 V @ 15.4 A'], ['PPP', '600 W']] },
+  'SMBJ12CA': { type: 'tvs', desc: 'TVS 600 W, 12 V stand-off, bidirectional', pkg: 'SMB / DO-214AA', vbr: 13.3, vc: 19.9, ipp: 30.2, bi: true, pinout: [['1', 'either'], ['2', 'either (no polarity)']], specs: [['VWM (stand-off)', '±12 V'], ['VBR', '±13.3–14.7 V @ 1 mA'], ['VC', '19.9 V @ 30.2 A'], ['PPP', '600 W']] },
+  'P6KE6.8A': { type: 'tvs', desc: 'TVS 600 W axial, 6.8 V breakdown, unidirectional', pkg: 'DO-15', vbr: 6.8, vc: 10.5, ipp: 57, bi: false, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VWM (stand-off)', '5.8 V'], ['VBR', '6.45–7.14 V @ 10 mA'], ['VC', '10.5 V @ 57 A'], ['PPP', '600 W']] },
+  'P6KE15A': { type: 'tvs', desc: 'TVS 600 W axial, 15 V breakdown, unidirectional', pkg: 'DO-15', vbr: 15, vc: 21.2, ipp: 28, bi: false, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VWM (stand-off)', '12.8 V'], ['VBR', '14.3–15.8 V @ 1 mA'], ['VC', '21.2 V @ 28 A'], ['PPP', '600 W']] },
+  'P6KE33A': { type: 'tvs', desc: 'TVS 600 W axial, 33 V breakdown, unidirectional', pkg: 'DO-15', vbr: 33, vc: 45.7, ipp: 13.2, bi: false, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VWM (stand-off)', '28.2 V'], ['VBR', '31.4–34.7 V @ 1 mA'], ['VC', '45.7 V @ 13.2 A'], ['PPP', '600 W']] },
+  '1.5KE18A': { type: 'tvs', desc: 'TVS 1500 W axial, 18 V breakdown, unidirectional', pkg: 'DO-201AD', vbr: 18, vc: 25.2, ipp: 59.5, bi: false, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VWM (stand-off)', '15.3 V'], ['VBR', '17.1–18.9 V @ 1 mA'], ['VC', '25.2 V @ 59.5 A'], ['PPP', '1500 W']] },
   '1N4728A': { type: 'zener', desc: 'Zener 3.3 V, 1 W', pkg: 'DO-41', vz: 3.3, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VZ', '3.3 V @ 76 mA'], ['PD', '1 W'], ['IZM', '276 mA']] },
   '1N4733A': { type: 'zener', desc: 'Zener 5.1 V, 1 W', pkg: 'DO-41', vz: 5.1, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VZ', '5.1 V @ 49 mA'], ['PD', '1 W'], ['IZM', '178 mA']] },
   '1N4742A': { type: 'zener', desc: 'Zener 12 V, 1 W', pkg: 'DO-41', vz: 12, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VZ', '12 V @ 21 mA'], ['PD', '1 W'], ['IZM', '76 mA']] },
@@ -56,6 +75,7 @@ export const PARTS = {
   'IRLZ44N': { type: 'nmos', desc: 'Logic-level N-ch MOSFET 55 V', pkg: 'TO-220', vth: 1.5, rds: 0.022, vgsSpec: 5, pinout: [['1', 'G'], ['2', 'D (tab)'], ['3', 'S']], specs: [['VDSS', '55 V'], ['ID', '47 A'], ['RDS(on)', '22 mΩ @ 5 V, 35 mΩ @ 4 V'], ['VGS(th)', '1–2 V'], ['Qg', '48 nC'], ['VGS max', '±16 V']], logic: true, idmax: 47 },
   'IRF3205': { type: 'nmos', desc: 'N-ch power MOSFET 55 V, 110 A', pkg: 'TO-220', vth: 3.0, rds: 0.008, vgsSpec: 10, pinout: [['1', 'G'], ['2', 'D (tab)'], ['3', 'S']], specs: [['VDSS', '55 V'], ['ID', '110 A'], ['RDS(on)', '8 mΩ @ 10 V'], ['VGS(th)', '2–4 V'], ['Qg', '146 nC'], ['Ciss', '3250 pF']], logic: false, idmax: 110 },
   'IRLB8721': { type: 'nmos', desc: 'Logic-friendly N-ch MOSFET 30 V', pkg: 'TO-220', vth: 1.8, rds: 0.0087, vgsSpec: 10, pinout: [['1', 'G'], ['2', 'D (tab)'], ['3', 'S']], specs: [['VDSS', '30 V'], ['ID', '62 A'], ['RDS(on)', '8.7 mΩ @ 10 V, 16 mΩ @ 4.5 V'], ['VGS(th)', '1.35–2.35 V'], ['Qg', '7.6 nC']], logic: true, idmax: 62 },
+  'IRFB4410': { type: 'nmos', desc: 'N-ch power MOSFET 100 V, 96 A (HEXFET)', pkg: 'TO-220', vth: 3.0, rds: 0.008, vgsSpec: 10, pinout: [['1', 'G'], ['2', 'D (tab)'], ['3', 'S']], specs: [['VDSS', '100 V'], ['ID', '96 A (package-limited 75 A)'], ['RDS(on)', '8 mΩ typ, 10 mΩ max @ 10 V'], ['VGS(th)', '2–4 V'], ['Qg', '120 nC'], ['Ciss', '5150 pF'], ['VGS max', '±20 V']], logic: false, idmax: 96 },
   'IRFP260N': { type: 'nmos', desc: 'N-ch power MOSFET 200 V', pkg: 'TO-247', vth: 3.0, rds: 0.04, vgsSpec: 10, pinout: [['1', 'G'], ['2', 'D (tab)'], ['3', 'S']], specs: [['VDSS', '200 V'], ['ID', '50 A'], ['RDS(on)', '40 mΩ @ 10 V'], ['VGS(th)', '2–4 V'], ['Qg', '234 nC'], ['Ciss', '4057 pF']], logic: false, idmax: 50 },
   '2N7000': { type: 'nmos', desc: 'Small-signal N-ch MOSFET', pkg: 'TO-92', vth: 2.1, rds: 1.8, vgsSpec: 10, pinout: [['1', 'S'], ['2', 'G'], ['3', 'D']], specs: [['VDSS', '60 V'], ['ID', '200 mA'], ['RDS(on)', '1.8 Ω typ, 5 Ω max @ 10 V'], ['VGS(th)', '0.8–3 V']], logic: false, idmax: 0.2 },
   'BSS138': { type: 'nmos', desc: 'SMD small N-ch (level shifters)', pkg: 'SOT-23', vth: 1.3, rds: 1.4, vgsSpec: 10, pinout: [['1', 'G'], ['2', 'S'], ['3', 'D']], specs: [['VDSS', '50 V'], ['ID', '220 mA'], ['RDS(on)', '3.5 Ω max @ 10 V'], ['VGS(th)', '0.8–1.5 V']], logic: true, idmax: 0.22 },
@@ -330,11 +350,14 @@ export const TYPES = {
   button: {
     name: 'Push button', prefix: 'SW', cat: 'Passive', toggle: 'pressed',
     pins: [{ x: -30, y: 0, name: '1' }, { x: 30, y: 0, name: '2' }],
-    bbox: { x: -30, y: -18, w: 60, h: 22 },
-    props: [opt('pressed', 'Pressed', false, { bool: true })],
-    draw: (c) => { const y = c.props.pressed ? -3 : -9; return { s: P('M-30,0H-13M13,0H30') + `<circle class="s" cx="-11" cy="0" r="2.5"/><circle class="s" cx="11" cy="0" r="2.5"/>` + P(`M-14,${y}H14M0,${y}V${y - 8}M-6,${y - 8}H6`) }; },
-    label: (c) => (c.props.pressed ? 'pressed' : ''),
-    stamp: (S, n, c) => { if (c.props.pressed) S.R(n[0], n[1], 0.01); },
+    bbox: { x: -30, y: -21, w: 60, h: 25 },
+    props: [opt('pressed', 'Pressed', false, { bool: true }), opt('nc', 'Normally closed (NC)', false, { bool: true })],
+    draw: (c) => {
+      if (c.props.nc) { const y = c.props.pressed ? -12 : 3; return { s: P('M-30,0H-13M13,0H30') + `<circle class="s" cx="-11" cy="0" r="2.5"/><circle class="s" cx="11" cy="0" r="2.5"/>` + P(`M-14,${y}H14M0,${y}V-18M-6,-18H6`) }; }
+      const y = c.props.pressed ? -3 : -9; return { s: P('M-30,0H-13M13,0H30') + `<circle class="s" cx="-11" cy="0" r="2.5"/><circle class="s" cx="11" cy="0" r="2.5"/>` + P(`M-14,${y}H14M0,${y}V${y - 8}M-6,${y - 8}H6`) };
+    },
+    label: (c) => (c.props.nc ? 'NC' : 'NO') + (c.props.pressed ? ' · pressed' : ''),
+    stamp: (S, n, c) => { if (!!c.props.pressed !== !!c.props.nc) S.R(n[0], n[1], 0.01); },
   },
   spdt: {
     name: 'Switch (SPDT)', prefix: 'SW', cat: 'Passive', toggle: 'pos',
@@ -428,6 +451,32 @@ export const TYPES = {
     draw: () => ({ s: P('M-30,0H-8M8,0H30') + P('M-8,-9L8,0L-8,9Z', 'f') + P('M4,-11L8,-9V9L12,11') }),
     label: (c) => short(num(c.props.vz, 5.1), 'V') + ' Z',
     stamp: (S, n, c) => { const bv = num(c.props.vz, 5.1); S.nl([n[0], n[1]], (v) => { const i = diodeI(v[0] - v[1], 1e-12, 1.5, bv); return [i, -i]; }); },
+  },
+  tvs: {
+    name: 'TVS diode', prefix: 'D', cat: 'Diodes', nonlinear: true,
+    pins: [{ x: -30, y: 0, name: 'A' }, { x: 30, y: 0, name: 'K' }],
+    bbox: { x: -30, y: -11, w: 60, h: 22 },
+    props: [opt('part', 'Part', 'SMBJ12A', { parts: 'tvs', fill: { vbr: 'vbr' } }), opt('vbr', 'Breakdown VBR', '13.3', { unit: 'V', eng: true })],
+    draw: (c) => {
+      const m = PARTS[c.props.part] || {};
+      if (m.bi) return { s: P('M-30,0H-12M12,0H30') + P('M-12,-9L0,0L-12,9Z', 'f') + P('M12,-9L0,0L12,9Z', 'f') + P('M-4,-11L0,-9V9L4,11') };
+      return { s: P('M-30,0H-8M8,0H30') + P('M-8,-9L8,0L-8,9Z', 'f') + P('M4,-11L8,-9V9L12,11') };
+    },
+    label: (c) => c.props.part,
+    stamp: (S, n, c) => {
+      const m = PARTS[c.props.part] || PARTS['SMBJ12A'];
+      const vbr = num(c.props.vbr, m.vbr);
+      const rd = Math.max((m.vc - m.vbr) / m.ipp, 0.01); // dynamic clamp resistance
+      const bd = (x) => 1e-3 * Math.exp(Math.min((x - vbr) / 0.04, Math.log(50)));
+      const x1 = vbr + 0.04 * Math.log(50);
+      const clampI = (x) => (x > x1 ? 0.05 + (x - x1) / rd : bd(x));
+      S.nl([n[0], n[1]], (v) => {
+        const vd = v[0] - v[1];
+        let i = m.bi ? clampI(vd) - clampI(-vd) : diodeI(vd, 1e-12, 1.5) - clampI(-vd);
+        i += vd * 1e-12;
+        return [i, -i];
+      });
+    },
   },
   led: {
     name: 'LED', prefix: 'D', cat: 'Diodes', nonlinear: true,
@@ -763,32 +812,41 @@ const GENERIC_INFO = {
   spdt: 'Single-pole double-throw switch.',
   fuse: 'Fuse. Mark as blown to simulate an open fuse during troubleshooting.',
   zener: 'Zener diode: conducts in reverse above VZ. Useful as a gate clamp or simple reference.',
+  tvs: 'Transient-voltage-suppressor: nearly open below its stand-off voltage, clamps hard above VBR. Bidirectional (CA) types clamp both polarities.',
 };
 
 // ---------- Palette (the part bank shown in the Add drawer) ----------
 export const PALETTE = [
   { type: 'resistor', label: 'Resistor', cat: 'Basic' },
-  { type: 'capacitor', label: 'Capacitor', cat: 'Basic' },
-  { type: 'cap_pol', label: 'Electrolytic', cat: 'Basic' },
-  { type: 'inductor', label: 'Inductor', cat: 'Basic' },
-  { type: 'pot', label: 'Potentiometer', cat: 'Basic' },
-  { type: 'switch', label: 'Switch', cat: 'Basic' },
-  { type: 'button', label: 'Push button', cat: 'Basic' },
-  { type: 'spdt', label: 'SPDT switch', cat: 'Basic' },
-  { type: 'fuse', label: 'Fuse', cat: 'Basic' },
+  { type: 'resistor', label: 'Power resistor 5 W', cat: 'Basic', preset: { value: '10', power: '5' }, kw: 'load wirewound' },
+  { type: 'pot', label: 'Potentiometer', cat: 'Basic', kw: 'trimmer variable' },
+  { type: 'capacitor', label: 'Capacitor', cat: 'Basic', kw: 'ceramic film' },
+  { type: 'cap_pol', label: 'Electrolytic', cat: 'Basic', kw: 'capacitor polarized' },
+  { type: 'inductor', label: 'Inductor / coil', cat: 'Coils', kw: 'coil choke' },
+  { type: 'inductor', label: 'Coil 10 µH', cat: 'Coils', preset: { value: '10u', dcr: '0.02' }, kw: 'inductor choke buck' },
+  { type: 'inductor', label: 'Coil 100 µH', cat: 'Coils', preset: { value: '100u', dcr: '0.1' }, kw: 'inductor choke' },
+  { type: 'inductor', label: 'Coil 1 mH', cat: 'Coils', preset: { value: '1m', dcr: '1' }, kw: 'inductor choke' },
+  { type: 'inductor', label: 'Coil 10 mH', cat: 'Coils', preset: { value: '10m', dcr: '5' }, kw: 'inductor choke' },
+  { type: 'inductor', label: 'Relay coil 12 V', cat: 'Coils', preset: { value: '200m', dcr: '400' }, kw: 'relay solenoid inductor' },
+  { type: 'switch', label: 'Toggle switch (SPST)', cat: 'Switches', kw: 'switch on off' },
+  { type: 'spdt', label: 'Changeover (SPDT)', cat: 'Switches', kw: 'switch toggle selector' },
+  { type: 'button', label: 'Push button (NO)', cat: 'Switches', kw: 'switch momentary tactile' },
+  { type: 'button', label: 'Push button (NC)', cat: 'Switches', preset: { nc: true }, kw: 'switch momentary normally closed' },
+  ...['0.5', '1', '2', '5', '10'].map((a) => ({ type: 'fuse', label: `Fuse ${a} A`, cat: 'Fuses', preset: { rating: a }, kw: 'fuse protection polyfuse' })),
   { type: 'ground', label: 'Ground', cat: 'Sources' },
   { type: 'rail', label: 'Power rail', cat: 'Sources' },
   { type: 'netlabel', label: 'Net label', cat: 'Sources' },
-  { type: 'vdc', label: 'DC source', cat: 'Sources' },
-  { type: 'vac', label: 'Signal gen', cat: 'Sources' },
+  { type: 'vdc', label: 'DC source', cat: 'Sources', kw: 'battery supply' },
+  { type: 'vac', label: 'Signal gen', cat: 'Sources', kw: 'function generator ac sine' },
   { type: 'idc', label: 'Current src', cat: 'Sources' },
-  { type: 'led', label: 'LED', cat: 'Diodes' },
-  ...['1N4148', '1N4007', 'UF4007'].map((p) => ({ type: 'diode', part: p, label: p, cat: 'Diodes' })),
-  ...['1N5819', '1N5822', 'SS34'].map((p) => ({ type: 'schottky', part: p, label: p, cat: 'Diodes' })),
-  ...['1N4728A', '1N4733A', '1N4742A', '1N4744A'].map((p) => ({ type: 'zener', part: p, label: p + ' (' + PARTS[p].vz + 'V)', cat: 'Diodes' })),
-  ...['2N2222A', '2N3904', 'BC547', 'TIP31C', 'TIP120'].map((p) => ({ type: 'npn', part: p, label: p, cat: 'Transistors' })),
+  ...['red', 'yellow', 'green', 'blue', 'white'].map((col) => ({ type: 'led', label: `LED ${col}`, cat: 'LEDs', preset: { color: col }, kw: 'led light diode indicator' })),
+  ...['1N4148', '1N914', '1N5819', 'BAT54'].map((p) => ({ type: PARTS[p].type, part: p, label: p, cat: 'Diodes', kw: 'switching signal diode' })),
+  ...['1N4001', '1N4007', '1N5408', 'UF4007', 'FR107', '1N5822', 'SS34'].map((p) => ({ type: PARTS[p].type, part: p, label: p, cat: 'Diodes', kw: 'rectifier diode power' })),
+  ...['BZX55C3V3', '1N4728A', '1N4733A', '1N4740A', '1N4742A', '1N4744A', '1N4750A'].map((p) => ({ type: 'zener', part: p, label: p + ' (' + PARTS[p].vz + 'V)', cat: 'Zeners', kw: 'zener diode reference clamp' })),
+  ...['SMAJ5.0A', 'SMBJ5.0A', 'SMBJ12A', 'SMBJ15A', 'SMBJ24A', 'SMBJ12CA', 'P6KE6.8A', 'P6KE15A', 'P6KE33A', '1.5KE18A'].map((p) => ({ type: 'tvs', part: p, label: p, cat: 'TVS', kw: 'tvs transient suppressor surge esd protection diode' })),
+  ...['2N2222A', '2N3904', 'BC547', 'TIP31C', 'TIP120'].map((p) => ({ type: 'npn', part: p, label: p, cat: 'Transistors', kw: p === '2N2222A' ? '2N2222 PN2222 npn bjt' : 'npn bjt' })),
   ...['2N3906', 'BC557', 'TIP42C'].map((p) => ({ type: 'pnp', part: p, label: p, cat: 'Transistors' })),
-  ...['IRLZ44N', 'IRF540N', 'IRFZ44N', 'IRF3205', 'IRLB8721', 'IRFP260N', '2N7000', 'BSS138', 'AO3400'].map((p) => ({ type: 'nmos', part: p, label: p, cat: 'MOSFETs' })),
+  ...['IRLZ44N', 'IRFB4410', 'IRF540N', 'IRFZ44N', 'IRF3205', 'IRLB8721', 'IRFP260N', '2N7000', 'BSS138', 'AO3400'].map((p) => ({ type: 'nmos', part: p, label: p, cat: 'MOSFETs', kw: p === 'IRFB4410' ? 'IRBF4410 nmos n-channel' : 'nmos n-channel' })),
   ...['IRF9540N', 'IRF4905', 'AO3401'].map((p) => ({ type: 'pmos', part: p, label: p, cat: 'MOSFETs' })),
   ...['TL072', 'LM358', 'NE5532', 'MCP6002', 'LM741', 'Ideal'].map((p) => ({ type: 'opamp', part: p, label: p === 'Ideal' ? 'Ideal op-amp' : p + ' (symbol)', cat: 'Op-amps' })),
   ...['TL072-IC', 'LM358-IC', 'NE5532-IC', 'MCP6002-IC', 'TL074-IC', 'LM393-IC'].map((p) => ({ type: 'ic', part: p, label: ICS[p].name + ' ' + ICS[p].pkg.split(' ')[0], cat: 'Op-amps' })),
@@ -797,6 +855,6 @@ export const PALETTE = [
   ...['ESP32-S3 SuperMini', 'ESP32-S3-DevKitC-1', 'ESP32 DevKit V1 (30p)', 'ESP32-C3 SuperMini', 'Arduino Nano'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'MCU boards' })),
   ...['NE555', 'PC817', 'Generic IC'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'ICs' })),
 ];
-export const CATEGORIES = ['Basic', 'Sources', 'Diodes', 'Transistors', 'MOSFETs', 'Op-amps', 'Regulators', 'Gate drivers', 'MCU boards', 'ICs'];
+export const CATEGORIES = ['Basic', 'Coils', 'Switches', 'Fuses', 'Sources', 'LEDs', 'Diodes', 'Zeners', 'TVS', 'Transistors', 'MOSFETs', 'Op-amps', 'Regulators', 'Gate drivers', 'MCU boards', 'ICs'];
 
 export const helpers = { sig, spos, smin, diodeI, num, fmt };

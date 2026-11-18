@@ -252,6 +252,12 @@ export function designChecks(ckt) {
         else if (V[0] - V[1] < -5) W('warn', c, `${c.ref} reverse biased ${fmt(V[0] - V[1], 'V')} (LEDs tolerate ~5 V)`);
         break;
       }
+      case 'tvs': {
+        const m = PARTS[p.part] || {};
+        const v = Math.abs(V[0] - V[1]), i = Math.abs(I[0]);
+        if (i > 1e-3 && (m.bi || V[1] > V[0])) W('warn', c, `${c.ref} ${p.part} is clamping (${fmt(v, 'V')}, ${fmt(i, 'A')}) — continuous voltage exceeds its stand-off rating`);
+        break;
+      }
       case 'diode': case 'schottky': {
         const m = PARTS[p.part]; if (m && I[0] > m.imax) W('err', c, `${c.ref} forward current ${fmt(I[0], 'A')} exceeds ${fmt(m.imax, 'A')}`);
         break;

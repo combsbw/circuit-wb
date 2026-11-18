@@ -885,7 +885,8 @@ class App {
       if (this._partCat !== 'All' && p.cat !== this._partCat && !q) return false;
       if (!q) return true;
       const desc = (p.part && (PARTS[p.part]?.desc || ICS[p.part]?.desc)) || TYPES[p.type].name;
-      return (p.label + ' ' + desc + ' ' + p.cat + ' ' + (p.part || '')).toLowerCase().includes(q);
+      const hay = (p.label + ' ' + desc + ' ' + p.cat + ' ' + (p.part || '') + ' ' + (p.kw || '')).toLowerCase();
+      return q.split(/\s+/).every((w) => hay.includes(w) || hay.replace(/[^a-z0-9]/g, '').includes(w.replace(/[^a-z0-9]/g, '')));
     });
     let h = '', lastCat = null;
     list.forEach((p) => {
