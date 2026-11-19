@@ -4,7 +4,7 @@ import { buildNets } from './netlist.js';
 import { Circuit } from './sim.js';
 import { resistance, lcr, thevenin, bode, zSweep, designChecks } from './analysis.js';
 import { Editor, fmtV, designSvg } from './editor.js';
-import { newDesign, uid, snap, makeComp, removeComps, detachComp, duplicate, cleanup, splitWire, addWire, copyFragment, pasteFragment, pinPos, endPos, wirePoints, nearestOnWire, compBBox, describeEnd, makeIndex, xf } from './doc.js';
+import { newDesign, uid, snap, makeComp, removeComps, detachComp, duplicate, cleanup, splitWire, addWire, mergeJunc, pinPos, endPos, wirePoints, nearestOnWire, compBBox, describeEnd, makeIndex, xf } from './doc.js';
 import { store } from './store.js';
 import { icon } from './icons.js';
 import { fmt, parseEng, stepE } from './units.js';
@@ -59,7 +59,6 @@ class App {
         if (sess.probes) this.probes = sess.probes;
         if (sess.meter) Object.assign(this.meter, sess.meter);
         if (sess.settings) Object.assign(this.settings, sess.settings);
-        if (sess.clipboard) this.clipboard = sess.clipboard;
         if (sess.view) this.editor.view = sess.view;
       } else {
         this.doc = EXAMPLES[0].build();
@@ -103,12 +102,18 @@ class App {
     $('#partsDrawer').addEventListener('click', (e) => { if (e.target.id === 'partsDrawer') this.closeParts(); });
     $('#modalClose').onclick = () => this.closeModal();
     $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') this.closeModal(); });
-    $('#sheetGrip').onclick = () => { this.sheetCollapsed = !this.sheetCollapsed; $('#sheet').classList.toggle('collapsed', this.sheetCollapsed); };
+    $('#sheetGrip').onclick = () => this.setSheetCollapsed(!this.sheetCollapsed);
+    $('#sheetTab').onclick = () => this.setSheetCollapsed(false);
     $('#partSearch').addEventListener('input', () => this.renderParts());
     $('#fileImport').addEventListener('change', (e) => this.importFile(e.target.files[0]));
     $('#hud').addEventListener('click', (e) => {
-      if (e.target.closest('#warnPill')) { if (this.mode === 'edit' || this.mode === 'build') this.setMode('debug'); this.sheetCollapsed = false; $('#sheet').classList.remove('collapsed'); const el = $('#sheetBody .checks'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }
-      if (e.target.closest('#progressPill')) { this.sheetCollapsed = false; $('#sheet').classList.remove('collapsed'); }
+      if (e.target.closest('#warnPill')) {
+        if (this.mode === 'build') this.setMode('debug');
+        if (this.mode === 'edit') { this.showChecks = true; this.select({}); }
+        this.setSheetCollapsed(false);
+        const el = $('#sheetBody .checks'); if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }
+      if (e.target.closest('#progressPill')) this.setSheetCollapsed(false);
     });
     window.addEventListener('keydown', (e) => this._key(e));
   }
@@ -120,9 +125,6 @@ class App {
     if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); this.redo(); return; }
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); this.saveDesign(); return; }
     if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); this.act('dup'); return; }
-    if (mod && e.key.toLowerCase() === 'c' && this.mode === 'edit') { e.preventDefault(); this.act('copy'); return; }
-    if (mod && e.key.toLowerCase() === 'x' && this.mode === 'edit') { e.preventDefault(); this.act('cut'); return; }
-    if (mod && e.key.toLowerCase() === 'v' && this.mode === 'edit') { e.preventDefault(); this.act('paste'); return; }
     if (!$('#modal').hidden || !$('#partsDrawer').hidden) { if (e.key === 'Escape') { this.closeModal(); this.closeParts(); } return; }
     if (this.mode !== 'edit') { if (e.key === 'Escape') this.select({}); return; }
     const k = e.key.toLowerCase();
@@ -175,11 +177,10 @@ class App {
   runSim() {
     const subset = this.mode === 'measure' && this.meter.isolate && this.sel.comps.size > 1 ? new Set(this.sel.comps) : null;
     try {
-      const prev = this.ckt && this.ckt.op && !subset && !this.ckt._subset ? this.ckt.op : null;
       const ckt = new Circuit(this.doc, { subset });
       ckt._subset = !!subset;
       ckt._ver = this.ver;
-      ckt.dcop(prev && prev.length === ckt.N ? prev : null);
+      ckt.dcop(seedFrom(this.ckt, ckt));
       this.ckt = ckt;
       this.checks = designChecks(ckt);
     } catch (e) {
@@ -187,8 +188,9 @@ class App {
       this.ckt = null;
       this.checks = [{ level: 'err', msg: 'Simulation error: ' + e.message }];
     }
+    this._enrichChecks();
     this.warnComps = new Map();
-    for (const w of this.checks) if (w.comp && w.level !== 'info') this.warnComps.set(w.comp, w.level === 'err' ? 'err' : this.warnComps.get(w.comp) || 'warn');
+    for (const w of this.visibleChecks()) if (w.comp && w.level !== 'info') this.warnComps.set(w.comp, w.level === 'err' ? 'err' : this.warnComps.get(w.comp) || 'warn');
     this._bodeCache = null;
     this.editor.render();
     this._updateHud();
@@ -200,14 +202,15 @@ class App {
   setMode(m, initial) {
     if (!MODES.includes(m)) m = 'edit';
     this.mode = m;
-    document.body.className = 'mode-' + m;
+    document.body.classList.remove('mode-edit', 'mode-build', 'mode-debug', 'mode-measure');
+    document.body.classList.add('mode-' + m);
     document.querySelectorAll('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.mode === m));
     if (m !== 'edit') { this.editor.boxMode = false; $('#btnBox').classList.remove('on'); }
     if (m === 'measure' && !this.probes.black) this._autoBlack();
     this.sel.net = null;
     this.pendingConnect = null;
-    this.sheetCollapsed = false;
-    $('#sheet').classList.remove('collapsed');
+    this.showChecks = false;
+    this.setSheetCollapsed(false);
     if (!initial) { this.scheduleSim(); this.saveSession(); }
     this.renderSheet();
     this.editor.render();
@@ -216,7 +219,7 @@ class App {
   select(s, keepSheet) {
     this.sel = { comps: new Set(s.comps || []), juncs: new Set(s.juncs || []), wire: s.wire || null, junc: s.junc || null, net: s.net ?? null };
     if (this.sel.wire) { const w = this.doc.wires.find((x) => x.id === this.sel.wire); if (w) this.sel.net = this.nets().endNet(w.a); }
-    if (this.sheetCollapsed && (this.sel.comps.size || this.sel.wire || this.sel.junc)) { this.sheetCollapsed = false; $('#sheet').classList.remove('collapsed'); }
+    if (this.sheetCollapsed && (this.sel.comps.size || this.sel.wire || this.sel.junc)) this.setSheetCollapsed(false);
     this.editor.render();
     void keepSheet;
     this.renderSheet();
@@ -424,7 +427,7 @@ class App {
     if (s.comps.size === 1) return this.propSheet(this.comp([...s.comps][0]));
     if (s.comps.size > 1) {
       return `<div class="sh-head"><h3>${s.comps.size} components selected</h3></div>
-      <div class="actions">${this.btn('rotate', 'Rotate', 'rotate')}${this.btn('copy', 'Copy', 'copy')}${this.clipboard ? this.btn('paste', 'Paste', 'paste') : ''}${this.btn('dup', 'Duplicate', 'copy')}${this.btn('delete', 'Delete', 'trash', 'danger')}${this.btn('clearsel', 'Clear', 'x')}</div>
+      <div class="actions">${this.btn('rotate', 'Rotate', 'rotate')}${this.btn('dup', 'Duplicate', 'copy')}${this.btn('delete', 'Delete', 'trash', 'danger')}${this.btn('clearsel', 'Clear', 'x')}</div>
       <div class="hint">Drag any selected part to move the group. In <b>Measure</b> mode you can analyse just this selection (“Isolate”).</div>`;
     }
     if (s.wire) {
@@ -440,10 +443,11 @@ class App {
       <div class="actions">${this.btn('deljunc', 'Delete junction', 'trash', 'danger')}</div><div class="hint">Drag the junction to move it; drop it on a pin to connect. Or tap another pin / node / wire to wire it there.</div>`;
     }
     if (s.net != null) return this.netSheet(s.net);
+    if (this.showChecks) return `<div class="sh-head"><h3>Design checks</h3><button class="ib" data-act="closechecks" aria-label="Close">${icon('x')}</button></div><div class="checks" data-live="checks"></div>`;
     const n = this.doc.comps.length;
     return `<div class="sh-head"><h3>${n ? 'Editing' : 'Start a circuit'}</h3></div>
       <div class="hint">${n ? '' : 'Tap <b>+</b> to add parts. '}Tap a part to edit its values. <b>Drag from a pin</b> to wire it; drop on a pin, a wire or empty space. Pinch / scroll to zoom, drag the background to pan.</div>
-      <div class="actions">${this.btn('addpart', 'Add part', 'plus', 'pri')}${this.clipboard ? this.btn('paste', `Paste (${this.clipboard.comps.length})`, 'paste') : ''}${this.btn('examples', 'Examples', 'book')}${this.btn('tools', 'Calculators', 'calc')}</div>`;
+      <div class="actions">${this.btn('addpart', 'Add part', 'plus', 'pri')}${this.btn('examples', 'Examples', 'book')}${this.btn('tools', 'Calculators', 'calc')}</div>`;
   }
 
   netSheet(net) {
@@ -472,7 +476,7 @@ class App {
     }
     h += `<div class="actions">`;
     if (def.toggle) h += this.btn('toggle', 'Toggle', 'toggle', 'pri');
-    h += this.btn('rotate', 'Rotate', 'rotate') + this.btn('flip', 'Flip', 'flip') + this.btn('copy', 'Copy', 'copy') + (this.clipboard ? this.btn('paste', 'Paste', 'paste') : '') + this.btn('dup', 'Duplicate', 'copy') + this.btn('detach', 'Detach', 'unlink') + this.btn('delete', 'Delete', 'trash', 'danger');
+    h += this.btn('rotate', 'Rotate', 'rotate') + this.btn('flip', 'Flip', 'flip') + this.btn('dup', 'Duplicate', 'copy') + this.btn('detach', 'Detach', 'unlink') + this.btn('delete', 'Delete', 'trash', 'danger');
     h += `</div>`;
     h += `<div class="sec">Operating point</div><div data-live="comp" data-cid="${c.id}" class="kv"></div><div data-live="compwarn" data-cid="${c.id}"></div>`;
     if (info.pinout && info.pinout.length && c.type !== 'ic') {
@@ -718,10 +722,74 @@ class App {
     body.querySelectorAll('[data-live=comp]').forEach((el) => { el.innerHTML = this.compReadout(this.comp(el.dataset.cid)); });
     body.querySelectorAll('[data-live=compwarn]').forEach((el) => { const id = el.dataset.cid; el.innerHTML = this.checks.filter((w) => w.comp === id).map((w) => `<div class="wmsg"><i class="dot ${w.level}"></i><div>${esc(w.msg)}</div></div>`).join(''); });
     body.querySelectorAll('[data-live=checks]').forEach((el) => {
-      el.innerHTML = this.checks.length ? this.checks.map((w) => `<div class="wmsg" data-loc="${w.comp || ''}"><i class="dot ${w.level}"></i><div>${esc(w.msg)}</div></div>`).join('') : '<div class="hint">✓ No problems found in the simulated design.</div>';
-      el.querySelectorAll('[data-loc]').forEach((m) => m.addEventListener('click', () => { if (m.dataset.loc) this.locate(m.dataset.loc); }));
+      el.innerHTML = this.checksHtml();
+      this._bindChecks(el);
     });
     if (this.mode === 'measure') this.updateMeter();
+  }
+
+  setSheetCollapsed(v) {
+    this.sheetCollapsed = !!v;
+    $('#sheet').classList.toggle('collapsed', this.sheetCollapsed);
+    document.body.classList.toggle('sheet-collapsed', this.sheetCollapsed);
+  }
+  checkKey(w) { return w.msg.replace(/[-\d.]+\s?(m|µ|k)?(V|A|W|Ω|%)/g, '#'); }
+  visibleChecks() { const ig = new Set(this.doc.ignored || []); return this.checks.filter((w) => !ig.has(this.checkKey(w))); }
+  /** Attach quick fixes: e.g. an unconnected pin with a loose wire end or another pin right next to it. */
+  _enrichChecks() {
+    const d = this.doc;
+    const deg = new Map();
+    for (const w of d.wires) for (const e of [w.a, w.b]) if (e.j != null) deg.set(e.j, (deg.get(e.j) || 0) + 1);
+    for (const w of this.checks) {
+      if (!w.pins || !w.comp) continue;
+      const c = this.comp(w.comp);
+      if (!c) continue;
+      for (const i of w.pins) {
+        const [x, y] = pinPos(c, i);
+        let best = null;
+        for (const j of d.juncs) {
+          const dd = Math.hypot(j.x - x, j.y - y);
+          if ((deg.get(j.id) || 0) === 1 && dd <= 40 && (!best || dd < best.d)) best = { d: dd, j: j.id };
+        }
+        for (const o of d.comps) {
+          if (o.id === c.id) continue;
+          getPins(o).forEach((_, k) => { const [ox, oy] = pinPos(o, k); const dd = Math.hypot(ox - x, oy - y); if (dd <= 12 && (!best || dd < best.d)) best = { d: dd, c: o.id, p: k }; });
+        }
+        if (best) { w.fix = { pin: i, ...best, label: best.j ? 'Connect loose wire end' : `Connect to ${this.comp(best.c).ref}` }; break; }
+      }
+    }
+  }
+  checksHtml() {
+    const ig = new Set(this.doc.ignored || []);
+    const vis = this.checks.filter((w) => !ig.has(this.checkKey(w)));
+    const nIg = this.checks.length - vis.length;
+    const why = { info: 'note', warn: 'warning', err: 'error' };
+    let h = vis.length ? vis.map((w, k) => `<div class="wmsg chk-row"><i class="dot ${w.level}"></i><div class="grow"><div>${esc(w.msg)}</div>
+      <div class="chk-acts">${w.comp ? `<button class="btn small" data-chk="loc" data-k="${k}">${icon('locate')}Show</button>` : ''}${w.fix ? `<button class="btn small pri" data-chk="fix" data-k="${k}">${icon('check')}${esc(w.fix.label)}</button>` : ''}<button class="btn small" data-chk="ign" data-k="${k}" title="Hide this ${why[w.level]}">Ignore</button></div></div></div>`).join('')
+      : '<div class="hint">✓ No problems found in the simulated design.</div>';
+    if (vis.length) h = `<div class="hint" style="font-size:13px">Fix the cause and the item disappears automatically. <b>Show</b> jumps to the part; <b>Ignore</b> hides an item you've accepted (saved with the design).</div>` + h;
+    if (nIg) h += `<div class="actions"><button class="btn small" data-act="unignore">${nIg} ignored — show again</button></div>`;
+    this._visChecks = vis;
+    return h;
+  }
+  _bindChecks(el) {
+    el.querySelectorAll('[data-chk]').forEach((b) => b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const w = this._visChecks[+b.dataset.k];
+      if (!w) return;
+      if (b.dataset.chk === 'loc') this.locate(w.comp, true);
+      else if (b.dataset.chk === 'ign') { this.checkpoint(); (this.doc.ignored ||= []).push(this.checkKey(w)); this.changed('ignore'); }
+      else if (b.dataset.chk === 'fix') {
+        const f = w.fix;
+        this.checkpoint();
+        if (f.j) mergeJunc(this.doc, f.j, { c: w.comp, p: f.pin });
+        else addWire(this.doc, { c: w.comp, p: f.pin }, { c: f.c, p: f.p });
+        cleanup(this.doc);
+        this.changed('fix');
+        this.toast('Connected ✓');
+      }
+    }));
+    el.querySelectorAll('[data-act=unignore]').forEach((b) => b.addEventListener('click', () => this.act('unignore', b)));
   }
 
   compReadout(c) {
@@ -862,24 +930,8 @@ class App {
         if (!sel1) return;
         this.checkpoint(); sel1.flip = !sel1.flip; this.changed('flip', { keepSheet: true });
         break;
-      case 'copy': {
-        if (!selIds.length) return;
-        this.clipboard = copyFragment(this.doc, selIds, [...this.sel.juncs]);
-        this.toast(`Copied ${this.clipboard.comps.length} part${this.clipboard.comps.length > 1 ? 's' : ''} — Paste works in any design`);
-        this.saveSession();
-        this.renderSheet();
-        break;
-      }
-      case 'paste': {
-        if (!this.clipboard) return;
-        this.checkpoint();
-        const ids = pasteFragment(this.doc, this.clipboard, this.editor.viewCenterWorld());
-        this.changed('paste');
-        this.select({ comps: ids });
-        this.toast(`Pasted ${ids.length} part${ids.length > 1 ? 's' : ''}`);
-        break;
-      }
-      case 'cut': this.act('copy'); this.act('delete'); break;
+      case 'closechecks': this.showChecks = false; this.renderSheet(); break;
+      case 'unignore': this.checkpoint(); this.doc.ignored = []; this.changed('ignore', { keepSheet: false }); break;
       case 'dup': {
         if (!selIds.length) return;
         this.checkpoint();
@@ -1026,8 +1078,9 @@ class App {
     }
   }
 
-  locate(id) {
+  locate(id, keepChecks) {
     const c = this.comp(id);
+    if (c && keepChecks) { const b = compBBox(c); this.editor.centerOn(b.x + b.w / 2, b.y + b.h / 2); this.flash = id; this.editor.render(); setTimeout(() => { this.flash = null; this.editor.render(); }, 1600); return; }
     if (c) { const b = compBBox(c); this.editor.centerOn(b.x + b.w / 2, b.y + b.h / 2); this.select({ comps: [id] }); return; }
     const w = this.doc.wires.find((x) => x.id === id);
     if (w) { const pts = wirePoints(this.doc, w); if (pts) { const m = pts[Math.floor(pts.length / 2)]; this.editor.centerOn(m[0], m[1]); } this.select({ wire: id }); }
@@ -1329,7 +1382,7 @@ class App {
   saveSession(now) {
     clearTimeout(this._saveT);
     const doit = () => store.putState('session', {
-      doc: this.doc, mode: this.mode, view: this.editor.view, simOn: this.simOn, showTags: this.showTags, probes: this.probes, clipboard: this.clipboard,
+      doc: this.doc, mode: this.mode, view: this.editor.view, simOn: this.simOn, showTags: this.showTags, probes: this.probes,
       meterFn: this.meterFn, meter: this.meter, settings: this.settings, dirty: this.dirty, t: Date.now(),
     }).catch((e) => console.warn('autosave failed', e));
     if (now) doit(); else this._saveT = setTimeout(doit, 400);
@@ -1376,9 +1429,10 @@ class App {
       pp.hidden = false;
       pp.innerHTML = `Checked ${ok}/${items.length}<span class="pbar"><i style="width:${items.length ? (ok / items.length) * 100 : 0}%"></i></span>${bad ? `<span style="color:var(--err)">${bad} flagged</span>` : ''}`;
     } else pp.hidden = true;
-    const e = this.checks.filter((w) => w.level === 'err').length, w = this.checks.filter((x) => x.level === 'warn').length;
-    wp.hidden = !(e || w) || this.mode === 'build';
-    wp.innerHTML = `${icon('alert')}${e ? `<span class="n-err">${e} error${e > 1 ? 's' : ''}</span>` : ''}${w ? `<span class="n-warn">${w} warning${w > 1 ? 's' : ''}</span>` : ''}`;
+    const vis = this.visibleChecks();
+    const e = vis.filter((w) => w.level === 'err').length, w = vis.filter((x) => x.level === 'warn').length, n = vis.filter((x) => x.level === 'info').length;
+    wp.hidden = !(e || w || n) || this.mode === 'build';
+    wp.innerHTML = `${icon('alert')}${e ? `<span class="n-err">${e} error${e > 1 ? 's' : ''}</span>` : ''}${w ? `<span class="n-warn">${w} warning${w > 1 ? 's' : ''}</span>` : ''}${n ? `<span class="n-info">${n} note${n > 1 ? 's' : ''}</span>` : ''}`;
   }
   toast(msg, onClick) {
     const t = $('#toast');
@@ -1421,6 +1475,19 @@ function pwmInfo(c, st) {
 }
 const palKey = (p) => `${p.type}|${p.part || ''}|${p.label}`;
 const findPal = (key) => PALETTE.find((p) => palKey(p) === key);
+/** Initial guess for a new solve: previous node voltages carried over by pin/junction identity. */
+function seedFrom(old, ckt) {
+  if (!old || !old.op) return null;
+  const byKey = new Map();
+  for (const net of old.nl.nets) { const v = old.V(net.id); if (Number.isFinite(v)) for (const k of net.keys) byKey.set(k, v); }
+  const x = new Float64Array(ckt.N);
+  for (const net of ckt.nl.nets) {
+    const nd = ckt.nodeOf(net.id);
+    if (!nd) continue;
+    for (const k of net.keys) if (byKey.has(k)) { x[nd] = byKey.get(k); break; }
+  }
+  return x;
+}
 function normalize(d) {
   d.comps ||= []; d.wires ||= []; d.juncs ||= []; d.status ||= {}; d.readings ||= [];
   d.name ||= 'Untitled circuit'; d.id ||= uid('d');

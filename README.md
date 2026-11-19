@@ -47,8 +47,7 @@ Pages and from the iOS Home Screen with no connection.
   - **Long-press a wire** to insert a node there.
   - Drag a wire's end handles to reconnect or disconnect it. **Detach** pulls a part out of the
     circuit and leaves its wires behind.
-  - **Copy / Paste** (also ⌘/Ctrl C, X, V) parts with the wiring between them, including into
-    another design. Rotate, flip, duplicate, delete, box-select and undo/redo are also available.
+  - Rotate, flip, **duplicate** (⌘/Ctrl D), delete, box-select and undo/redo.
   - Values apply as you type; there is no need to press Enter or use the −/+ buttons.
   - The part drawer has **★ Pinned** parts and your **10 most recently used**.
 - Values take engineering notation (`4.7k`, `4k7`, `100n`, `10u`, `1M`), and − / + buttons step
@@ -64,7 +63,9 @@ Pages and from the iOS Home Screen with no connection.
   gate-driver logic with UVLO, IR2110 bootstrap behaviour, optocouplers, and MCU boards with their
   onboard LDO.
 - Wires are coloured by voltage and show voltage tags. LEDs light up when current flows through them.
-- Design checks catch resistor over-power, LED over-current, reverse-biased electrolytics, regulator
+- Design checks (tap the warning pill) list each issue with **Show** (jump to the part), a one-tap
+  **fix** where possible (e.g. connect a loose wire end that stops just short of a pin) and **Ignore**
+  (saved with the design; restorable). Design checks catch resistor over-power, LED over-current, reverse-biased electrolytics, regulator
   dropout and dissipation, gates driven below the RDS(on) spec, floating gates or inputs, saturated
   op-amps, gate-driver UVLO, low bootstrap voltage, 3.3 V GPIO over-voltage and GPIO over-current.
 

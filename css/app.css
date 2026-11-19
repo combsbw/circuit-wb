@@ -183,9 +183,14 @@ body:not(.mode-edit) #btnAdd, body:not(.mode-edit) #btnBox { display: none; }
 #sheetBody { overflow-y: auto; padding: 0 14px 14px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 @media (min-width: 1000px) {
   #sheet { position: absolute; right: 14px; top: 70px; bottom: 14px; width: 380px; max-height: none; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding-bottom: 0; }
-  #sheet.collapsed { max-height: 44px; bottom: auto; }
-  .fabs.right { right: 408px; }
-  body.sheet-hidden .fabs.right { right: 14px; }
+  #sheet { transition: transform .28s ease, opacity .2s; }
+  #sheet.collapsed { max-height: none; transform: translateX(calc(100% + 24px)); opacity: 0; pointer-events: none; }
+  .fabs.right { right: 408px; transition: right .28s ease; }
+  body.sheet-hidden .fabs.right, body.sheet-collapsed .fabs.right { right: 14px; }
+  #sheetGrip { height: 34px; justify-content: end; display: flex; align-items: center; padding: 0 12px; }
+  #sheetGrip i { display: none; }
+  #sheetGrip .hidelbl { display: inline; }
+  body.sheet-collapsed #sheetTab { display: grid; }
 }
 
 .sh-head { display: flex; align-items: center; gap: 10px; min-height: 36px; margin-bottom: 8px; }
@@ -326,3 +331,15 @@ kbd { font-family: var(--mono); font-size: 12px; background: var(--panel-2); bor
 .pwmf label { font-size: 12.5px; color: var(--muted); }
 .pwmf .inp { padding: 6px 8px; font-size: 14px; }
 .pwminfo { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+
+.hidelbl { display: none; font-size: 13px; font-weight: 650; color: var(--muted); padding: 4px 8px; border-radius: 8px; }
+#sheetGrip:hover .hidelbl { background: var(--panel-2); color: var(--text); }
+#sheetTab { display: none; position: absolute; right: 0; top: 50%; transform: translateY(-50%); z-index: 16; width: 30px; height: 84px; place-items: center; background: var(--panel); border: 1px solid var(--line); border-right: 0; border-radius: 12px 0 0 12px; box-shadow: var(--shadow); font-size: 22px; font-weight: 700; color: var(--muted); }
+#sheetTab:active { background: var(--panel-2); }
+#warnPill .n-info { color: var(--muted); }
+.chk-row .grow { flex: 1; min-width: 0; }
+.chk-acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.chk-acts .btn svg { width: 15px; height: 15px; }
+.wmsg.chk-row { cursor: default; }
+.flash { animation: flash 0.4s ease-in-out 4 alternate; }
+@keyframes flash { from { opacity: .2; } to { opacity: 1; } }

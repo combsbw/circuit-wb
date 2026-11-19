@@ -6,7 +6,9 @@ import { buildNets } from './netlist.js';
 
 const GMIN = 1e-10;      // leak from every node to ground (keeps floating nodes solvable)
 const RSRC = 1e-3;       // internal resistance of ideal voltage sources
-const H = 1e-6;          // numeric derivative step
+const H = 1e-6;
+// gain-homotopy schedule: op-amp gain A = 10^(1+4h) grows ×1.5 per stage (keeps each start inside the linear region)
+const HOM_STEPS = (() => { const a = []; for (let A = 10; A < 1e5; A *= 1.5) a.push((Math.log10(A) - 1) / 4); a.push(1); return a; })();          // numeric derivative step
 
 // ---------- dense linear solvers ----------
 function solveReal(A, b, n) {
@@ -255,7 +257,8 @@ export class Circuit {
       }
       // if no reduction found take a small step anyway (escapes flat regions)
       x = best.x; cur = best;
-      if (cur.step < 1e-9 || (cur.res < 1e-9 && cur.step < 1e-5)) return { ok: true, x, it: it + 1, st: cur.st };
+      if (cur.res < 1e-6 && (cur.step < 1e-9 || (cur.res < 1e-9 && cur.step < 1e-5))) return { ok: true, x, it: it + 1, st: cur.st };
+      if (cur.step < 1e-12) break; // stalled with a real residual — let the caller try another strategy
     }
     if (cur.res < 1e-6) return { ok: true, x, it: maxIt, st: cur.st, loose: true };
     return { ok: false, x, res: cur.res };
@@ -273,13 +276,13 @@ export class Circuit {
     if (!r.ok && !r.singular) {
       // gain homotopy: soften op-amp gain & logic thresholds, then tighten
       x = new Float64Array(this.N);
-      for (let h = 0; h <= 1.0001; h += 0.125) { r = this._solveDC(x, 1, 80, Math.min(h, 1)); x = r.x; }
+      for (const h of HOM_STEPS) { r = this._solveDC(x, 1, 80, h); x = r.x; }
     }
     if (!r.ok && !r.singular) {
       // source stepping
       x = new Float64Array(this.N);
       for (let s = 1; s <= 10; s++) { r = this._solveDC(x, s / 10, 60, 0); x = r.x; }
-      for (let h = 0.125; h <= 1.0001; h += 0.125) { r = this._solveDC(x, 1, 80, Math.min(h, 1)); x = r.x; }
+      for (const h of HOM_STEPS) { r = this._solveDC(x, 1, 80, h); x = r.x; }
     }
     this._perNode = false;
     this.op = r.ok ? r.x : null;

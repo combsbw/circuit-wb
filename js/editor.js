@@ -498,6 +498,7 @@ export class Editor {
       if (this.drag && this.drag.kind === 'move' && this.drag.items?.some((i) => i.c === c)) cls += ' dragging';
       // halos
       if (mode === 'debug' && s.d) under += `<rect class="halo-${['', 'ok', 'warn', 'err'][s.d]}" x="${bb.x - 6}" y="${bb.y - 6}" width="${bb.w + 12}" height="${bb.h + 12}" rx="10"/>`;
+      if (app.flash === c.id) under += `<rect class="halo-warn flash" x="${bb.x - 10}" y="${bb.y - 10}" width="${bb.w + 20}" height="${bb.h + 20}" rx="12"/>`;
       if (app.sel.comps.has(c.id)) under += `<rect class="selbox" x="${bb.x - 7}" y="${bb.y - 7}" width="${bb.w + 14}" height="${bb.h + 14}" rx="9"/>`;
       // LED glow when lit
       if (ckt && ckt.op && c.type === 'led') {

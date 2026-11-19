@@ -212,7 +212,7 @@ export function classify(f, db, ph) {
 // ---------- design checks ----------
 export function designChecks(ckt) {
   const out = [];
-  const W = (level, c, msg) => out.push({ level, comp: c.id, ref: c.ref, msg });
+  const W = (level, c, msg, extra) => out.push({ level, comp: c.id, ref: c.ref, msg, ...(extra || {}) });
   const nl = ckt.nl;
   // unconnected / dangling
   for (const e of ckt.elems) {
@@ -224,11 +224,12 @@ export function designChecks(ckt) {
       const isBoard = g.def.layout === 'header';
       if (!isBoard && powerPins.length && powerPins.some(([p, i]) => !nl.connected(c.id, i) && !g.bridges.some((b) => b.includes(i) && b.some((j) => nl.connected(c.id, j)))))
         W('warn', c, `${c.props.part}: power pin ${powerPins.filter(([p, i]) => !nl.connected(c.id, i)).map(([p]) => p.name + '(' + p.num + ')').join(', ')} not connected`);
-      if (!isBoard) g.pins.forEach((p, i) => { if (p.fn === 'in' && !nl.connected(c.id, i)) W('warn', c, `${c.props.part}: input ${p.name} (pin ${p.num}) is floating`); });
+      if (!isBoard) g.pins.forEach((p, i) => { if (p.fn === 'in' && !nl.connected(c.id, i)) W('warn', c, `${c.ref} ${c.props.part}: input ${p.name} (pin ${p.num}) is floating`, { pins: [i] }); });
     } else if (!TYPES[c.type].noRef) {
       const open = pins.map((p, i) => (!nl.connected(c.id, i) ? p.name : null)).filter(Boolean);
-      if (open.length === pins.length) W('info', c, `${c.ref} is not connected`);
-      else if (open.length) W('info', c, `${c.ref}: pin ${open.join(', ')} unconnected`);
+      const openIdx = pins.map((p, i) => (!nl.connected(c.id, i) ? i : -1)).filter((i) => i >= 0);
+      if (open.length === pins.length) W('info', c, `${c.ref} is not connected`, { pins: openIdx });
+      else if (open.length) W('info', c, `${c.ref}: pin ${open.join(', ')} unconnected`, { pins: openIdx });
     }
   }
   if (!ckt.op) {
