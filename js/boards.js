@@ -73,7 +73,7 @@ export function footprint(c) {
     case 'opamp': return { kind: 'dip', map: [-1, idx('−'), idx('+'), idx('V−'), -1, idx('OUT'), idx('V+'), -1], style: 'dip', label: (c.props.part || 'op-amp') + ' (single, DIP-8)' };
     case 'ic': {
       const g = icGeom(c);
-      if (g.def.layout === 'dip') return { kind: 'dip', map: g.pins.map((_, i) => i), style: 'dip', label: g.title, note: /SOT|SSOP|TSSOP|MSOP|SOIC/.test(g.def.pkg || '') ? 'SMD package — use a DIP adapter' : '' };
+      if (g.def.layout === 'dip') return { kind: 'dip', map: g.pins.map((_, i) => i), style: 'dip', label: g.title, note: /SOT|SSOP|TSSOP|MSOP|SOIC/.test(g.def.pkg || '') && !/DIP/.test(g.def.pkg || '') ? 'SMD package — use a DIP adapter' : '' };
       const L = [], R = [];
       g.pins.forEach((p, i) => (p.side === 'L' ? L : R).push(i));
       if (!R.length) return { kind: 'inline', map: L, style: 'module', label: g.title };
@@ -914,7 +914,9 @@ export function steps(L) {
   for (const j of flat) out.push({ id: 'j' + j.a + j.b, group: 'Jumper wires (lay flat first)', text: `${nm(j.net)}: ${hole(...j.a)} → ${hole(...j.b)} (${j.len} holes)` , net: j.net });
   for (const p of L.parts.slice().sort((a, b) => order(a) - order(b) || a.ref.localeCompare(b.ref, undefined, { numeric: true }))) {
     if (!p.ok) continue;
-    out.push({ id: 'p' + p.id, group: p.fp.kind === '2lead' ? 'Small parts' : 'ICs, modules & transistors', text: `${p.ref} ${p.name || p.label}: ${pinStr(p)}${p.fp.kind === 'dip' ? ' (check the notch / pin-1 dot)' : ''}`, ref: p.ref });
+    let hint = p.fp.kind === 'dip' ? ' (check the notch / pin-1 dot)' : '';
+    if (p.fp.kind === 'dual') { const f = p.pins[p.fp.left[0]]; if (f) hint = L.kind === 'bb' ? ` — pin 1 / USB end toward column ${f.x + 1}` : ` — pin 1 / USB end toward ${f.x + 1},${f.y + 1}`; }
+    out.push({ id: 'p' + p.id, group: p.fp.kind === '2lead' ? 'Small parts' : 'ICs, modules & transistors', text: `${p.ref} ${p.name || p.label}: ${pinStr(p)}${hint}`, ref: p.ref });
   }
   if (L.kind === 'perf') {
     for (const t of L.traces) out.push({ id: 't' + t.cells[0] + t.cells.length, group: 'Bottom side: solder trails', text: `${nm(t.net)}: ${ccw(t.cells).map((c) => hole(...c)).join(' → ')}`, net: t.net });
