@@ -17,7 +17,7 @@ async function saveList() {
 }
 function serial(d) {
   const o = {};
-  for (const k of ['name', 'cat', 'desc', 'pkg', 'layout', 'left', 'right', 'pins', 'isMcu', 'vlogic', 'vinPin', 'railPin', 'gndPin', 'loadmA', 'notes', 'specs']) if (d[k] != null) o[k] = d[k];
+  for (const k of ['name', 'cat', 'desc', 'pkg', 'layout', 'left', 'right', 'pins', 'isMcu', 'vlogic', 'vinPin', 'railPin', 'gndPin', 'loadmA', 'notes', 'specs', 'rowSpacing']) if (d[k] != null) o[k] = d[k];
   return o;
 }
 /** Custom definitions used by a design (embedded on save/export so the file is portable). */
@@ -65,7 +65,8 @@ export function openPartEditor(app, startName) {
     <div class="field"><label>Pin layout</label><select class="inp" id="peLayout"><option value="header" ${st.layout === 'header' ? 'selected' : ''}>Two headers (left / right)</option><option value="dip" ${st.layout === 'dip' ? 'selected' : ''}>IC numbering (DIP / SOIC, 1…n)</option></select></div>
     ${st.layout === 'header'
     ? `<div class="field"><label>Left header<br><small>top → bottom, one per line or comma</small></label><textarea class="inp" id="peLeft" rows="6" autocapitalize="off" spellcheck="false">${esc(st.left.join('\n'))}</textarea></div>
-       <div class="field"><label>Right header<br><small>top → bottom</small></label><textarea class="inp" id="peRight" rows="6" autocapitalize="off" spellcheck="false">${esc((st.right || []).join('\n'))}</textarea></div>`
+       <div class="field"><label>Right header<br><small>top → bottom</small></label><textarea class="inp" id="peRight" rows="6" autocapitalize="off" spellcheck="false">${esc((st.right || []).join('\n'))}</textarea></div>
+       <div class="field"><label>Header row spacing<br><small>holes between the two headers (2.54 mm each) — used by the board designer</small></label><div class="valrow"><input class="inp" id="peSpacing" value="${esc(st.rowSpacing || 6)}" inputmode="numeric"><span class="unit">holes</span></div></div>`
     : `<div class="field"><label>Pins 1…n<br><small>one per line; optional <code>:pwr / :gnd / :in / :out / :nc</code></small></label><textarea class="inp" id="pePins" rows="8" autocapitalize="off" spellcheck="false">${esc((st.pins || []).join('\n'))}</textarea></div>`}
     <div class="field"><label>Microcontroller board</label><div class="row"><button class="toggle ${st.isMcu ? 'on' : ''}" id="peMcu"></button><span class="unit">${st.isMcu ? 'GPIOs configurable, onboard regulator modelled' : 'pins only (+ optional supply current)'}</span></div></div>
     ${st.isMcu ? `<div class="field"><label>Logic level</label><select class="inp" id="peVlogic"><option ${+st.vlogic === 3.3 ? 'selected' : ''}>3.3</option><option ${+st.vlogic === 5 ? 'selected' : ''}>5</option><option ${+st.vlogic === 1.8 ? 'selected' : ''}>1.8</option></select></div>
@@ -86,6 +87,7 @@ export function openPartEditor(app, startName) {
     st.desc = g('#peDesc').value.trim();
     if (g('#peLeft')) { st.left = splitPins(g('#peLeft').value); st.right = splitPins(g('#peRight').value); }
     if (g('#pePins')) st.pins = splitPins(g('#pePins').value);
+    if (g('#peSpacing')) st.rowSpacing = Math.max(2, Math.min(20, Math.round(+g('#peSpacing').value || 6)));
     if (g('#peVlogic')) st.vlogic = +g('#peVlogic').value;
     if (g('#peVin')) st.vinPin = g('#peVin').value.trim();
     st.railPin = g('#peRail').value.trim();

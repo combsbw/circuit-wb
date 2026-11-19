@@ -84,6 +84,8 @@ export class Editor {
     const idx = makeIndex(d);
     const exclude = opts.exclude || {};
     const app = this.app;
+    // board frame labels
+    for (const bl of this._boardLabels || []) if (pt[0] >= bl.x && pt[0] <= bl.x + bl.w && pt[1] >= bl.y && pt[1] <= bl.y + bl.h) return { kind: 'board', id: bl.id };
     // probes (measure mode)
     if (app.mode === 'measure' && !opts.noProbes) {
       for (const which of ['red', 'black']) {
@@ -556,6 +558,19 @@ export class Editor {
       comps += '</g>';
     }
 
+    // ---- board frames ----
+    this._boardLabels = [];
+    for (const b of d.boards || []) {
+      const cs = b.compIds.map((id) => idx.comps.get(id)).filter(Boolean);
+      if (!cs.length) continue;
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const c of cs) { const bb = compBBox(c); x0 = Math.min(x0, bb.x); y0 = Math.min(y0, bb.y); x1 = Math.max(x1, bb.x + bb.w); y1 = Math.max(y1, bb.y + bb.h); }
+      x0 -= 22; y0 -= 30; x1 += 22; y1 += 22;
+      under += `<rect class="bframe" x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="14"/>`;
+      const txt = `▦ ${b.name}`, w = txt.length * 6.6 + 18;
+      over += `<g class="blabel"><rect x="${x0}" y="${y0 - 11}" width="${w}" height="22" rx="11"/><text x="${x0 + 9}" y="${y0}">${esc(txt)}</text></g>`;
+      this._boardLabels.push({ id: b.id, x: x0, y: y0 - 11, w, h: 22 });
+    }
     // ---- junctions ----
     for (const j of d.juncs) {
       const deg = pinDeg.get('j' + j.id) || 0;

@@ -12,6 +12,8 @@ import { drawPlot } from './plot.js';
 import { openTools } from './tools.js';
 import { EXAMPLES } from './examples.js';
 import { infoHtml } from './info.js';
+import { openBoard, closeBoard, isBoardOpen } from './boardView.js';
+import { newBoard, PHYSICAL, BOARD_TYPES } from './boards.js';
 import { openPartEditor, loadCustomParts, customDefsFor, adoptCustomDefs } from './partEditor.js';
 import { ldrR, photoI, coilValues, defaultProps } from './library.js';
 import { adcInfo } from './analysis.js';
@@ -120,6 +122,7 @@ class App {
 
   _key(e) {
     if (e.target.matches('input, textarea, select')) { if (e.key === 'Escape') e.target.blur(); return; }
+    if (isBoardOpen()) { if (e.key === 'Escape') closeBoard(); return; }
     const mod = e.metaKey || e.ctrlKey;
     if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? this.redo() : this.undo(); return; }
     if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); this.redo(); return; }
@@ -136,7 +139,7 @@ class App {
   }
 
   // ======================= document / history =======================
-  snapshot() { return JSON.stringify({ comps: this.doc.comps, wires: this.doc.wires, juncs: this.doc.juncs, status: this.doc.status, readings: this.doc.readings }); }
+  snapshot() { return JSON.stringify({ comps: this.doc.comps, wires: this.doc.wires, juncs: this.doc.juncs, status: this.doc.status, readings: this.doc.readings, boards: this.doc.boards || [] }); }
   checkpoint() { this.undoStack.push(this.snapshot()); if (this.undoStack.length > 150) this.undoStack.shift(); this.redoStack = []; }
   cancelCheckpoint() { this.undoStack.pop(); }
   _restore(s) { Object.assign(this.doc, JSON.parse(s)); this.select({}, true); this.changed(null, { noUndo: true }); }
@@ -163,6 +166,7 @@ class App {
   _validateSel() {
     const ids = new Set(this.doc.comps.map((c) => c.id));
     for (const id of [...this.sel.comps]) if (!ids.has(id)) this.sel.comps.delete(id);
+    if (this.doc.boards) { for (const b of this.doc.boards) b.compIds = b.compIds.filter((id) => ids.has(id)); this.doc.boards = this.doc.boards.filter((b) => b.compIds.length); }
     const jids = new Set(this.doc.juncs.map((j) => j.id));
     for (const id of [...this.sel.juncs]) if (!jids.has(id)) this.sel.juncs.delete(id);
     if (this.sel.wire && !this.doc.wires.some((w) => w.id === this.sel.wire)) this.sel.wire = null;
@@ -228,6 +232,7 @@ class App {
   // ---------- pointer callbacks from editor ----------
   tap(hit, pt, { shift } = {}) {
     const m = this.mode;
+    if (hit.kind === 'board') { openBoard(this, hit.id); return; }
     if (m === 'measure') {
       if (hit.kind === 'pin' || hit.kind === 'junc' || hit.kind === 'wire') { this.setProbe(this.activeProbe, hit); return; }
       if (hit.kind === 'comp') {
@@ -427,8 +432,8 @@ class App {
     if (s.comps.size === 1) return this.propSheet(this.comp([...s.comps][0]));
     if (s.comps.size > 1) {
       return `<div class="sh-head"><h3>${s.comps.size} components selected</h3></div>
-      <div class="actions">${this.btn('rotate', 'Rotate', 'rotate')}${this.btn('dup', 'Duplicate', 'copy')}${this.btn('delete', 'Delete', 'trash', 'danger')}${this.btn('clearsel', 'Clear', 'x')}</div>
-      <div class="hint">Drag any selected part to move the group. In <b>Measure</b> mode you can analyse just this selection (“Isolate”).</div>`;
+      <div class="actions">${this.btn('mkboard', 'Build board', 'chip', 'pri')}${this.btn('rotate', 'Rotate', 'rotate')}${this.btn('dup', 'Duplicate', 'copy')}${this.btn('delete', 'Delete', 'trash', 'danger')}${this.btn('clearsel', 'Clear', 'x')}</div>
+      <div class="hint"><b>Build board</b> lays these parts out on a breadboard, solderable breadboard or perfboard. Drag any selected part to move the group. In <b>Measure</b> mode you can analyse just this selection (“Isolate”).</div>`;
     }
     if (s.wire) {
       const w = this.doc.wires.find((x) => x.id === s.wire);
@@ -447,7 +452,8 @@ class App {
     const n = this.doc.comps.length;
     return `<div class="sh-head"><h3>${n ? 'Editing' : 'Start a circuit'}</h3></div>
       <div class="hint">${n ? '' : 'Tap <b>+</b> to add parts. '}Tap a part to edit its values. <b>Drag from a pin</b> to wire it; drop on a pin, a wire or empty space. Pinch / scroll to zoom, drag the background to pan.</div>
-      <div class="actions">${this.btn('addpart', 'Add part', 'plus', 'pri')}${this.btn('examples', 'Examples', 'book')}${this.btn('tools', 'Calculators', 'calc')}</div>`;
+      ${(this.doc.boards || []).length ? `<div class="sec">Boards</div><div class="list">${this.doc.boards.map((b) => `<div class="li" data-act="openboard" data-id="${b.id}"><i class="dot" style="background:#8b5cf6"></i><div class="grow"><div class="t1">${esc(b.name)}</div><div class="t2">${esc(BOARD_TYPES[b.type]?.name || '')} · ${b.compIds.length} parts</div></div>${icon('chip')}</div>`).join('')}</div>` : ''}
+      <div class="actions">${this.btn('addpart', 'Add part', 'plus', 'pri')}${n ? this.btn('mkboardall', 'Build board', 'chip') : ''}${this.btn('examples', 'Examples', 'book')}${this.btn('tools', 'Calculators', 'calc')}</div>`;
   }
 
   netSheet(net) {
@@ -930,6 +936,23 @@ class App {
         if (!sel1) return;
         this.checkpoint(); sel1.flip = !sel1.flip; this.changed('flip', { keepSheet: true });
         break;
+      case 'mkboard': case 'mkboardall': {
+        const ids = (name === 'mkboard' ? selIds : this.doc.comps.map((c) => c.id)).filter((id) => { const c = this.comp(id); return c && PHYSICAL(c); });
+        if (!ids.length) { this.toast('Select some real parts first (box-select in Edit mode)'); return; }
+        this.checkpoint();
+        this.doc.boards ||= [];
+        const moved = this.doc.boards.filter((b) => b.compIds.some((id) => ids.includes(id))).map((b) => b.name);
+        for (const b of this.doc.boards) b.compIds = b.compIds.filter((id) => !ids.includes(id));
+        this.doc.boards = this.doc.boards.filter((b) => b.compIds.length);
+        const b = newBoard(this.doc, ids);
+        if (ids.length <= 6) b.cols = 30;
+        this.doc.boards.push(b);
+        this.changed('board');
+        if (moved.length) this.toast(`Moved parts from ${moved.join(', ')}`);
+        openBoard(this, b.id);
+        break;
+      }
+      case 'openboard': openBoard(this, el.dataset.id); break;
       case 'closechecks': this.showChecks = false; this.renderSheet(); break;
       case 'unignore': this.checkpoint(); this.doc.ignored = []; this.changed('ignore', { keepSheet: false }); break;
       case 'dup': {
@@ -1489,7 +1512,7 @@ function seedFrom(old, ckt) {
   return x;
 }
 function normalize(d) {
-  d.comps ||= []; d.wires ||= []; d.juncs ||= []; d.status ||= {}; d.readings ||= [];
+  d.comps ||= []; d.wires ||= []; d.juncs ||= []; d.boards ||= []; d.status ||= {}; d.readings ||= [];
   d.name ||= 'Untitled circuit'; d.id ||= uid('d');
   for (const c of d.comps) { c.rot ||= 0; c.props ||= {}; if (!TYPES[c.type]) c.type = 'resistor'; }
   cleanup(d);

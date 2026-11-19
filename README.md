@@ -89,6 +89,30 @@ Pages and from the iOS Home Screen with no connection.
   - **Isolate selection**: analyse only the selected parts.
   - Tap switches to toggle them. Type in a real meter reading to log it against the expected value.
 
+**Board designer** (box-select parts → **Build board**)
+- Lays the selected parts out on a **solderless breadboard**, a **solderable breadboard**
+  (ElectroCookie-style: same strips, drawn as a PCB) or a **perfboard**. Size comes from a preset or
+  is entered as columns / holes / mm.
+- What "optimal" means is explicit:
+  - **Always enforced:** one net per strip or hole (no shorts), at most 5 holes per breadboard strip,
+    ICs and dual-header modules straddle the channel, everything stays on the board.
+  - **Minimised:** `wJ·jumpers + wL·wire length + wA·space used + wF·deviation from schematic order`.
+    Presets: fewest jumpers, shortest wiring, smallest footprint, mirror the schematic, balanced.
+    The weights are adjustable.
+  - **Search:** simulated annealing with restarts. Breadboards use strip sharing, leads straight
+    into the rails and automatic rail assignment. Perfboards get grid-routed bottom-side solder
+    trails, optional power buses on the top and bottom rows, and insulated jumpers only where a
+    trail can't get through.
+- Every layout is re-traced hole by hole and compared with the schematic (✓ matches / list of problems).
+- Drag parts to move them (a part only moves to a position that stays valid). Rotate, flip and lock
+  parts; Optimize keeps locked parts in place. You can switch to a mirrored bottom view for
+  soldering.
+- **Build steps:** a checklist with exact holes ("R1 10kΩ: c16 → c20", jumpers, solder trails).
+- **Connections:** nets that leave the board become labelled connection points or a J1 header, with
+  their destinations (other boards, supplies, off-board parts). With several boards it shows a
+  board-to-board wiring list.
+- Boards appear as labelled frames on the schematic; tap the label to open one.
+
 **Calculators** (slider + typed value for every input)
 - **Op-amp designer**: buffer, non-inverting, inverting, summing, difference, integrator / low-pass,
   photodiode transimpedance and Sallen-Key; single or dual supply (auto VREF), any op-amp model.
@@ -146,6 +170,8 @@ python3 -m http.server 8000   # then open http://localhost:8000
 | `js/tools.js` | Calculators and circuit templates |
 | `js/store.js` | IndexedDB persistence |
 | `js/partEditor.js` | Custom part / board editor and library |
+| `js/boards.js` | Board designer: footprints, optimiser, perfboard router, verification, build steps |
+| `js/boardView.js` | Board designer UI |
 | `sw.js`, `manifest.webmanifest` | Offline support and installability |
 
 ## Accuracy notes
