@@ -171,7 +171,7 @@ export function buildProblem(doc, board) {
     const net = nl.nets[nid];
     let name = net.name;
     if (/^N\d+$/.test(name)) { const d = nl.describe(nid).split(', ').slice(0, 2).join('/'); if (d) name = d; }
-    const info = { idx: nets.length, nid, name, pins: [], external: false, dests: [], raw: [], isGnd: !!net.isGnd, supply: false };
+    const info = { idx: nets.length, nid, name, pins: [], external: false, dests: [], raw: [], isGnd: !!net.isGnd, supply: false, key: net.keys.filter((k) => k[0] === 'c').sort()[0] || String(nid) };
     for (const k of net.keys) {
       if (k[0] !== 'c') continue;
       const [, cid, p] = k.split(':');
@@ -700,6 +700,102 @@ export function conflictParts(doc, board) {
   return [...out];
 }
 
+// ---------------------------------------------------------------- wire gauge & current
+export const AWG = [30, 28, 26, 24, 22, 20, 18, 16, 14, 12];
+/** Typical chassis-wiring ampacity (A) of copper hook-up wire; fine for short board wiring, confirm for continuous duty. */
+export const AMPS = { 30: 0.5, 28: 0.8, 26: 1.3, 24: 2.1, 22: 3, 20: 5, 18: 7, 16: 10, 14: 15, 12: 20 };
+export const ampOf = (awg) => AMPS[awg] ?? 3;
+const REC = [26, 24, 22, 20, 18, 16, 14, 12];
+/** Thinnest practical gauge that carries I with margin (maxThick: 20 for solderless breadboards — thicker wire does not fit the holes). */
+export function recommendAwg(I, minAwgThick = 12, margin = 1.25) { for (const g of REC) if (g >= minAwgThick && ampOf(g) >= I * margin) return g; return minAwgThick; }
+/** Typical current limits of the board medium (A). */
+export const LIMITS = {
+  breadboard: { contact: 1, strip: 1, rail: 1, name: 'solderless breadboard', thick: 20 },
+  solderable: { contact: Infinity, strip: 1.5, rail: 1.5, name: 'solderable breadboard (thin copper strips)', thick: 12 },
+  perfboard: { contact: Infinity, strip: Infinity, rail: Infinity, name: 'perfboard', thick: 12 },
+};
+export const gaugeOf = (board, L, net) => board.gauges?.[L.prob.nets[net].key] ?? board.opts.gauge ?? 22;
+export const trailGauge = (board) => board.opts.trailGauge ?? 22;
+
+/** Per-net / per-connection current from the simulated operating point, checked against the medium and the wire gauge. */
+export function currentReport(L, board, ckt) {
+  const rep = { ok: false, items: [], nets: [], jumper: new Map(), trace: new Map(), node: new Map(), pin: new Map(), ext: new Map() };
+  if (!ckt || !ckt.pinI || !ckt.op) return rep;
+  rep.ok = true;
+  const P = L.prob, bb = L.kind === 'bb', C = L.C;
+  const lim = LIMITS[board.type] || LIMITS.breadboard;
+  const nodeOf = bb ? (x, y) => (y >= 0 && y <= 4 ? x : y >= 7 && y <= 11 ? C + x : y === -3 ? 2 * C : y === -2 ? 2 * C + 1 : y === 13 ? 2 * C + 2 : 2 * C + 3) : (x, y) => y * L.W + x;
+  const nodeName = (nd) => (bb ? (nd < C ? `column ${nd + 1} a–e` : nd < 2 * C ? `column ${nd - C + 1} f–j` : { [2 * C]: 'top + rail', [2 * C + 1]: 'top − rail', [2 * C + 2]: 'bottom − rail', [2 * C + 3]: 'bottom + rail' }[nd]) : `pad (${(nd % L.W) + 1},${Math.floor(nd / L.W) + 1})`);
+  const pinI = (cid, pi) => (ckt.pinI.get(cid) || [])[pi] || 0;
+  const level = (I, limit) => (I > limit ? 'err' : I > 0.7 * limit ? 'warn' : null);
+  const push = (lv, text, extra) => rep.items.push({ level: lv, text, ...extra });
+  const worse = (m, k, lv) => { if (lv && (m.get(k) !== 'err')) m.set(k, lv); };
+  P.nets.forEach((info, n) => {
+    if (!info.pins.length) return;
+    const D = new Map();
+    const add = (nd, I) => D.set(nd, (D.get(nd) || 0) + I);
+    let maxPin = 0, tot = 0;
+    for (const p of L.parts) p.pins.forEach((q, pi) => {
+      if (!q || q.net !== n) return;
+      const I = pinI(p.id, pi);
+      add(nodeOf(q.x, q.y), I); tot += I; maxPin = Math.max(maxPin, Math.abs(I));
+      const lv = level(Math.abs(I), lim.contact);
+      if (lv) { worse(rep.pin, p.id + ':' + pi, lv); push(lv, `${p.ref}.${getPinName(P, p, pi)} (${info.name}): ${fmtA(Math.abs(I))} through one ${lim.name} contact — typically rated ≈ ${lim.contact} A`, { kind: 'pin', net: n, part: p.id, pin: pi }); }
+    });
+    const exts = L.externals.filter((e) => e.net === n);
+    for (const e of exts) add(nodeOf(e.x, e.y), -tot / exts.length);
+    // graph: nodes joined by jumpers / trails / bus rows
+    const edges = [];
+    L.jumpers.forEach((j, i) => { if (j.net === n) edges.push({ a: nodeOf(...j.a), b: nodeOf(...j.b), kind: 'j', i }); });
+    if (!bb) {
+      L.traces.forEach((t, i) => { if (t.net === n) for (let k = 1; k < t.cells.length; k++) edges.push({ a: nodeOf(...t.cells[k - 1]), b: nodeOf(...t.cells[k]), kind: 't', i }); });
+      for (const bus of L.buses || []) if (bus.net === n) for (let x = 1; x < L.W; x++) edges.push({ a: nodeOf(x - 1, bus.y), b: nodeOf(x, bus.y), kind: 'b' });
+    }
+    // spanning tree from an external point (or any demand node); flow on an edge = |net demand of its far side|
+    const adj = new Map();
+    edges.forEach((e, k) => { for (const [u, v] of [[e.a, e.b], [e.b, e.a]]) { if (!adj.has(u)) adj.set(u, []); adj.get(u).push([v, k]); } });
+    const nodes = new Set([...D.keys(), ...adj.keys()]);
+    const root = (exts[0] && nodeOf(exts[0].x, exts[0].y)) ?? [...D.keys()][0];
+    const parent = new Map([[root, null]]), order = [root];
+    for (let h = 0; h < order.length; h++) for (const [v, k] of adj.get(order[h]) || []) if (!parent.has(v)) { parent.set(v, [order[h], k]); order.push(v); }
+    const sub = new Map();
+    for (const nd of order) sub.set(nd, D.get(nd) || 0);
+    const flowOf = new Array(edges.length).fill(0);
+    for (let h = order.length - 1; h > 0; h--) { const nd = order[h], [par, k] = parent.get(nd); flowOf[k] = Math.max(flowOf[k], Math.abs(sub.get(nd))); sub.set(par, sub.get(par) + sub.get(nd)); }
+    // aggregate per jumper / trace
+    const jf = new Map(), tf = new Map(); let maxFlow = Math.abs(tot);
+    edges.forEach((e, k) => { const f = flowOf[k]; maxFlow = Math.max(maxFlow, f); if (e.kind === 'j') jf.set(e.i, Math.max(jf.get(e.i) || 0, f)); else if (e.kind === 't') tf.set(e.i, Math.max(tf.get(e.i) || 0, f)); });
+    const awg = gaugeOf(board, L, n), amp = ampOf(awg);
+    for (const [i, f] of jf) {
+      rep.jumper.set(i, { flow: f, awg });
+      const lv = level(f, amp);
+      if (lv) { rep.jumper.get(i).level = lv; push(lv, `${info.name} jumper (${holeStr(L, L.jumpers[i].a)} → ${holeStr(L, L.jumpers[i].b)}): ${fmtA(f)} on ${awg} AWG (≈ ${amp} A) — ${needTxt(f, lim.thick)}`, { kind: 'jumper', net: n, i, rec: recommendAwg(f, lim.thick) }); }
+    }
+    if (bb && awg < lim.thick && lim.thick === 20 && jf.size) push('warn', `${info.name}: ${awg} AWG wire is too thick for the holes of a solderless breadboard (22–20 AWG max) — keep it ≤ 20 AWG or solder / use a terminal block`, { kind: 'fit', net: n });
+    const tAwg = trailGauge(board);
+    for (const [i, f] of tf) { rep.trace.set(i, { flow: f }); const lv = level(f, ampOf(tAwg)); if (lv) { rep.trace.get(i).level = lv; push(lv, `${info.name} solder trail: ${fmtA(f)} on a ${tAwg} AWG trail (≈ ${ampOf(tAwg)} A) — ${ampOf(trailGauge(board)) >= f ? '' : ''}thicken it with tinned wire / solder bridge, or double up`, { kind: 'trace', net: n, i }); } }
+    if (!bb) { for (const bus of L.buses || []) if (bus.net === n) { const lv = level(maxFlow, ampOf(tAwg)); if (lv) push(lv, `${info.name} bus wire: up to ${fmtA(maxFlow)} on ${tAwg} AWG (≈ ${ampOf(tAwg)} A)`, { kind: 'trace', net: n }); } }
+    // strips / rails (breadboard media): pass-through = half the total current entering + leaving
+    if (bb) for (const nd of nodes) {
+      let sum = 0;
+      for (const [, k] of adj.get(nd) || []) sum += flowOf[k];
+      let dsum = 0; for (const [d, v] of D) if (d === nd) dsum += Math.abs(v);
+      const pass = (sum + dsum) / 2, isRail = nd >= 2 * C, limit = isRail ? lim.rail : lim.strip, lv = level(pass, limit);
+      if (lv) { worse(rep.node, nd, lv); push(lv, `${info.name} on ${nodeName(nd)}: ≈ ${fmtA(pass)} through one ${isRail ? 'rail' : 'strip'} — ${lim.name} strips are good for ≈ ${limit} A`, { kind: 'node', net: n, node: nd }); }
+    }
+    for (const e of exts) {
+      const f = Math.abs(tot), lv = level(f, amp);
+      if (lv) { rep.ext.set(n, lv); push(lv, `${e.name} off-board lead (${e.where || ''}): ${fmtA(f)} on ${awg} AWG (≈ ${amp} A) — ${needTxt(f, lim.thick)}`, { kind: 'ext', net: n, rec: recommendAwg(f, lim.thick) }); }
+    }
+    rep.nets.push({ net: n, name: info.name, I: Math.max(maxFlow, maxPin), awg, amp, rec: recommendAwg(Math.max(maxFlow, maxPin), lim.thick), external: !!exts.length });
+  });
+  rep.items.sort((a, b) => (a.level === 'err' ? 0 : 1) - (b.level === 'err' ? 0 : 1));
+  return rep;
+}
+const needTxt = (f, thick) => { const g = recommendAwg(f, thick); return ampOf(g) >= f ? `use ${g} AWG or thicker` : `more than ${g} AWG (${ampOf(g)} A) can carry here — take this path off the board (bus bar / heavy copper wire)`; };
+const fmtA = (a) => (a < 1 ? `${(a * 1000).toFixed(a < 0.1 ? 1 : 0)} mA` : `${a.toFixed(a < 10 ? 2 : 1)} A`);
+const holeStr = (L, h) => (L.kind === 'bb' ? holeName(h[0], h[1]) : `(${h[0] + 1},${h[1] + 1})`);
+
 // ---------------------------------------------------------------- final layouts
 /** Build the full physical layout (holes, jumpers, traces, externals, issues, verification). */
 export function layout(doc, board) {
@@ -708,6 +804,8 @@ export function layout(doc, board) {
   const P = prob.comps.map((x) => board.params?.[x.c.id] || null);
   const L = kind === 'bb' ? finalizeBB(prob, ctx, P, W) : finalizePerf(prob, ctx, P, W);
   L.kind = kind; L.prob = prob; L.ctx = ctx;
+  for (const j of L.jumpers) j.awg = gaugeOf(board, L, j.net);
+  for (const t of L.traces || []) t.awg = trailGauge(board);
   L.stale = !!board.sig && board.sig !== prob.sig;
   for (const s of prob.skipped) if (!['ground', 'rail', 'netlabel'].includes(s.type)) L.notes.push(`${s.ref} (${s.type}) stays off the board — wire it to the connection points`);
   prob.comps.forEach((x, i) => { if (!ctx.meta[i].ok) L.issues.push(`${x.c.ref} cannot be placed: ${ctx.meta[i].why}`); if (x.fp.note) L.notes.push(`${x.c.ref}: ${x.fp.note}`); });
@@ -1035,25 +1133,27 @@ export function steps(L) {
   const nm = (n) => P.nets[n].name;
   const hole = L.kind === 'bb' ? (x, y) => holeName(x, y) : (x, y) => `(${x + 1},${y + 1})`;
   const pinStr = (p) => p.pins.map((q, i) => (q ? `${(p.fp.kind === '2lead' ? '' : (getPinName(P, p, i) + ' '))}${hole(q.x, q.y)}` : null)).filter(Boolean).join(' · ');
+  const jid = (j) => `${L.kind === 'bb' ? 'j' : 'pj'}${j.net}:${j.a}>${j.b}`;
+  const gtxt = (j) => `${j.awg || 22} AWG`;
   if (L.kind === 'bb') {
-    for (const j of L.jumpers.filter((j) => j.kind === 'link')) out.push({ id: 'j' + j.a + j.b, group: 'Rails', text: `Link the ${railName(j.a[1])} and ${railName(j.b[1])} rails (${nm(j.net)}) with a jumper at column ${j.a[0] + 1}` });
+    for (const j of L.jumpers.filter((j) => j.kind === 'link')) out.push({ id: jid(j), group: 'Rails', text: `Link the ${railName(j.a[1])} and ${railName(j.b[1])} rails (${nm(j.net)}) with a ${gtxt(j)} jumper at column ${j.a[0] + 1}`, target: { k: 'jumper', i: L.jumpers.indexOf(j) }, net: j.net });
   } else {
-    for (const b of L.buses || []) out.push({ id: 'bus' + b.y, group: 'Power buses', text: `Solder a bare wire along the ${b.y === 0 ? 'top' : 'bottom'} row (row ${b.y + 1}) as the ${b.name} bus` });
+    for (const b of L.buses || []) out.push({ id: 'bus' + b.y, group: 'Power buses', text: `Solder a bare wire along the ${b.y === 0 ? 'top' : 'bottom'} row (row ${b.y + 1}) as the ${b.name} bus`, target: { k: 'bus', y: b.y }, net: b.net });
   }
   const order = (p) => ({ dip: 0, dual: 0, inline: 1, '2lead': 2 }[p.fp.kind] ?? 3);
   const flat = L.kind === 'bb' ? L.jumpers.filter((j) => j.kind !== 'link').sort((a, b) => a.len - b.len) : [];
-  for (const j of flat) out.push({ id: 'j' + j.a + j.b, group: 'Jumper wires (lay flat first)', text: `${nm(j.net)}: ${hole(...j.a)} → ${hole(...j.b)} (${j.len} holes${j.around ? `, routed around ${j.around.join(', ')}` : ''}${j.over && j.over.length ? `, passes over ${j.over.join(', ')}` : ''})` , net: j.net });
+  for (const j of flat) out.push({ id: jid(j), group: 'Jumper wires (lay flat first)', text: `${nm(j.net)}: ${hole(...j.a)} → ${hole(...j.b)} (${j.len} holes, ${gtxt(j)}${j.around ? `, routed around ${j.around.join(', ')}` : ''}${j.over && j.over.length ? `, passes over ${j.over.join(', ')}` : ''})`, net: j.net, target: { k: 'jumper', i: L.jumpers.indexOf(j) } });
   for (const p of L.parts.slice().sort((a, b) => order(a) - order(b) || a.ref.localeCompare(b.ref, undefined, { numeric: true }))) {
     if (!p.ok) continue;
     let hint = p.fp.kind === 'dip' ? ' (check the notch / pin-1 dot)' : '';
     if (p.fp.kind === 'dual') { const f = p.pins[p.fp.left[0]]; if (f) hint = L.kind === 'bb' ? ` — pin 1 / USB end toward column ${f.x + 1}` : ` — pin 1 / USB end toward ${f.x + 1},${f.y + 1}`; }
-    out.push({ id: 'p' + p.id, group: p.fp.kind === '2lead' ? 'Small parts' : 'ICs, modules & transistors', text: `${p.ref} ${p.name || p.label}: ${pinStr(p)}${hint}`, ref: p.ref });
+    out.push({ id: 'p' + p.id, group: p.fp.kind === '2lead' ? 'Small parts' : 'ICs, modules & transistors', text: `${p.ref} ${p.name || p.label}: ${pinStr(p)}${hint}`, ref: p.ref, target: { k: 'part', id: p.id } });
   }
   if (L.kind === 'perf') {
-    for (const t of L.traces) out.push({ id: 't' + t.cells[0] + t.cells.length, group: 'Bottom side: solder trails', text: `${nm(t.net)}: ${ccw(t.cells).map((c) => hole(...c)).join(' → ')}`, net: t.net });
-    for (const j of L.jumpers) out.push({ id: 'pj' + j.a + j.b, group: 'Insulated jumpers (where trails would cross)', text: `${nm(j.net)}: ${hole(...j.a)} → ${hole(...j.b)}${j.around ? ` (routed around ${j.around.join(', ')})` : ''}`, net: j.net });
+    L.traces.forEach((t, i) => out.push({ id: `t${t.net}:${t.cells[0]}:${t.cells.length}`, group: 'Bottom side: solder trails', text: `${nm(t.net)}: ${ccw(t.cells).map((c) => hole(...c)).join(' → ')} (${t.awg || 22} AWG)`, net: t.net, target: { k: 'trace', i } }));
+    for (const j of L.jumpers) out.push({ id: jid(j), group: 'Insulated jumpers (where trails would cross)', text: `${nm(j.net)}: ${hole(...j.a)} → ${hole(...j.b)} (${gtxt(j)}${j.around ? `, routed around ${j.around.join(', ')}` : ''})`, net: j.net, target: { k: 'jumper', i: L.jumpers.indexOf(j) } });
   }
-  for (const e of L.externals) out.push({ id: 'e' + e.net, group: 'Off-board connections', text: `${e.name} at ${e.where || hole(e.x, e.y)} → ${e.dests.join(', ') || 'external'}`, net: e.net });
+  for (const e of L.externals) out.push({ id: 'e' + e.net, group: 'Off-board connections', text: `${e.name} at ${e.where || hole(e.x, e.y)} → ${e.dests.join(', ') || 'external'}`, net: e.net, target: { k: 'ext', net: e.net } });
   return out;
 }
 const railName = (y) => RAIL_LABEL[Object.keys(RAIL_ROW).find((k) => RAIL_ROW[k] === y)];

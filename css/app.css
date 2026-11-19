@@ -445,3 +445,24 @@ details.adv summary { cursor: pointer; font-weight: 650; font-size: 14px; paddin
 .pchip small { font-weight: 500; color: var(--muted); }
 .pchip button { width: 22px; height: 22px; border-radius: 50%; color: var(--muted); font-size: 16px; line-height: 1; }
 .pchip button:hover { background: var(--err-soft); color: var(--err); }
+
+/* current warnings, wire gauge */
+.bv-hotstrip { opacity: .32; }
+.bv-jump.hot-warn path { filter: drop-shadow(0 0 2.5px #f59e0b); } .bv-jump.hot-err path { filter: drop-shadow(0 0 3px #dc2626); stroke-dasharray: 5 2; }
+.bv-hotpin { fill: none; stroke-width: 2; } .bv-hotpin.warn { stroke: #f59e0b; } .bv-hotpin.err { stroke: #dc2626; }
+.bv-ext.hot-err circle { fill: #dc262633; } .bv-ext.hot-warn circle { fill: #f59e0b33; }
+.bv-trace.hot-err { stroke: #dc2626 !important; opacity: 1; } .bv-trace.hot-warn { stroke: #f59e0b !important; opacity: 1; }
+.chip.warn { color: var(--warn); background: var(--warn-soft); }
+/* build mode */
+.bv-mode { flex: none; } .bv-mode button { padding: 6px 11px; } .bv-mode svg { width: 16px; height: 16px; }
+#boardView.building .bv-actions .btn { display: none; }
+#boardView.building .bv-canvas { background: color-mix(in srgb, var(--canvas) 94%, var(--ok)); }
+.bv-part.ghost { opacity: .34; } .bv-part.done { opacity: 1; }
+.bv-jump.ghost { opacity: .4; } .bv-jump.ghost path { stroke-dasharray: 4 3; }
+.bv-trace.ghost { opacity: .22; stroke-dasharray: 4 3; }
+.bv-ext.ghost { opacity: .5; } .bv-ext.done circle { stroke: var(--ok) !important; fill: var(--ok-soft); }
+.bv-check circle { fill: var(--ok); stroke: var(--canvas); stroke-width: 1.5; }
+.bv-check text { fill: #fff; font-size: 7.5px; font-weight: 800; text-anchor: middle; dominant-baseline: central; }
+.bv-next { fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-dasharray: 5 3; animation: pend 1s linear infinite; }
+.bv-next.line { stroke-width: 6; opacity: .55; stroke-dasharray: none; animation: nextp 1.2s ease-in-out infinite alternate; }
+@keyframes nextp { from { opacity: .2; } to { opacity: .75; } }

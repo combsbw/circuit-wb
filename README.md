@@ -129,6 +129,18 @@ Pages and from the iOS Home Screen with no connection.
   parts; Optimize keeps locked parts in place. You can switch to a mirrored bottom view for
   soldering.
 - **Build steps:** a checklist with exact holes ("R1 10kΩ: c16 → c20", jumpers, solder trails).
+- **Build mode on the board:** switch **Layout | Build** in the board header, then tap parts, jumper
+  wires, solder trails and connection points on the board to tick them off. Done items get a ✓ and
+  full colour, remaining ones fade, and the next step pulses with **Done / Skip** in the bottom bar.
+  Progress ("built 5/30") is shared with the Build steps checklist, and part progress is shared with
+  the schematic's Build mode.
+- **High-current warnings and wire gauge:** the **Wire & current** tab uses the simulation's DC/average
+  currents to find the current in every jumper, strip, rail and trail. Anything above 70 % of its
+  rating turns amber, above 100 % red (⚡ chip in the header, highlights on the board). Pick the
+  default jumper gauge or a gauge per connection (30–12 AWG); **Suggest gauges** chooses the thinnest
+  wire with margin. Solderless boards carry about 1 A per contact/strip/rail and fit 20 AWG or thinner;
+  paths no wire here can carry are flagged as "take off the board". PWM and gate-driver peaks are not
+  included and ampacity figures are typical, so check your own wire and parts.
 - **Connections:** nets that leave the board become labelled connection points or a J1 header, with
   their destinations (other boards, supplies, off-board parts). With several boards it shows a
   board-to-board wiring list.

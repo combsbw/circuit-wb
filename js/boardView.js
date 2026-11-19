@@ -1,5 +1,5 @@
 // Board designer view: physical layout on breadboard / solderable breadboard / perfboard.
-import { BOARD_TYPES, OBJECTIVES, EFFORT, optimize, layout, steps, holeName, RAIL_ROW, RAIL_LABEL, weightsOf, conflictParts, PHYSICAL } from './boards.js';
+import { BOARD_TYPES, OBJECTIVES, EFFORT, optimize, layout, steps, holeName, RAIL_ROW, RAIL_LABEL, weightsOf, conflictParts, PHYSICAL, currentReport, AWG, ampOf, recommendAwg, LIMITS, gaugeOf, trailGauge } from './boards.js';
 import { icon } from './icons.js';
 import { fmt, parseEng } from './units.js';
 import { addWire, cleanup, describeEnd } from './doc.js';
@@ -23,6 +23,7 @@ export function openBoard(app, id) {
       <input class="bv-name inp" aria-label="Board name">
       <div class="bv-stats"></div>
       <div class="bv-actions">
+        <div class="seg bv-mode" role="tablist" aria-label="Mode"><button data-bv="mlayout" class="on">Layout</button><button data-bv="mbuild" title="Tap parts and connections as you build them">${icon('build')}Build</button></div>
         <button class="btn" data-bv="add" title="Add a part to this board (and the schematic)">${icon('plus')}Add part</button>
         <button class="btn" data-bv="new" title="Start from a new random layout">${icon('rotate')}Rebuild</button>
         <button class="btn pri" data-bv="opt">${icon('bolt')}Optimize</button>
@@ -37,12 +38,12 @@ export function openBoard(app, id) {
         <div class="bv-zoom"><button class="fab sm" data-bv="zin">${icon('zin')}</button><button class="fab sm" data-bv="zout">${icon('zout')}</button><button class="fab sm" data-bv="fit">${icon('fit')}</button><button class="fab sm" data-bv="rotview" title="Rotate view 90°">${icon('rotate')}</button><button class="fab sm" data-bv="flipview" title="Top / bottom view">${icon('flip')}</button></div>
       </div>
       <aside class="bv-panel">
-        <div class="tabs bv-tabs"><button data-tab="setup" class="on">Setup</button><button data-tab="steps">Build steps</button><button data-tab="links">Connections</button></div>
+        <div class="tabs bv-tabs"><button data-tab="setup" class="on">Setup</button><button data-tab="steps">Build steps</button><button data-tab="cur">Wire &amp; current</button><button data-tab="links">Connections</button></div>
         <div class="bv-body"></div>
       </aside>
     </div>`;
   document.body.appendChild(el);
-  V = { app, board, el, svg: el.querySelector('.bv-svg'), tab: 'setup', sel: null, net: null, ext: null, pin: null, pending: null, rot: 0, bottom: false, vb: null, ptrs: new Map(), L: null };
+  V = { app, board, el, svg: el.querySelector('.bv-svg'), tab: 'setup', sel: null, net: null, ext: null, pin: null, pending: null, build: !!board.build, skip: new Set(), rot: 0, bottom: false, vb: null, ptrs: new Map(), L: null };
   el.querySelector('.bv-name').value = board.name;
   el.querySelector('.bv-name').addEventListener('input', (e) => { board.name = e.target.value || 'Board'; app.changed('board', { keepSheet: true }); });
   el.addEventListener('click', onClick);
@@ -51,6 +52,8 @@ export function openBoard(app, id) {
   relayout();
   fit();
   renderPanel();
+  el.classList.toggle('building', V.build);
+  el.querySelectorAll('.bv-mode button').forEach((x) => x.classList.toggle('on', (x.dataset.bv === 'mbuild') === V.build));
   app.onBoardPartAdded = () => { if (V) settle(); };
   if (!Object.keys(board.params || {}).length) { if (board.compIds.length) runOptimize(true); }
   else if (V.L.stale || V.L.parts.some((p) => !p.ok)) settle();
@@ -69,9 +72,44 @@ export function isBoardOpen() { return !!V; }
 // ------------------------------------------------------------------ layout & rendering
 function relayout() {
   V.L = layout(V.app.doc, V.board);
+  V.rep = currentReport(V.L, V.board, V.app.ckt);
   render();
   renderStats();
 }
+// ------------------------------------------------------------------ build-progress tracking (tap parts & connections as you complete them)
+const stepKey = (t) => (t.k === 'part' ? 'part:' + t.id : t.k === 'jumper' ? 'jumper:' + t.i : t.k === 'trace' ? 'trace:' + t.i : t.k === 'ext' ? 'ext:' + t.net : 'bus:' + t.y);
+function stepIndex() { const S = steps(V.L), m = new Map(); for (const s of S) if (s.target) m.set(stepKey(s.target), s); return { S, m }; }
+function isDoneStep(s) { return s.target && s.target.k === 'part' ? !!(V.app.doc.status[s.target.id] || {}).b : !!(V.board.done || {})[s.id]; }
+function setDoneStep(s, v) {
+  const app = V.app, b = V.board;
+  app.checkpoint();
+  if (s.target && s.target.k === 'part') app.status(s.target.id).b = v ? 1 : 0; else (b.done ||= {})[s.id] = !!v;
+  app.changed('status', { keepSheet: true });
+}
+const progress = () => { const { S } = stepIndex(); return { done: S.filter(isDoneStep).length, total: S.length }; };
+const gw = (awg) => Math.max(1.4, Math.min(5.5, 1.5 + (30 - awg) * 0.2));
+function distSeg(p, a, b) { const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy; let t = l2 ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2 : 0; t = Math.max(0, Math.min(1, t)); return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy)); }
+function hitConn(w) {
+  const { M } = vgeom(), L = V.L; let best = null;
+  const test = (pts, tol, t) => { for (let k = 1; k < pts.length; k++) { const d = distSeg(w, pts[k - 1], pts[k]); if (d < tol && (!best || d < best.d)) best = { d, ...t }; } };
+  L.jumpers.forEach((j, i) => test((j.path || [j.a, j.b]).map(([x, y]) => M(x, y)), 6, { k: 'jumper', i }));
+  (L.traces || []).forEach((t, i) => test(t.cells.map(([x, y]) => M(x, y)), 5, { k: 'trace', i }));
+  for (const bus of L.buses || []) test([M(0, bus.y), M(L.W - 1, bus.y)], 5, { k: 'bus', y: bus.y });
+  return best;
+}
+function tapBuild(target) {
+  const { m } = stepIndex(), st = m.get(stepKey(target));
+  if (!st) return;
+  const v = !isDoneStep(st);
+  setDoneStep(st, v);
+  V.app.toast(`${v ? '✓' : '○'} ${st.text.split(':')[0].slice(0, 46)}`);
+  render(); renderStats(); if (V.tab === 'steps') renderPanel();
+}
+function nextStep() {
+  const { S } = stepIndex(), open = S.filter((s) => !isDoneStep(s));
+  return open.find((s) => !V.skip.has(s.id)) || open[0] || null;
+}
+
 /** Board geometry in unrotated "base" pixels. */
 function baseGeom() {
   const L = V.L;
@@ -141,6 +179,8 @@ function roundedPath(pts, rad = 4) {
 
 function render() {
   const L = V.L, b = V.board, VG = vgeom(), { G, M, mat } = VG, { X, Y } = G;
+  const SI = V.build ? stepIndex() : null;
+  const doneT = (i) => { if (!SI) return false; const st = SI.m.get('trace:' + i); return st ? isDoneStep(st) : false; };
   const solder = b.type === 'solderable';
   let shapes = '', texts = '';
   const fixed = [];
@@ -176,8 +216,21 @@ function render() {
     for (let y = 0; y < L.H; y++) for (let x = 0; x < L.W; x++) pads += `M${X(x) - 3.4},${Y(y)}a3.4,3.4 0 1 0 6.8,0a3.4,3.4 0 1 0 -6.8,0`;
     shapes += `<path class="bv-pad" d="${pads}"/>`;
     for (const bus of L.buses || []) shapes += `<line class="bv-bus" style="stroke:${netColor(L, bus.net)}" x1="${X(0)}" x2="${X(L.W - 1)}" y1="${Y(bus.y)}" y2="${Y(bus.y)}"/>`;
-    for (const t of L.traces) shapes += `<path class="bv-trace${V.bottom ? ' strong' : ''}${V.net === t.net ? ' hl' : ''}" d="M${t.cells.map(([x, y]) => `${X(x)},${Y(y)}`).join('L')}"/>`;
+    for (const [ti, t] of L.traces.entries()) shapes += `<path class="bv-trace${V.bottom || (V.build && doneT(ti)) ? ' strong' : ''}${V.build && !doneT(ti) ? ' ghost' : ''}${V.net === t.net ? ' hl' : ''}${!V.build && V.rep && V.rep.ok && (V.rep.trace.get(ti) || {}).level ? ' hot-' + V.rep.trace.get(ti).level : ''}" style="stroke-width:${gw(t.awg || 22) + 1.5}" d="M${t.cells.map(([x, y]) => `${X(x)},${Y(y)}`).join('L')}"/>`;
   }
+  // current-limit highlights under the parts (strips / rails over their rating)
+  if (!V.build && V.rep && V.rep.ok && L.kind === 'bb') {
+    const C = L.C;
+    for (const [nd, lv] of V.rep.node) {
+      const col = lv === 'err' ? '#dc2626' : '#f59e0b';
+      if (nd < C) shapes += `<rect class="bv-hotstrip" x="${X(nd) - 5}" y="${Y(0) - 5}" width="10" height="${Y(4) - Y(0) + 10}" rx="4" fill="${col}"/>`;
+      else if (nd < 2 * C) shapes += `<rect class="bv-hotstrip" x="${X(nd - C) - 5}" y="${Y(7) - 5}" width="10" height="${Y(11) - Y(7) + 10}" rx="4" fill="${col}"/>`;
+      else { const row = [-3, -2, 13, 14][nd - 2 * C]; shapes += `<rect class="bv-hotstrip" x="${X(0) - 5}" y="${Y(row) - 5}" width="${X(C - 1) - X(0) + 10}" height="10" rx="4" fill="${col}"/>`; }
+    }
+  }
+  const stepMap = SI ? SI.m : new Map();
+  const doneOf = (t) => { const st = stepMap.get(stepKey(t)); return st ? isDoneStep(st) : false; };
+  V.next = V.build ? nextStep() : null;
   // ---- parts
   let partsSvg = '', jumpSvg = '', extSvg = '', hlSvg = '';
   const parts = [], items = [], obstacles = [];
@@ -186,11 +239,14 @@ function render() {
     const out = drawPart(p, L, M);
     parts.push({ id: p.id, box: out.box });
     obstacles.push({ id: p.id, box: out.box });
-    partsSvg += `<g class="bv-part${V.sel === p.id ? ' sel' : ''}${V.board.locks?.[p.id] ? ' locked' : ''}" data-id="${p.id}">${out.svg}</g>`;
+    const pdone = V.build && doneOf({ k: 'part', id: p.id });
+    partsSvg += `<g class="bv-part${V.sel === p.id ? ' sel' : ''}${V.board.locks?.[p.id] ? ' locked' : ''}${V.build ? (pdone ? ' done' : ' ghost') : ''}" data-id="${p.id}">${out.svg}</g>`;
+    if (pdone) partsSvg += `<g class="bv-check"><circle cx="${r1(out.box[2])}" cy="${r1(out.box[1])}" r="6"/><text x="${r1(out.box[2])}" y="${r1(out.box[1] + 0.5)}">✓</text></g>`;
+    if (!V.build && V.rep && V.rep.ok) for (const [pi, q] of p.pins.entries()) { const lv = V.rep.pin.get(p.id + ':' + pi); if (q && lv) { const [x, y] = M(q.x, q.y); hlSvg += `<circle class="bv-hotpin ${lv}" cx="${r1(x)}" cy="${r1(y)}" r="6"/>`; } }
     if (out.label) items.push({ text: p.ref, cls: 'bv-ref', box: out.label, own: p.id });
   }
   // ---- jumpers along their routed paths
-  for (const j of L.jumpers) {
+  for (const [ji, j] of L.jumpers.entries()) {
     const pts = (j.path || [j.a, j.b]).map(([x, y]) => M(x, y)).map(([x, y]) => [r1(x), r1(y)]);
     const [ax, ay] = pts[0], [bx, by] = pts[pts.length - 1];
     let d;
@@ -198,7 +254,9 @@ function render() {
       const dx = bx - ax, dy = by - ay, dd = Math.hypot(dx, dy) || 1, bend = Math.min(10, dd * 0.15);
       d = `M${ax},${ay}Q${r1((ax + bx) / 2 - (dy / dd) * bend)},${r1((ay + by) / 2 + (dx / dd) * bend)} ${bx},${by}`;
     } else d = roundedPath(pts);
-    jumpSvg += `<g class="bv-jump${V.net === j.net ? ' hl' : ''}${j.over && j.over.length ? ' over' : ''}"><path d="${d}" style="stroke:${netColor(L, j.net)}"/><circle cx="${ax}" cy="${ay}" r="2.2"/><circle cx="${bx}" cy="${by}" r="2.2"/></g>`;
+    const jdone = V.build && doneOf({ k: 'jumper', i: ji }), hot = !V.build && V.rep && V.rep.ok && (V.rep.jumper.get(ji) || {}).level;
+    jumpSvg += `<g class="bv-jump${V.net === j.net ? ' hl' : ''}${j.over && j.over.length ? ' over' : ''}${V.build ? (jdone ? ' done' : ' ghost') : ''}${hot ? ' hot-' + hot : ''}"><path d="${d}" style="stroke:${netColor(L, j.net)};stroke-width:${gw(j.awg || 22)}"/><circle cx="${ax}" cy="${ay}" r="2.2"/><circle cx="${bx}" cy="${by}" r="2.2"/></g>`;
+    if (jdone) { const mx = (ax + bx) / 2, my = (ay + by) / 2; jumpSvg += `<g class="bv-check"><circle cx="${r1(mx)}" cy="${r1(my)}" r="5.5"/><text x="${r1(mx)}" y="${r1(my + 0.5)}">✓</text></g>`; }
   }
   // ---- off-board connection points
   V.exts = [];
@@ -206,12 +264,21 @@ function render() {
     const [x, y] = M(e.x, e.y);
     V.exts.push({ net: e.net, x, y });
     const sel = V.ext === e.net;
-    extSvg += `<g class="bv-ext${sel ? ' sel' : ''}" data-net="${e.net}"><circle cx="${r1(x)}" cy="${r1(y)}" r="${sel ? 7.5 : 5.5}" style="stroke:${netColor(L, e.net)}"/></g>`;
+    const edone = V.build && doneOf({ k: 'ext', net: e.net }), ehot = !V.build && V.rep && V.rep.ok && V.rep.ext.get(e.net);
+    extSvg += `<g class="bv-ext${sel ? ' sel' : ''}${V.build ? (edone ? ' done' : ' ghost') : ''}${ehot ? ' hot-' + ehot : ''}" data-net="${e.net}"><circle cx="${r1(x)}" cy="${r1(y)}" r="${sel ? 7.5 : 5.5}" style="stroke:${netColor(L, e.net)}"/></g>`;
+    if (edone) extSvg += `<g class="bv-check"><circle cx="${r1(x + 7)}" cy="${r1(y - 7)}" r="5"/><text x="${r1(x + 7)}" y="${r1(y - 6.5)}">✓</text></g>`;
     fixed.push([x - 5.5, y - 5.5, x + 5.5, y + 5.5]);
     items.unshift({ text: `${e.name} ↗`, cls: 'bv-extl', box: [x - 6, y - 6, x + 6, y + 6], own: null });
   }
   for (const bus of L.buses || []) { const [x, y] = M(L.W - 1, bus.y); items.unshift({ text: bus.name, cls: 'bv-lbl bv-busl', box: [x - 3, y - 3, x + 3, y + 3], own: null }); }
   if (V.pin || V.pending) for (const pn of [V.pending, V.pin]) { if (!pn) continue; const part = L.parts.find((q) => q.id === pn.id), q = part && part.pins[pn.pi]; if (q) { const [x, y] = M(q.x, q.y); hlSvg += `<circle class="bv-pinsel${pn === V.pending ? ' pend' : ''}" cx="${r1(x)}" cy="${r1(y)}" r="8"/>`; } }
+  if (V.build && V.next && V.next.target) {
+    const t = V.next.target;
+    if (t.k === 'part') { const pp = parts.find((q) => q.id === t.id); if (pp) hlSvg += `<rect class="bv-next" x="${pp.box[0] - 3}" y="${pp.box[1] - 3}" width="${pp.box[2] - pp.box[0] + 6}" height="${pp.box[3] - pp.box[1] + 6}" rx="6"/>`; }
+    else if (t.k === 'jumper') { const j = L.jumpers[t.i]; if (j) hlSvg += `<path class="bv-next line" d="${roundedPath((j.path || [j.a, j.b]).map(([x, y]) => M(x, y)))}"/>`; }
+    else if (t.k === 'trace') { const tr = L.traces[t.i]; if (tr) hlSvg += `<path class="bv-next line" d="${roundedPath(tr.cells.map(([x, y]) => M(x, y)), 2)}"/>`; }
+    else if (t.k === 'ext') { const ee = V.exts.find((q) => q.net === t.net); if (ee) hlSvg += `<circle class="bv-next" cx="${ee.x}" cy="${ee.y}" r="10"/>`; }
+  }
   // pin hole highlight for the selected net
   if (V.net != null) for (const p of L.parts) for (const q of p.pins) if (q && q.net === V.net) { const [x, y] = M(q.x, q.y); hlSvg += `<circle class="bv-hlpin" cx="${r1(x)}" cy="${r1(y)}" r="6.5"/>`; }
   // external labels first (they are tied to a hole), then parts
@@ -318,6 +385,8 @@ function renderStats() {
     <span class="chip">${st.jumpers} jumper${st.jumpers === 1 ? '' : 's'}</span>
     <span class="chip">${L.kind === 'perf' ? 'trails+wires' : 'wire'} ${st.len} holes ≈ ${(st.len * 0.254).toFixed(1)} cm</span>
     <span class="chip">${L.kind === 'bb' ? `${st.used} columns` : `area ${st.used}`}</span>
+    ${V.rep && V.rep.ok && V.rep.items.length ? `<span class="chip ${V.rep.items.some((i) => i.level === 'err') ? 'bad' : 'warn'}" data-bv="curtab" title="Some connections carry more current than they are rated for">⚡ ${V.rep.items.length} current warning${V.rep.items.length > 1 ? 's' : ''}</span>` : ''}
+    ${(() => { const pr = progress(); return V.build || pr.done ? `<span class="chip ok" title="Parts and connections you have marked as built">✓ built ${pr.done}/${pr.total}</span>` : ''; })()}
     ${st.detours ? `<span class="chip" title="Jumpers are routed in right angles around parts instead of over them">↪ ${st.detours} routed around parts</span>` : ''}
     ${st.crossings ? `<span class="chip bad" title="${esc(L.notes.filter((n) => /cannot avoid/.test(n)).join('\n'))}">⚠ ${st.crossings} over a part</span>` : ''}
     <span class="chip ${ok ? 'ok' : 'bad'}" title="${esc([...L.verify.errors, ...L.issues].join('\n'))}">${ok ? '✓ matches schematic' : '⚠ ' + (L.verify.errors.length + L.issues.length) + ' problem' + (L.verify.errors.length + L.issues.length > 1 ? 's' : '')}</span>`;
@@ -368,15 +437,38 @@ function renderPanel() {
       <div class="actions"><button class="btn" data-bv="lockall">Lock all</button><button class="btn" data-bv="unlockall">Unlock all</button><button class="btn danger" data-bv="delete">${icon('trash')}Delete board</button></div>`;
   } else if (V.tab === 'steps') {
     const list = steps(L);
-    const done = b.done || (b.done = {});
-    const n = list.filter((s) => done[s.id]).length;
+    const n = list.filter(isDoneStep).length;
     h += `<div class="sh-head"><h3>Build steps</h3><span class="sub">${n}/${list.length}</span></div><div class="pbar" style="width:100%;height:7px;margin-bottom:6px"><i style="width:${list.length ? (n / list.length) * 100 : 0}%"></i></div>`;
     let g = null;
     for (const s of list) {
       if (s.group !== g) { h += `<div class="sec">${esc(s.group)}</div>`; g = s.group; }
-      h += `<div class="li" data-step="${esc(s.id)}" data-net="${s.net ?? ''}" data-ref="${esc(s.ref || '')}"><button class="chk ${done[s.id] ? 'on' : ''}" data-done="${esc(s.id)}">${done[s.id] ? icon('check') : ''}</button><div class="grow"><div class="t1" style="white-space:normal">${esc(s.text)}</div></div></div>`;
+      const dn = isDoneStep(s);
+      h += `<div class="li" data-step="${esc(s.id)}" data-net="${s.net ?? ''}" data-ref="${esc(s.ref || '')}"><button class="chk ${dn ? 'on' : ''}" data-done="${esc(s.id)}">${dn ? icon('check') : ''}</button><div class="grow"><div class="t1" style="white-space:normal">${esc(s.text)}</div></div></div>`;
     }
     h += `<div class="actions"><button class="btn danger small" data-bv="resetsteps">Reset checklist</button></div>`;
+  } else if (V.tab === 'cur') {
+    const rep = V.rep, lim = LIMITS[b.type] || LIMITS.breadboard;
+    h += `<div class="hint">Currents come from the circuit simulation (DC / average — PWM and gate-driver peaks are not included). Limits are typical figures for a ${esc(lim.name)}; check your own parts.</div>`;
+    if (!rep || !rep.ok) h += `<div class="note">The circuit could not be simulated, so there are no currents yet. Check the schematic for errors.</div>`;
+    else {
+      const gOpt = (cur) => AWG.map((g) => `<option value="${g}" ${g === cur ? 'selected' : ''}>${g} AWG · ${ampOf(g)} A</option>`).join('');
+      h += `<div class="sec">Default wire gauge</div>
+        <div class="field"><label>${L.kind === 'perf' ? 'Insulated jumpers' : 'Jumper wires'}</label><select class="inp" data-gdef="gauge">${gOpt(b.opts.gauge ?? 22)}</select></div>
+        ${L.kind === 'perf' ? `<div class="field"><label>Solder trails / bus</label><select class="inp" data-gdef="trailGauge">${gOpt(b.opts.trailGauge ?? 22)}</select></div>` : ''}
+        ${b.type === 'breadboard' ? '<div class="hint">Solderless breadboard holes take roughly 20–26 AWG solid wire; thicker wire will not fit.</div>' : ''}`;
+      const rows = rep.nets.filter((x) => x.I > 0.0005).sort((x, y) => y.I - x.I);
+      h += `<div class="sec">Per connection (net)</div>${rows.length ? '' : '<div class="hint">No significant current in this circuit.</div>'}`;
+      if (rows.length) {
+        h += `<table class="pins-table"><tr><th>Net</th><th>Current</th><th>Wire gauge</th></tr>`;
+        for (const n of rows) {
+          const lvl = n.I > n.amp ? 'err' : n.I > 0.7 * n.amp ? 'warn' : 'ok';
+          h += `<tr><td>${esc(n.name)}</td><td class="mono"><i class="dot ${lvl}"></i> ${esc(fmt(n.I, 'A', 3))}</td><td><select class="inp" data-gnet="${n.net}" style="padding:4px 22px 4px 6px;font-size:12.5px">${gOpt(n.awg)}</select></td></tr>`;
+        }
+        h += '</table>';
+      }
+      h += `<div class="actions"><button class="btn pri" data-bv="gsuggest">Suggest gauges</button><button class="btn" data-bv="greset">Reset to default</button></div>`;
+      h += `<div class="sec">Warnings (${rep.items.length})</div>` + (rep.items.length ? rep.items.map((i, k) => `<div class="wmsg" data-curitem="${k}"><i class="dot ${i.level}"></i><div>${esc(i.text)}</div></div>`).join('') : '<div class="hint">✓ Nothing is carrying more than about 70 % of its rating.</div>');
+    }
   } else {
     h += `<div class="hint">Nets that leave this board. Wire each connection point to the listed destination.</div>`;
     if (!L.externals.length) h += '<div class="hint">This board has no off-board connections.</div>';
@@ -435,13 +527,17 @@ function bindPanel(body) {
     if (f) f.innerHTML = `minimise&nbsp; ${w.j}·jumpers + ${w.l}·wire length + ${w.a}·${BOARD_TYPES[b.type].kind === 'bb' ? 'columns used' : 'area (w+h)'} + ${w.f}·schematic-order deviation`;
     app.changed('board', { keepSheet: true });
   }));
-  body.querySelectorAll('[data-done]').forEach((el) => el.addEventListener('click', (e) => { e.stopPropagation(); const id = el.dataset.done; b.done[id] = !b.done[id]; app.changed('board', { keepSheet: true }); renderPanel(); }));
+  body.querySelectorAll('[data-done]').forEach((el) => el.addEventListener('click', (e) => { e.stopPropagation(); const st = steps(V.L).find((x) => x.id === el.dataset.done); if (st) { setDoneStep(st, !isDoneStep(st)); render(); renderStats(); renderPanel(); } }));
   body.querySelectorAll('.li[data-step], .li[data-net]').forEach((el) => el.addEventListener('click', () => {
     if (el.dataset.ref) { const p = V.L.parts.find((q) => q.ref === el.dataset.ref); V.sel = p ? p.id : null; V.net = null; }
     else if (el.dataset.net !== '') { V.net = +el.dataset.net; V.sel = null; }
     render();
   }));
   body.querySelectorAll('[data-open]').forEach((el) => el.addEventListener('click', () => openBoard(app, el.dataset.open)));
+  const regauge = () => { app.changed('board', { keepSheet: true }); relayout(); renderPanel(); };
+  body.querySelectorAll('[data-gdef]').forEach((el) => el.addEventListener('change', () => { b.opts[el.dataset.gdef] = +el.value; regauge(); }));
+  body.querySelectorAll('[data-gnet]').forEach((el) => el.addEventListener('change', () => { (b.gauges ||= {})[V.L.prob.nets[+el.dataset.gnet].key] = +el.value; regauge(); }));
+  body.querySelectorAll('[data-curitem]').forEach((el) => el.addEventListener('click', () => { const it = V.rep.items[+el.dataset.curitem]; V.net = it.net; V.sel = null; render(); }));
   body.querySelectorAll('[data-rmpart]').forEach((el) => el.addEventListener('click', async (e) => {
     e.stopPropagation();
     const id = el.dataset.rmpart;
@@ -470,6 +566,14 @@ function pinInfo(pn) {
 }
 function renderPartbar() {
   const bar = V.el.querySelector('.bv-partbar');
+  if (V.build) {
+    const pr = progress(), nxt = V.next;
+    bar.hidden = false;
+    bar.innerHTML = nxt
+      ? `<div class="grow"><div class="t2" style="font-family:var(--font)">Next · ${pr.done}/${pr.total} built — tap parts and wires on the board to tick them off</div><div style="white-space:normal;font-weight:600">${esc(nxt.text)}</div></div><button class="btn small pri" data-bv="ndone">${icon('check')}Done</button><button class="btn small" data-bv="nskip">Skip</button>`
+      : `<div class="grow"><b>✓ Everything is built.</b> <span class="t2" style="font-family:var(--font)">${pr.total} of ${pr.total} steps done</span></div><button class="btn small" data-bv="resetsteps">Start over</button>`;
+    return;
+  }
   if (V.pending) {
     const pi = pinInfo(V.pending);
     bar.hidden = false;
@@ -519,6 +623,24 @@ function onClick(e) {
     case 'rotview': V.rot = ((V.rot || 0) + 1) % 4; V.vb = null; fit(!!V.fitWhole); app.toast(`View rotated ${(V.rot || 0) * 90}°`); break;
     case 'connect': if (V.ext != null) openLinkPicker(V.ext); break;
     case 'desel': V.sel = null; V.ext = null; V.pin = null; V.pending = null; V.net = null; render(); break;
+    case 'mlayout': case 'mbuild': {
+      V.build = a === 'mbuild'; b.build = V.build; V.sel = null; V.ext = null; V.pin = null; V.pending = null; V.net = null;
+      V.el.classList.toggle('building', V.build);
+      V.el.querySelectorAll('.bv-mode button').forEach((x) => x.classList.toggle('on', (x.dataset.bv === 'mbuild') === V.build));
+      if (V.build) { V.tab = 'steps'; V.el.querySelectorAll('.bv-tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === 'steps')); app.toast('Build mode: tap each part, wire or connection when it is done'); }
+      render(); renderStats(); renderPanel(); break;
+    }
+    case 'ndone': if (V.next) { setDoneStep(V.next, true); render(); renderStats(); if (V.tab === 'steps') renderPanel(); } break;
+    case 'nskip': if (V.next) { V.skip.add(V.next.id); render(); } break;
+    case 'curtab': V.tab = 'cur'; V.el.querySelectorAll('.bv-tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === 'cur')); renderPanel(); break;
+    case 'gsuggest': {
+      b.gauges ||= {}; let over = 0;
+      for (const n of V.rep.nets) if (n.I > 0.0005) { b.gauges[V.L.prob.nets[n.net].key] = n.rec; if (ampOf(n.rec) < n.I) over++; }
+      app.changed('board', { keepSheet: true }); relayout(); renderPanel();
+      app.toast(over ? `Gauges set. ${over} path${over > 1 ? 's' : ''} still exceed what any wire here can carry — move them off the board` : 'Gauges set to the thinnest wire that carries each connection with margin');
+      break;
+    }
+    case 'greset': b.gauges = {}; app.changed('board', { keepSheet: true }); relayout(); renderPanel(); break;
     case 'add': app.openParts(b.id); break;
     case 'update': settle(); break;
     case 'rebuild': runOptimize(true); break;
@@ -531,7 +653,11 @@ function onClick(e) {
     case 'lock': { b.locks ||= {}; if (b.locks[V.sel]) delete b.locks[V.sel]; else b.locks[V.sel] = b.params[V.sel]; app.changed('board', { keepSheet: true }); render(); break; }
     case 'unlockall': b.locks = {}; app.changed('board', { keepSheet: true }); render(); app.toast('All parts unlocked'); break;
     case 'rot': case 'flip': transformSel(a); break;
-    case 'resetsteps': b.done = {}; app.changed('board', { keepSheet: true }); renderPanel(); break;
+    case 'resetsteps': {
+      b.done = {}; V.skip.clear();
+      app.checkpoint(); for (const id of b.compIds) if (app.doc.status[id]) app.doc.status[id].b = 0;
+      app.changed('board', { keepSheet: true }); render(); renderStats(); renderPanel(); break;
+    }
     case 'delete':
       if (!confirm(`Delete “${b.name}”? The schematic is not affected.`)) return;
       app.doc.boards = app.doc.boards.filter((x) => x.id !== b.id);
@@ -818,7 +944,7 @@ function bindCanvas() {
     const w = toWorld(e);
     const ext = (V.exts || []).find((x) => Math.hypot(x.x - w[0], x.y - w[1]) < 8);
     const hit = ext ? null : V.parts.slice().reverse().find((p) => w[0] >= p.box[0] && w[0] <= p.box[2] && w[1] >= p.box[1] && w[1] <= p.box[3]);
-    V.drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, w0: w, vb0: { ...V.vb }, part: hit ? hit.id : null, ext: ext ? ext.net : null, P0: hit ? { ...V.board.params[hit.id] } : null, moved: false, last: null, base: problems(V.L) };
+    V.drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, w0: w, vb0: { ...V.vb }, part: V.build ? null : hit ? hit.id : null, tapPart: hit ? hit.id : null, ext: ext ? ext.net : null, P0: hit ? { ...V.board.params[hit.id] } : null, moved: false, last: null, base: problems(V.L) };
   });
   s.addEventListener('pointermove', (e) => {
     const pt = V.ptrs.get(e.pointerId);
@@ -865,6 +991,13 @@ function bindCanvas() {
     if (dr.moved) { if (dr.part) commitMove(); return; }
     // tap
     V.net = null;
+    if (V.build) {
+      if (dr.ext != null) { tapBuild({ k: 'ext', net: dr.ext }); return; }
+      const cn = hitConn(toWorld(e));
+      if (cn) { tapBuild(cn.k === 'jumper' ? { k: 'jumper', i: cn.i } : cn.k === 'trace' ? { k: 'trace', i: cn.i } : { k: 'bus', y: cn.y }); return; }
+      if (dr.tapPart) tapBuild({ k: 'part', id: dr.tapPart });
+      return;
+    }
     if (dr.ext != null) { V.ext = dr.ext; V.sel = null; V.pin = null; render(); return; }
     {
       const w = toWorld(e), { M } = vgeom();
