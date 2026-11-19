@@ -129,6 +129,8 @@ text { font-family: var(--font); fill: var(--text); dominant-baseline: central; 
 .jopen { fill: var(--canvas); stroke: var(--err); stroke-width: 1.8; }
 .pinopen { fill: var(--canvas); stroke: var(--muted); stroke-width: 1.3; }
 .pinopen.build { stroke: var(--err); }
+.pinpending { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 4 3; animation: pend 1s linear infinite; }
+@keyframes pend { to { stroke-dashoffset: -14; } }
 .pinhot { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
 .comp.planned { opacity: .32; }
 .comp.dragging { opacity: .8; }
@@ -285,6 +287,10 @@ canvas.plot { width: 100%; height: 190px; display: block; background: var(--pane
 #partGrid { overflow-y: auto; padding: 0 12px 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; align-content: start; -webkit-overflow-scrolling: touch; }
 .ptile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px 8px; border-radius: 13px; border: 1px solid var(--line); background: var(--panel); min-height: 96px; }
 .ptile:active { background: var(--accent-soft); }
+.ptile { position: relative; cursor: pointer; }
+.pstar { position: absolute; top: 2px; right: 2px; width: 32px; height: 32px; border-radius: 10px; font-size: 17px; line-height: 1; color: var(--muted); opacity: .55; display: grid; place-items: center; }
+.pstar.on { color: #f59e0b; opacity: 1; }
+.pstar:active { transform: scale(.9); }
 .ptile svg { width: 100%; height: 50px; overflow: visible; }
 .ptile b { font-size: 12.5px; text-align: center; line-height: 1.15; }
 .ptile small { font-size: 10.5px; color: var(--muted); text-align: center; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.25; }

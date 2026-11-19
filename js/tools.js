@@ -474,6 +474,15 @@ export function openTools(app) {
         update(body);
       };
       t.onchange = commit;
+      t.oninput = () => {
+        const i = calc.inputs.find((x) => x.k === t.dataset.k);
+        const x = parseEng(t.value);
+        if (!Number.isFinite(x) || (x <= 0 && !i.allowZero && i.log)) return;
+        t.classList.remove('bad');
+        v[i.k] = x;
+        const sl = body.querySelector(`input[data-s="${i.k}"]`); if (sl) sl.value = toSlider(i, x);
+        update(body);
+      };
       t.onkeydown = (e) => { if (e.key === 'Enter') { commit(); t.blur(); } };
     });
     update(body);

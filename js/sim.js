@@ -215,8 +215,9 @@ export class Circuit {
     for (let i = 0; i < n; i++) {
       let s = -b[i];
       for (let j = 0; j < n; j++) s += A[i * n + j] * x[j + 1];
-      res = Math.max(res, Math.abs(s));
+      res += s * s;
     }
+    res = Math.sqrt(res);
     return { st, A, b, res };
   }
 
@@ -236,14 +237,19 @@ export class Circuit {
         if (!Number.isFinite(d)) return { ok: false, x, it };
         maxStep = Math.max(maxStep, Math.abs(d));
       }
-      const k = maxStep > 10 ? 10 / maxStep : 1;
+      const LIM = 10;
+      let k = 1;
+      if (this._perNode) {
+        // per-node step limit (one stiff node must not freeze every other node)
+        for (let i = 1; i < this.N; i++) { const dd = sol[i - 1] - x[i]; if (dd > LIM) sol[i - 1] = x[i] + LIM; else if (dd < -LIM) sol[i - 1] = x[i] - LIM; }
+      } else if (maxStep > LIM) k = LIM / maxStep; // uniform damping keeps the Newton direction
       // backtracking line search on the residual
       let alpha = 1, best = null;
       for (let tries = 0; tries < 10; tries++) {
         const xt = new Float64Array(this.N);
         for (let i = 1; i < this.N; i++) xt[i] = x[i] + (sol[i - 1] - x[i]) * k * alpha;
         const trial = this._assemble(xt, srcScale, hom);
-        if (!best || trial.res < best.res) best = { ...trial, x: xt, step: maxStep * k * alpha };
+        if (!best || trial.res < best.res) best = { ...trial, x: xt, step: Math.min(maxStep, LIM) * k * alpha };
         if (trial.res < cur.res * (1 - 1e-4 * alpha) || trial.res < 1e-9) break;
         alpha *= 0.5;
       }
@@ -261,6 +267,10 @@ export class Circuit {
     if (prev && prev.length === this.N) x.set(prev);
     let r = this._solveDC(x, 1, 60);
     if (!r.ok && !r.singular) {
+      this._perNode = true;
+      r = this._solveDC(prev && prev.length === this.N ? Float64Array.from(prev) : new Float64Array(this.N), 1, 80);
+    }
+    if (!r.ok && !r.singular) {
       // gain homotopy: soften op-amp gain & logic thresholds, then tighten
       x = new Float64Array(this.N);
       for (let h = 0; h <= 1.0001; h += 0.125) { r = this._solveDC(x, 1, 80, Math.min(h, 1)); x = r.x; }
@@ -271,6 +281,7 @@ export class Circuit {
       for (let s = 1; s <= 10; s++) { r = this._solveDC(x, s / 10, 60, 0); x = r.x; }
       for (let h = 0.125; h <= 1.0001; h += 0.125) { r = this._solveDC(x, 1, 80, Math.min(h, 1)); x = r.x; }
     }
+    this._perNode = false;
     this.op = r.ok ? r.x : null;
     this.opInfo = r;
     if (r.ok) this._computeCurrents(r.st, r.x);

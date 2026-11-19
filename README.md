@@ -38,10 +38,19 @@ Pages and from the iOS Home Screen with no connection.
   with custom pin names.
 - A spec bank for every named part (key specs, pinout, package drawing, notes). It pops up when you add
   a part; long-press a part or tap ⓘ to see it again.
-- Touch-first editing. Drag a part to move it. Drag from a pin to draw a wire, and drop it on a pin, a
-  wire (creates a junction) or empty space (leaves a loose end). Drag a wire's end handles to reconnect
-  or disconnect it. **Detach** pulls a part out of the circuit and leaves its wires behind. You can also
-  rotate, flip, duplicate, delete, box-select and undo/redo.
+- Touch-first editing:
+  - **Tap** a part to select it, tap again to unselect. Drag a part by its body to move it. Small
+    parts such as grounds, rails and labels can be dragged by their body at any zoom.
+  - **Drag from a pin tip** to draw a wire. Drop it on a pin, a wire (creates a junction) or empty
+    space (leaves a loose end).
+  - **Tap to connect**: tap a pin or node (it highlights), then tap another pin, node or wire.
+  - **Long-press a wire** to insert a node there.
+  - Drag a wire's end handles to reconnect or disconnect it. **Detach** pulls a part out of the
+    circuit and leaves its wires behind.
+  - **Copy / Paste** (also ⌘/Ctrl C, X, V) parts with the wiring between them, including into
+    another design. Rotate, flip, duplicate, delete, box-select and undo/redo are also available.
+  - Values apply as you type; there is no need to press Enter or use the −/+ buttons.
+  - The part drawer has **★ Pinned** parts and your **10 most recently used**.
 - Values take engineering notation (`4.7k`, `4k7`, `100n`, `10u`, `1M`), and − / + buttons step
   through E24 values.
 - MCU boards: each GPIO can be set to input, pull-up, pull-down, HIGH, LOW or PWM (average) and drives

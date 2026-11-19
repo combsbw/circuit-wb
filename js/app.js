@@ -4,7 +4,7 @@ import { buildNets } from './netlist.js';
 import { Circuit } from './sim.js';
 import { resistance, lcr, thevenin, bode, zSweep, designChecks } from './analysis.js';
 import { Editor, fmtV, designSvg } from './editor.js';
-import { newDesign, uid, snap, makeComp, removeComps, detachComp, duplicate, cleanup, pinPos, endPos, wirePoints, nearestOnWire, compBBox, describeEnd, makeIndex, xf } from './doc.js';
+import { newDesign, uid, snap, makeComp, removeComps, detachComp, duplicate, cleanup, splitWire, addWire, copyFragment, pasteFragment, pinPos, endPos, wirePoints, nearestOnWire, compBBox, describeEnd, makeIndex, xf } from './doc.js';
 import { store } from './store.js';
 import { icon } from './icons.js';
 import { fmt, parseEng, stepE } from './units.js';
@@ -59,6 +59,7 @@ class App {
         if (sess.probes) this.probes = sess.probes;
         if (sess.meter) Object.assign(this.meter, sess.meter);
         if (sess.settings) Object.assign(this.settings, sess.settings);
+        if (sess.clipboard) this.clipboard = sess.clipboard;
         if (sess.view) this.editor.view = sess.view;
       } else {
         this.doc = EXAMPLES[0].build();
@@ -119,6 +120,9 @@ class App {
     if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); this.redo(); return; }
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); this.saveDesign(); return; }
     if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); this.act('dup'); return; }
+    if (mod && e.key.toLowerCase() === 'c' && this.mode === 'edit') { e.preventDefault(); this.act('copy'); return; }
+    if (mod && e.key.toLowerCase() === 'x' && this.mode === 'edit') { e.preventDefault(); this.act('cut'); return; }
+    if (mod && e.key.toLowerCase() === 'v' && this.mode === 'edit') { e.preventDefault(); this.act('paste'); return; }
     if (!$('#modal').hidden || !$('#partsDrawer').hidden) { if (e.key === 'Escape') { this.closeModal(); this.closeParts(); } return; }
     if (this.mode !== 'edit') { if (e.key === 'Escape') this.select({}); return; }
     const k = e.key.toLowerCase();
@@ -201,6 +205,7 @@ class App {
     if (m !== 'edit') { this.editor.boxMode = false; $('#btnBox').classList.remove('on'); }
     if (m === 'measure' && !this.probes.black) this._autoBlack();
     this.sel.net = null;
+    this.pendingConnect = null;
     this.sheetCollapsed = false;
     $('#sheet').classList.remove('collapsed');
     if (!initial) { this.scheduleSim(); this.saveSession(); }
@@ -240,19 +245,52 @@ class App {
       return;
     }
     // edit
+    const node = hit.kind === 'pin' ? { c: hit.c, p: hit.p } : hit.kind === 'junc' ? { j: hit.j } : null;
+    const pend = this.pendingConnect;
+    if (pend && (node || hit.kind === 'wire')) {
+      // second tap of tap-to-connect
+      const same = node && (node.j != null ? node.j === pend.j : node.c === pend.c && node.p === pend.p);
+      this.pendingConnect = null;
+      if (same) { this.select({}); this.toast('Connection cancelled'); return; }
+      this.checkpoint();
+      let to = node;
+      if (!to) { const j = splitWire(this.doc, hit.w, hit.pos); to = { j: j.id }; }
+      const w = addWire(this.doc, pend, to);
+      cleanup(this.doc);
+      this.changed('wire');
+      if (w) { this.select({ wire: w.id }); this.toast('Connected'); } else { this.select({}); this.toast('Already connected'); }
+      return;
+    }
+    if (pend) { this.pendingConnect = null; this.editor.render(); }
     switch (hit.kind) {
       case 'comp':
         if (shift) { const s = new Set(this.sel.comps); s.has(hit.c) ? s.delete(hit.c) : s.add(hit.c); this.select({ comps: [...s] }); }
+        else if (this.sel.comps.size === 1 && this.sel.comps.has(hit.c)) this.select({}); // tap again to unselect
         else this.select({ comps: [hit.c] });
         break;
-      case 'wire': this.select({ wire: hit.w }); break;
-      case 'junc': this.select({ junc: hit.j, net: this.nets().juncNet(hit.j) }); break;
-      case 'pin': this.select({ net: this.nets().pinNet(hit.c, hit.p), comps: [] }); this._pinHint(hit); break;
+      case 'wire': this.select(this.sel.wire === hit.w ? {} : { wire: hit.w }); break;
+      case 'junc': case 'pin':
+        // first tap of tap-to-connect: highlight this node; tap another node (or a wire) to join them
+        this.pendingConnect = node;
+        this.select({ net: hit.kind === 'pin' ? this.nets().pinNet(hit.c, hit.p) : this.nets().juncNet(hit.j), junc: hit.kind === 'junc' ? hit.j : null });
+        this.toast('Tap another pin, node or wire to connect · tap again to cancel');
+        break;
       case 'handle': break;
       default: this.select({});
     }
   }
   longPress(hit) {
+    if (this.mode === 'edit' && hit.kind === 'wire') {
+      this.checkpoint();
+      const j = splitWire(this.doc, hit.w, hit.pos);
+      cleanup(this.doc);
+      this.changed('node');
+      this.pendingConnect = { j: j.id };
+      this.select({ junc: j.id, net: this.nets().juncNet(j.id) });
+      if (navigator.vibrate) navigator.vibrate(15);
+      this.toast('Node added — drag from it, or tap another pin to connect');
+      return;
+    }
     if (hit.kind === 'comp') { this.select({ comps: [hit.c] }); this.showInfo(this.comp(hit.c)); }
     else if (hit.kind === 'pin' || hit.kind === 'wire' || hit.kind === 'junc') {
       const net = hit.kind === 'pin' ? this.nets().pinNet(hit.c, hit.p) : hit.kind === 'junc' ? this.nets().juncNet(hit.j) : this.nets().endNet(this.doc.wires.find((w) => w.id === hit.w).a);
@@ -359,11 +397,21 @@ class App {
       el.addEventListener(ev, (e) => { e.stopPropagation(); this.act(el.dataset.act, el, e); });
     });
     body.querySelectorAll('[data-prop]').forEach((el) => {
-      const handler = () => this.setProp(el.dataset.cid, el.dataset.prop, el.type === 'range' ? el.value : el.value, el);
+      const handler = () => this.setProp(el.dataset.cid, el.dataset.prop, el.value, el);
       if (el.type === 'range') el.addEventListener('input', handler);
-      else el.addEventListener('change', handler);
-      if (el.tagName === 'INPUT' && el.type === 'text') el.addEventListener('keydown', (e) => { if (e.key === 'Enter') el.blur(); });
+      else {
+        el.addEventListener('change', handler);
+        if (el.tagName === 'INPUT') {
+          // apply as you type (no need to press Enter / leave the field)
+          el.addEventListener('input', () => this.setProp(el.dataset.cid, el.dataset.prop, el.value, el, true));
+          el.addEventListener('blur', () => { if (this._typingEl === el) this._typingEl = null; });
+          el.addEventListener('keydown', (e) => { if (e.key === 'Enter') el.blur(); });
+        }
+      }
     });
+    // reference designator & notes also apply as you type
+    body.querySelectorAll('input[data-act=ref]').forEach((el) => el.addEventListener('input', () => this.act('ref', el, { type: 'input' })));
+    body.querySelectorAll('textarea[data-act=note]').forEach((el) => el.addEventListener('input', () => { this.status(el.dataset.id).note = el.value; this.dirty = true; this._updateTitle(); this.saveSession(); }));
   }
 
   sheetEdit() {
@@ -371,7 +419,7 @@ class App {
     if (s.comps.size === 1) return this.propSheet(this.comp([...s.comps][0]));
     if (s.comps.size > 1) {
       return `<div class="sh-head"><h3>${s.comps.size} components selected</h3></div>
-      <div class="actions">${this.btn('rotate', 'Rotate', 'rotate')}${this.btn('dup', 'Duplicate', 'copy')}${this.btn('delete', 'Delete', 'trash', 'danger')}${this.btn('clearsel', 'Clear', 'x')}</div>
+      <div class="actions">${this.btn('rotate', 'Rotate', 'rotate')}${this.btn('copy', 'Copy', 'copy')}${this.clipboard ? this.btn('paste', 'Paste', 'paste') : ''}${this.btn('dup', 'Duplicate', 'copy')}${this.btn('delete', 'Delete', 'trash', 'danger')}${this.btn('clearsel', 'Clear', 'x')}</div>
       <div class="hint">Drag any selected part to move the group. In <b>Measure</b> mode you can analyse just this selection (“Isolate”).</div>`;
     }
     if (s.wire) {
@@ -384,13 +432,13 @@ class App {
     }
     if (s.junc) {
       return `<div class="sh-head"><h3>Junction</h3></div><div class="kv"><dt>Voltage</dt><dd data-live="netv" data-net="${this.nets().juncNet(s.junc)}">—</dd></div>
-      <div class="actions">${this.btn('deljunc', 'Delete junction', 'trash', 'danger')}</div><div class="hint">Drag the junction to move it; drop it on a pin to connect.</div>`;
+      <div class="actions">${this.btn('deljunc', 'Delete junction', 'trash', 'danger')}</div><div class="hint">Drag the junction to move it; drop it on a pin to connect. Or tap another pin / node / wire to wire it there.</div>`;
     }
     if (s.net != null) return this.netSheet(s.net);
     const n = this.doc.comps.length;
     return `<div class="sh-head"><h3>${n ? 'Editing' : 'Start a circuit'}</h3></div>
       <div class="hint">${n ? '' : 'Tap <b>+</b> to add parts. '}Tap a part to edit its values. <b>Drag from a pin</b> to wire it; drop on a pin, a wire or empty space. Pinch / scroll to zoom, drag the background to pan.</div>
-      <div class="actions">${this.btn('addpart', 'Add part', 'plus', 'pri')}${this.btn('examples', 'Examples', 'book')}${this.btn('tools', 'Calculators', 'calc')}</div>`;
+      <div class="actions">${this.btn('addpart', 'Add part', 'plus', 'pri')}${this.clipboard ? this.btn('paste', `Paste (${this.clipboard.comps.length})`, 'paste') : ''}${this.btn('examples', 'Examples', 'book')}${this.btn('tools', 'Calculators', 'calc')}</div>`;
   }
 
   netSheet(net) {
@@ -419,7 +467,7 @@ class App {
     }
     h += `<div class="actions">`;
     if (def.toggle) h += this.btn('toggle', 'Toggle', 'toggle', 'pri');
-    h += this.btn('rotate', 'Rotate', 'rotate') + this.btn('flip', 'Flip', 'flip') + this.btn('dup', 'Copy', 'copy') + this.btn('detach', 'Detach', 'unlink') + this.btn('delete', 'Delete', 'trash', 'danger');
+    h += this.btn('rotate', 'Rotate', 'rotate') + this.btn('flip', 'Flip', 'flip') + this.btn('copy', 'Copy', 'copy') + (this.clipboard ? this.btn('paste', 'Paste', 'paste') : '') + this.btn('dup', 'Duplicate', 'copy') + this.btn('detach', 'Detach', 'unlink') + this.btn('delete', 'Delete', 'trash', 'danger');
     h += `</div>`;
     h += `<div class="sec">Operating point</div><div data-live="comp" data-cid="${c.id}" class="kv"></div><div data-live="compwarn" data-cid="${c.id}"></div>`;
     if (info.pinout && info.pinout.length && c.type !== 'ic') {
@@ -473,14 +521,22 @@ class App {
     return h + '</table>';
   }
 
-  setProp(cid, key, val, el) {
+  setProp(cid, key, val, el, live) {
     const c = this.comp(cid);
     if (!c) return;
     const o = propDefs(c).find((x) => x.key === key) || {};
     if (o.eng) {
       const v = parseEng(val);
-      if (!Number.isFinite(v)) { el?.classList.add('bad'); this.toast('Could not read “' + val + '” — try 4.7k, 100n, 10u'); return; }
+      if (!Number.isFinite(v)) { el?.classList.add('bad'); if (!live) this.toast('Could not read “' + val + '” — try 4.7k, 100n, 10u'); return; }
       el?.classList.remove('bad');
+    }
+    if (!live && el?.type !== 'range' && String(c.props[key]) === String(val) && key !== 'part') return; // already applied while typing
+    if (live) {
+      if (this._typingEl !== el) { this.checkpoint(); this._typingEl = el; }
+      c.props[key] = val;
+      if (o.range) { const r = el.parentElement?.querySelector('input[type=range]'); const x = parseEng(val); if (r && Number.isFinite(x)) r.value = r.dataset.log ? Math.log10(Math.max(x, 1e-3)) : x; }
+      this.changed('prop', { keepSheet: true });
+      return;
     }
     if (o.slider) { const live = el?.parentElement?.querySelector('[data-live=slv]'); if (live) live.textContent = Math.round(val * 100) + '%'; }
     if (o.range && el?.type === 'range') {
@@ -783,6 +839,24 @@ class App {
         if (!sel1) return;
         this.checkpoint(); sel1.flip = !sel1.flip; this.changed('flip', { keepSheet: true });
         break;
+      case 'copy': {
+        if (!selIds.length) return;
+        this.clipboard = copyFragment(this.doc, selIds, [...this.sel.juncs]);
+        this.toast(`Copied ${this.clipboard.comps.length} part${this.clipboard.comps.length > 1 ? 's' : ''} — Paste works in any design`);
+        this.saveSession();
+        this.renderSheet();
+        break;
+      }
+      case 'paste': {
+        if (!this.clipboard) return;
+        this.checkpoint();
+        const ids = pasteFragment(this.doc, this.clipboard, this.editor.viewCenterWorld());
+        this.changed('paste');
+        this.select({ comps: ids });
+        this.toast(`Pasted ${ids.length} part${ids.length > 1 ? 's' : ''}`);
+        break;
+      }
+      case 'cut': this.act('copy'); this.act('delete'); break;
       case 'dup': {
         if (!selIds.length) return;
         this.checkpoint();
@@ -809,7 +883,7 @@ class App {
       case 'info': if (sel1) this.showInfo(sel1); break;
       case 'editpart': if (sel1) openPartEditor(this, sel1.props.part === 'Custom board' ? null : sel1.props.part); break;
       case 'newpart': this.closeParts(); openPartEditor(this); break;
-      case 'ref': if (sel1 && el.value.trim()) { this.checkpoint(); sel1.ref = el.value.trim(); this.changed('ref', { keepSheet: true }); } break;
+      case 'ref': if (sel1 && el.value.trim() && el.value.trim() !== sel1.ref) { if (this._typingEl !== el) { this.checkpoint(); this._typingEl = el; } sel1.ref = el.value.trim(); this.changed('ref', { keepSheet: true }); } break;
       case 'bool': {
         const c = this.comp(el.dataset.cid);
         this.checkpoint();
@@ -922,29 +996,65 @@ class App {
   closeParts() { $('#partsDrawer').hidden = true; }
   renderParts() {
     const q = $('#partSearch').value.trim().toLowerCase();
-    const cats = ['All', ...CATEGORIES];
+    const pinned = (this.settings.pinned || []).map(findPal).filter(Boolean);
+    const recent = (this.settings.recent || []).map(findPal).filter(Boolean);
+    const cats = ['All', ...(pinned.length ? ['★ Pinned'] : []), ...(recent.length ? ['Recent'] : []), ...CATEGORIES];
+    if (!cats.includes(this._partCat)) this._partCat = 'All';
     $('#partCats').innerHTML = cats.map((c) => `<button class="${this._partCat === c ? 'on' : ''}" data-cat="${c}">${c}</button>`).join('');
     $('#partCats').querySelectorAll('button').forEach((b) => b.onclick = () => { this._partCat = b.dataset.cat; this.renderParts(); });
-    const list = PALETTE.filter((p) => {
-      if (this._partCat !== 'All' && p.cat !== this._partCat && !q) return false;
+    const match = (p) => {
       if (!q) return true;
       const desc = (p.part && (PARTS[p.part]?.desc || ICS[p.part]?.desc)) || TYPES[p.type].name;
       const hay = (p.label + ' ' + desc + ' ' + p.cat + ' ' + (p.part || '') + ' ' + (p.kw || '')).toLowerCase();
       return q.split(/\s+/).every((w) => hay.includes(w) || hay.replace(/[^a-z0-9]/g, '').includes(w.replace(/[^a-z0-9]/g, '')));
-    });
-    let h = '', lastCat = null;
-    list.forEach((p) => {
-      if (this._partCat === 'All' && !q && p.cat !== lastCat) { h += `<div class="pgroup">${p.cat}</div>`; lastCat = p.cat; }
+    };
+    const pinSet = new Set(this.settings.pinned || []);
+    const tile = (p) => {
       const i = PALETTE.indexOf(p);
       const desc = p.part ? (PARTS[p.part]?.desc || ICS[p.part]?.desc || '') : '';
-      h += `<button class="ptile" data-i="${i}">${this.thumb(p)}<b>${esc(p.label)}</b>${desc ? `<small>${esc(desc.length > 38 ? desc.slice(0, 36) + '…' : desc)}</small>` : ''}</button>`;
-    });
-    if (!q || 'custom new board esp32 module part pinout'.includes(q) || q.includes('custom')) {
-      if (['All', 'MCU boards', 'ICs', 'Sensors', 'ADCs', 'Signal sources'].includes(this._partCat) || q) h = `<button class="ptile" data-act="newpart" style="border-style:dashed">${icon('chip', 'icon')}<b>New custom part</b><small>define any ESP32 / module pinout</small></button>` + h;
+      const on = pinSet.has(palKey(p));
+      return `<div class="ptile" role="button" tabindex="0" data-i="${i}"><button class="pstar${on ? ' on' : ''}" data-pin="${i}" title="${on ? 'Unpin' : 'Pin'}" aria-label="${on ? 'Unpin' : 'Pin'} ${esc(p.label)}">${on ? '★' : '☆'}</button>${this.thumb(p)}<b>${esc(p.label)}</b>${desc ? `<small>${esc(desc.length > 38 ? desc.slice(0, 36) + '…' : desc)}</small>` : ''}</div>`;
+    };
+    const NEWPART = `<div class="ptile" role="button" data-act="newpart" style="border-style:dashed">${icon('chip', 'icon')}<b>New custom part</b><small>define any ESP32 / module pinout</small></div>`;
+    let h = '';
+    if (this._partCat === '★ Pinned') h = pinned.filter(match).map(tile).join('');
+    else if (this._partCat === 'Recent') h = recent.filter(match).map(tile).join('');
+    else {
+      if (this._partCat === 'All' && !q) {
+        if (pinned.length) h += `<div class="pgroup">★ Pinned</div>` + pinned.map(tile).join('');
+        if (recent.length) h += `<div class="pgroup">Recently used</div>` + recent.map(tile).join('');
+      }
+      let lastCat = null;
+      for (const p of PALETTE) {
+        if (this._partCat !== 'All' && p.cat !== this._partCat && !q) continue;
+        if (!match(p)) continue;
+        if (this._partCat === 'All' && !q && p.cat !== lastCat) { h += `<div class="pgroup">${p.cat}</div>`; lastCat = p.cat; if (p.cat === 'MCU boards') h += NEWPART; }
+        h += tile(p);
+      }
+      if ((this._partCat !== 'All' || q) && (q ? 'custom new board esp32 module part pinout'.includes(q) || q.includes('custom') : ['MCU boards', 'ICs', 'Sensors', 'ADCs', 'Signal sources'].includes(this._partCat))) h = NEWPART + h;
     }
-    $('#partGrid').innerHTML = h || '<div class="hint" style="grid-column:1/-1">No parts match. Use “New custom part” to define your own pinout.</div>';
+    $('#partGrid').innerHTML = h || `<div class="hint" style="grid-column:1/-1">${this._partCat === '★ Pinned' ? 'Tap ☆ on any part to pin it here.' : 'No parts match. Use “New custom part” to define your own pinout.'}</div>`;
     const np = $('#partGrid [data-act=newpart]'); if (np) np.onclick = () => this.act('newpart');
-    $('#partGrid').querySelectorAll('.ptile[data-i]').forEach((b) => b.onclick = () => this.addPart(PALETTE[+b.dataset.i]));
+    $('#partGrid').querySelectorAll('.ptile[data-i]').forEach((b) => b.onclick = (e) => {
+      if (e.target.closest('.pstar')) return;
+      this.addPart(PALETTE[+b.dataset.i]);
+    });
+    $('#partGrid').querySelectorAll('.pstar').forEach((b) => b.onclick = (e) => {
+      e.stopPropagation();
+      const key = palKey(PALETTE[+b.dataset.pin]);
+      const list = this.settings.pinned || (this.settings.pinned = []);
+      const k = list.indexOf(key);
+      if (k >= 0) list.splice(k, 1); else list.push(key);
+      this.toast(k >= 0 ? 'Unpinned' : '★ Pinned — shown at the top of the parts list');
+      this.saveSession();
+      this.renderParts();
+    });
+  }
+  _noteRecent(p) {
+    const key = palKey(p);
+    const r = (this.settings.recent || []).filter((k) => k !== key);
+    r.unshift(key);
+    this.settings.recent = r.slice(0, 10);
   }
   thumb(p) {
     const c = { id: 't', type: p.type, x: 0, y: 0, rot: 0, props: { ...defaultPropsSafe(p) } };
@@ -961,6 +1071,7 @@ class App {
   }
   addPart(p) {
     this.closeParts();
+    if (PALETTE.includes(p)) this._noteRecent(p);
     this.checkpoint();
     let [x, y] = this.editor.viewCenterWorld();
     x = snap(x, 20); y = snap(y, 20);
@@ -1170,7 +1281,7 @@ class App {
   saveSession(now) {
     clearTimeout(this._saveT);
     const doit = () => store.putState('session', {
-      doc: this.doc, mode: this.mode, view: this.editor.view, simOn: this.simOn, showTags: this.showTags, probes: this.probes,
+      doc: this.doc, mode: this.mode, view: this.editor.view, simOn: this.simOn, showTags: this.showTags, probes: this.probes, clipboard: this.clipboard,
       meterFn: this.meterFn, meter: this.meter, settings: this.settings, dirty: this.dirty, t: Date.now(),
     }).catch((e) => console.warn('autosave failed', e));
     if (now) doit(); else this._saveT = setTimeout(doit, 400);
@@ -1238,6 +1349,8 @@ function defaultPropsSafe(p) {
   if (p.preset) Object.assign(props, p.preset);
   return props;
 }
+const palKey = (p) => `${p.type}|${p.part || ''}|${p.label}`;
+const findPal = (key) => PALETTE.find((p) => palKey(p) === key);
 function normalize(d) {
   d.comps ||= []; d.wires ||= []; d.juncs ||= []; d.status ||= {}; d.readings ||= [];
   d.name ||= 'Untitled circuit'; d.id ||= uid('d');

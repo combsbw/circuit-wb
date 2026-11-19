@@ -99,15 +99,25 @@ export class Editor {
         if (p && Math.hypot(pt[0] - p[0], pt[1] - p[1]) < (touch ? 22 : 14) / k) return { kind: 'handle', wire: w.id, end, pos: p };
       }
     }
-    // pins
+    // pins. Inside a part's own body only the pin tip (≈7 units) counts as the pin, so small parts
+    // (ground, rails, labels…) can be tapped/dragged by their body; outside the body pins keep a generous radius.
+    const PIN_CORE = 7;
+    const inBody = new Set();
+    for (const c of d.comps) {
+      const b = compBBox(c), pad = 3 / k;
+      if (pt[0] >= b.x - pad && pt[0] <= b.x + b.w + pad && pt[1] >= b.y - pad && pt[1] <= b.y + b.h + pad) inBody.add(c.id);
+    }
     let best = null;
     for (const c of d.comps) {
       if (exclude.comp === c.id) continue;
       const pins = getPins(c);
+      const lim = inBody.has(c.id) && !opts.forTarget ? Math.min(tolPin, PIN_CORE) : tolPin;
       for (let i = 0; i < pins.length; i++) {
         const [x, y] = xf(c, pins[i].x, pins[i].y);
         const dd = Math.hypot(pt[0] - x, pt[1] - y);
-        if (dd < tolPin && (!best || dd < best.d)) best = { kind: 'pin', c: c.id, p: i, pos: [x, y], d: dd };
+        // a pin of another part loses to the body we are inside, unless we are right on its tip
+        const l = !inBody.has(c.id) && inBody.size && !opts.forTarget ? Math.min(lim, PIN_CORE + 3) : lim;
+        if (dd < l && (!best || dd < best.d)) best = { kind: 'pin', c: c.id, p: i, pos: [x, y], d: dd };
       }
     }
     for (const j of d.juncs) {
@@ -266,7 +276,7 @@ export class Editor {
   }
 
   _target(pt, dr, exclude) {
-    const h = this.hitTest(pt, { touch: dr.touch, noHandles: true, noProbes: true, exclude });
+    const h = this.hitTest(pt, { touch: dr.touch, noHandles: true, noProbes: true, exclude, forTarget: true });
     return h.kind === 'pin' || h.kind === 'junc' || h.kind === 'wire' ? h : null;
   }
 
@@ -598,6 +608,11 @@ export class Editor {
         if (!p) continue;
         over += probeSvg(p, which, app.activeProbe === which, app.meterFn === 'bode' ? (which === 'red' ? 'IN' : 'OUT') : which === 'red' ? '+' : '−');
       }
+    }
+    if (app.pendingConnect) {
+      const pc = app.pendingConnect;
+      const p = pc.j != null ? (idx.juncs.get(pc.j) ? [idx.juncs.get(pc.j).x, idx.juncs.get(pc.j).y] : null) : idx.comps.get(pc.c) ? pinPos(idx.comps.get(pc.c), pc.p) : null;
+      if (p) over += `<circle class="pinpending" cx="${p[0]}" cy="${p[1]}" r="${Math.max(7, 11 / k)}"/><circle class="jdot hl" cx="${p[0]}" cy="${p[1]}" r="3.5"/>`;
     }
     if (this.ghost) {
       const g = this.ghost;
