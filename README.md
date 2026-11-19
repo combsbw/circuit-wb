@@ -14,8 +14,8 @@ Pages and from the iOS Home Screen with no connection.
     (mark a fuse "blown" to troubleshoot).
   - **LEDs** (red, yellow, green, blue, white).
   - **Diodes**: switching (1N4148, 1N914, BAT54), rectifier (1N4001, 1N4007, 1N5408, UF4007, FR107),
-    Schottky (1N5819, 1N5822, SS34), **Zeners** (3.3–27 V), **TVS** (SMAJ/SMBJ 5–24 V incl.
-    bidirectional SMBJ12CA, P6KE6.8A/15A/33A, 1.5KE18A).
+    Schottky (1N5819, 1N5822, SS34), **Zeners** (3.3–27 V), **TVS**, unidirectional (A) and bidirectional (CA): SMAJ5.0, SMBJ5.0/12/15/24/33,
+    P6KE6.8/15/33, 1.5KE18.
   - **Transistors**: 2N2222A, 2N3904, BC547, TIP31C, TIP120, 2N3906, BC557, TIP42C.
   - **MOSFETs**: IRLZ44N, IRFB4410, IRF540N, IRFZ44N, IRF3205, IRLB8721, IRFP260N, 2N7000, BSS138,
     AO3400, IRF9540N, IRF4905, AO3401.

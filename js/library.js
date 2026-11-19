@@ -52,6 +52,7 @@ export const PARTS = {
   'SMBJ15A': { type: 'tvs', desc: 'TVS 600 W, 15 V stand-off, unidirectional', pkg: 'SMB / DO-214AA', vbr: 16.7, vc: 24.4, ipp: 24.6, bi: false, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VWM (stand-off)', '15 V'], ['VBR', '16.7–18.5 V @ 1 mA'], ['VC', '24.4 V @ 24.6 A'], ['PPP', '600 W']] },
   'SMBJ24A': { type: 'tvs', desc: 'TVS 600 W, 24 V stand-off, unidirectional', pkg: 'SMB / DO-214AA', vbr: 26.7, vc: 38.9, ipp: 15.4, bi: false, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VWM (stand-off)', '24 V'], ['VBR', '26.7–29.5 V @ 1 mA'], ['VC', '38.9 V @ 15.4 A'], ['PPP', '600 W']] },
   'SMBJ12CA': { type: 'tvs', desc: 'TVS 600 W, 12 V stand-off, bidirectional', pkg: 'SMB / DO-214AA', vbr: 13.3, vc: 19.9, ipp: 30.2, bi: true, pinout: [['1', 'either'], ['2', 'either (no polarity)']], specs: [['VWM (stand-off)', '±12 V'], ['VBR', '±13.3–14.7 V @ 1 mA'], ['VC', '19.9 V @ 30.2 A'], ['PPP', '600 W']] },
+  'SMBJ33A': { type: 'tvs', desc: 'TVS 600 W, 33 V stand-off, unidirectional', pkg: 'SMB / DO-214AA', vbr: 36.7, vc: 53.3, ipp: 11.3, bi: false, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VWM (stand-off)', '33 V'], ['VBR', '36.7–40.6 V @ 1 mA'], ['VC', '53.3 V @ 11.3 A'], ['PPP', '600 W']] },
   'P6KE6.8A': { type: 'tvs', desc: 'TVS 600 W axial, 6.8 V breakdown, unidirectional', pkg: 'DO-15', vbr: 6.8, vc: 10.5, ipp: 57, bi: false, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VWM (stand-off)', '5.8 V'], ['VBR', '6.45–7.14 V @ 10 mA'], ['VC', '10.5 V @ 57 A'], ['PPP', '600 W']] },
   'P6KE15A': { type: 'tvs', desc: 'TVS 600 W axial, 15 V breakdown, unidirectional', pkg: 'DO-15', vbr: 15, vc: 21.2, ipp: 28, bi: false, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VWM (stand-off)', '12.8 V'], ['VBR', '14.3–15.8 V @ 1 mA'], ['VC', '21.2 V @ 28 A'], ['PPP', '600 W']] },
   'P6KE33A': { type: 'tvs', desc: 'TVS 600 W axial, 33 V breakdown, unidirectional', pkg: 'DO-15', vbr: 33, vc: 45.7, ipp: 13.2, bi: false, pinout: [['A', 'Anode'], ['K', 'Cathode (band)']], specs: [['VWM (stand-off)', '28.2 V'], ['VBR', '31.4–34.7 V @ 1 mA'], ['VC', '45.7 V @ 13.2 A'], ['PPP', '600 W']] },
@@ -101,6 +102,19 @@ export const PARTS = {
   'LM2940-5': { type: 'reg', desc: 'Low-dropout 5 V, 1 A', pkg: 'TO-220', vout: 5, drop: 0.5, iq: 10e-3, ilim: 1.0, vinMax: 26, nums: ['1', '3', '2'], pinout: [['1', 'IN'], ['2', 'GND (tab)'], ['3', 'OUT']], specs: [['Vout', '5 V'], ['Dropout', '0.5 V @ 1 A'], ['Iout', '1 A'], ['Cout', '≥22 µF required']] },
   'MCP1700-3302': { type: 'reg', desc: 'Micro-power LDO 3.3 V, 250 mA', pkg: 'TO-92', vout: 3.3, drop: 0.178, iq: 1.6e-6, ilim: 0.25, vinMax: 6, nums: ['2', '3', '1'], pinout: [['1', 'GND'], ['2', 'IN'], ['3', 'OUT']], specs: [['Vout', '3.3 V'], ['Vin', '≤ 6 V'], ['Dropout', '178 mV @ 250 mA'], ['Iq', '1.6 µA'], ['Caps', '1 µF in/out']] },
 };
+
+// Bidirectional (CA) TVS variants: same VBR / VC as the A part, clamps both polarities, no polarity marking.
+for (const base of ['SMAJ5.0A', 'SMBJ5.0A', 'SMBJ15A', 'SMBJ24A', 'SMBJ33A', 'P6KE6.8A', 'P6KE15A', 'P6KE33A', '1.5KE18A']) {
+  const a = PARTS[base];
+  const name = base.replace(/A$/, 'CA');
+  if (PARTS[name]) continue;
+  PARTS[name] = {
+    ...a, bi: true,
+    desc: a.desc.replace('unidirectional', 'bidirectional'),
+    pinout: [['1', 'either'], ['2', 'either (no polarity)']],
+    specs: [...a.specs.map(([k, v]) => [k, /^V(WM|BR)/.test(k) ? '±' + v : v]), ['Polarity', 'bidirectional — clamps + and − transients (AC lines, RS-485, CAN, audio)']],
+  };
+}
 
 // ---------- IC / module definitions (block symbols with physical pinouts) ----------
 // fn: pwr, gnd, in, out, io, nc, ctl
@@ -1117,7 +1131,7 @@ export const PALETTE = [
   ...['1N4148', '1N914', '1N5819', 'BAT54'].map((p) => ({ type: PARTS[p].type, part: p, label: p, cat: 'Diodes', kw: 'switching signal diode' })),
   ...['1N4001', '1N4007', '1N5408', 'UF4007', 'FR107', '1N5822', 'SS34'].map((p) => ({ type: PARTS[p].type, part: p, label: p, cat: 'Diodes', kw: 'rectifier diode power' })),
   ...['BZX55C3V3', '1N4728A', '1N4733A', '1N4740A', '1N4742A', '1N4744A', '1N4750A'].map((p) => ({ type: 'zener', part: p, label: p + ' (' + PARTS[p].vz + 'V)', cat: 'Zeners', kw: 'zener diode reference clamp' })),
-  ...['SMAJ5.0A', 'SMBJ5.0A', 'SMBJ12A', 'SMBJ15A', 'SMBJ24A', 'SMBJ12CA', 'P6KE6.8A', 'P6KE15A', 'P6KE33A', '1.5KE18A'].map((p) => ({ type: 'tvs', part: p, label: p, cat: 'TVS', kw: 'tvs transient suppressor surge esd protection diode' })),
+  ...['SMAJ5.0A', 'SMBJ5.0A', 'SMBJ12A', 'SMBJ15A', 'SMBJ24A', 'SMBJ33A', 'P6KE6.8A', 'P6KE15A', 'P6KE33A', '1.5KE18A', 'SMAJ5.0CA', 'SMBJ5.0CA', 'SMBJ12CA', 'SMBJ15CA', 'SMBJ24CA', 'SMBJ33CA', 'P6KE6.8CA', 'P6KE15CA', 'P6KE33CA', '1.5KE18CA'].map((p) => ({ type: 'tvs', part: p, label: PARTS[p].bi ? p + ' (bi)' : p, cat: 'TVS', kw: (PARTS[p].bi ? 'bidirectional bipolar bi-directional ' : 'unidirectional ') + 'tvs transient suppressor surge esd protection diode' })),
   ...['2N2222A', '2N3904', 'BC547', 'TIP31C', 'TIP120'].map((p) => ({ type: 'npn', part: p, label: p, cat: 'Transistors', kw: p === '2N2222A' ? '2N2222 PN2222 npn bjt' : 'npn bjt' })),
   ...['2N3906', 'BC557', 'TIP42C'].map((p) => ({ type: 'pnp', part: p, label: p, cat: 'Transistors' })),
   ...['IRLZ44N', 'IRFB4410', 'IRF540N', 'IRFZ44N', 'IRF3205', 'IRLB8721', 'IRFP260N', '2N7000', 'BSS138', 'AO3400'].map((p) => ({ type: 'nmos', part: p, label: p, cat: 'MOSFETs', kw: p === 'IRFB4410' ? 'IRBF4410 nmos n-channel' : 'nmos n-channel' })),
