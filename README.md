@@ -104,6 +104,16 @@ Pages and from the iOS Home Screen with no connection.
     trails, optional power buses on the top and bottom rows, and insulated jumpers only where a
     trail can't get through.
 - Every layout is re-traced hole by hole and compared with the schematic (✓ matches / list of problems).
+- **Jumpers avoid parts:** holes are chosen so a jumper doesn't lie across a part body, and where
+  it still would, the wire is routed in right angles around the part (shown as "routed around"). It
+  can be switched off in Options; anything that genuinely cannot avoid a part is flagged.
+- **Labels never overlap** (references, connection points, bus names); a leader line is drawn when a
+  label has to sit away from its part.
+- **Rotate** the board view in 90° steps and flip to the bottom view; text stays upright and
+  dragging follows your finger.
+- **Connect board points to anything:** tap a connection point (or "Connect…" in the Connections
+  tab) and pick another board's point, a part outside the board, or an existing wire/net. This adds
+  a wire to the schematic, re-optimizes the layout and can be removed again under "Links made here".
 - Drag parts to move them (a part only moves to a position that stays valid). Rotate, flip and lock
   parts; Optimize keeps locked parts in place. You can switch to a mirrored bottom view for
   soldering.

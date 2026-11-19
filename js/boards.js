@@ -13,6 +13,70 @@
 import { getPins, PARTS, ICS, icGeom, compLabel } from './library.js';
 import { buildNets } from './netlist.js';
 
+// ---------------------------------------------------------------- jumper-vs-part geometry
+export const CROSS_W = 4; // estimated cost of a detour around a part (soft: layouts needing detours are slightly disfavoured)
+/** Does the straight jumper (ax,ay)→(bx,by) pass over a part body (rect, hole units)? Needs ≥ 0.5 hole of overlap. */
+export function segHitsRect(ax, ay, bx, by, r) {
+  const e = 0.3, x0 = r[0] - e, y0 = r[1] - e, x1 = r[2] + e, y1 = r[3] + e;
+  const dx = bx - ax, dy = by - ay;
+  let t0 = 0, t1 = 1;
+  const clip = (p, q) => { if (p === 0) return q >= 0; const t = q / p; if (p < 0) { if (t > t1) return false; if (t > t0) t0 = t; } else { if (t < t0) return false; if (t < t1) t1 = t; } return true; };
+  if (!(clip(-dx, ax - x0) && clip(dx, x1 - ax) && clip(-dy, ay - y0) && clip(dy, y1 - ay))) return false;
+  return (t1 - t0) * Math.hypot(dx, dy) > 0.5;
+}
+const rectOf = (pts) => { if (!pts.length) return null; const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]); const r = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; return r[2] - r[0] + r[3] - r[1] <= 1 ? null : r; };
+/** Body rectangles of the placed parts (final pin holes) — what a jumper must not lie across. */
+export function bodiesOf(parts) {
+  const out = [];
+  for (const p of parts) {
+    if (!p.ok) continue;
+    const pts = [...p.pins.filter(Boolean).map((q) => [q.x, q.y]), ...(p.nc || []).map((q) => [q.x, q.y])];
+    const r = rectOf(pts);
+    if (r) out.push({ ref: p.ref, r });
+  }
+  return out;
+}
+/** Shortest right-angle wire path from a to b that stays clear of every part body (compressed-grid Dijkstra). */
+export function routeWire(a, b, bodies, bounds) {
+  const hit = (x0, y0, x1, y1) => bodies.some((bd) => segHitsRect(x0, y0, x1, y1, bd.r));
+  if (!hit(a[0], a[1], b[0], b[1]) || !bodies.length) return { path: [a, b], clear: !hit(a[0], a[1], b[0], b[1]) };
+  const xs = new Set([a[0], b[0]]), ys = new Set([a[1], b[1]]);
+  for (const bd of bodies) { xs.add(Math.floor(bd.r[0]) - 1); xs.add(Math.ceil(bd.r[2]) + 1); ys.add(Math.floor(bd.r[1]) - 1); ys.add(Math.ceil(bd.r[3]) + 1); xs.add(Math.floor(bd.r[0]) - 2); xs.add(Math.ceil(bd.r[2]) + 2); }
+  const X = [...xs].filter((v) => v >= bounds[0] && v <= bounds[2]).sort((p, q) => p - q), Y = [...ys].filter((v) => v >= bounds[1] && v <= bounds[3]).sort((p, q) => p - q);
+  const nx = X.length, ny = Y.length, id = (i, j) => i * ny + j;
+  const dist = new Float64Array(nx * ny).fill(1e9), prev = new Int32Array(nx * ny).fill(-1), done = new Uint8Array(nx * ny);
+  const si = X.indexOf(a[0]), sj = Y.indexOf(a[1]), ti = X.indexOf(b[0]), tj = Y.indexOf(b[1]);
+  dist[id(si, sj)] = 0;
+  for (;;) {
+    let u = -1;
+    for (let k = 0; k < dist.length; k++) if (!done[k] && dist[k] < 1e9 && (u < 0 || dist[k] < dist[u])) u = k;
+    if (u < 0) break;
+    done[u] = 1;
+    const i = (u / ny) | 0, j = u % ny;
+    if (i === ti && j === tj) break;
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const ii = i + di, jj = j + dj;
+      if (ii < 0 || jj < 0 || ii >= nx || jj >= ny) continue;
+      const v = id(ii, jj);
+      const isEnd = (ii === ti && jj === tj);
+      if (done[v] || (!isEnd && bodies.some((bd) => X[ii] >= bd.r[0] - 0.3 && X[ii] <= bd.r[2] + 0.3 && Y[jj] >= bd.r[1] - 0.3 && Y[jj] <= bd.r[3] + 0.3)) || hit(X[i], Y[j], X[ii], Y[jj])) continue;
+      const w = Math.abs(X[ii] - X[i]) + Math.abs(Y[jj] - Y[j]) + 0.35 + (prev[u] >= 0 && ((((prev[u] / ny) | 0) === i) !== (ii === i)) ? 0.5 : 0);
+      if (dist[u] + w < dist[v]) { dist[v] = dist[u] + w; prev[v] = u; }
+    }
+  }
+  const t = id(ti, tj);
+  if (prev[t] < 0 && t !== id(si, sj)) return { path: [a, b], clear: false };
+  const pts = [];
+  for (let k = t; k >= 0; k = prev[k]) pts.push([X[(k / ny) | 0], Y[k % ny]]);
+  pts.reverse();
+  const out = [pts[0]];
+  for (let k = 1; k < pts.length - 1; k++) { const p0 = pts[k - 1], p1 = pts[k], p2 = pts[k + 1]; if ((p1[0] - p0[0]) * (p2[1] - p1[1]) !== (p1[1] - p0[1]) * (p2[0] - p1[0])) out.push(p1); }
+  out.push(pts[pts.length - 1]);
+  return { path: out, clear: true };
+}
+export const pathLen = (path) => { let l = 0; for (let i = 1; i < path.length; i++) l += Math.abs(path[i][0] - path[i - 1][0]) + Math.abs(path[i][1] - path[i - 1][1]); return l; };
+const crossCount = (a, b, bodies) => { let n = 0; for (const bd of bodies) if (segHitsRect(a[0], a[1], b[0], b[1], bd.r)) n++; return n; };
+
 // ---------------------------------------------------------------- board types & objectives
 export const BOARD_TYPES = {
   breadboard: { name: 'Solderless breadboard', kind: 'bb', presets: [['Full · 830 points (63 columns)', 63, true], ['Half · 400 points (30 columns)', 30, true], ['Mini · 170 points (17 columns, no rails)', 17, false]] },
@@ -205,7 +269,7 @@ function bbCtx(prob, board) {
     if (m.len && m.len > C) { m.ok = false; m.why = 'longer than the board'; }
     return m;
   });
-  return { C, N, node, railNet, netRails, meta, rails };
+  return { C, N, node, railNet, netRails, meta, rails, noCross: board.opts.noCross === false };
 }
 
 const strip = (C, half, x) => (half ? C + x : x);
@@ -265,7 +329,12 @@ function realizeBB(x, P, ctx) {
     cover = [];
     for (let col = P.x; col < P.x + M; col++) { if (4 - P.yt) cover.push([col, 4 - P.yt]); if (yb - 7) cover.push([C + col, yb - 7]); }
   } else return null;
-  return { nodes, fy, cols, straddle, cover };
+  // approximate body rectangle (hole units) for the jumper-crossing term
+  const pts = [];
+  nodes.forEach((nd, pi) => { if (nd < 0) return; const xx = nd >= 2 * C ? cols[0] : nd < C ? nd : nd - C; const yy = fy[pi] != null ? fy[pi] : nd < C ? 3 : 8; pts.push([xx, yy]); });
+  let body = rectOf(pts);
+  if (fp.kind === 'dip') body = [cols[0], 4, cols[1], 7];
+  return { nodes, fy, cols, straddle, cover, body };
 }
 
 function randBB(x, m, ctx, rnd) {
@@ -303,7 +372,11 @@ function makeEvalBB(prob, ctx, W) {
   const stripNet = new Int32Array(N), use = new Int16Array(N), cap = new Int16Array(N);
   const netNodes = prob.nets.map(() => []);
   const pos = (nd) => (nd < C ? [nd, 2] : [nd - C, 9]);
+  const xw = ctx.noCross ? 0 : (W.x ?? CROSS_W);
+  const segs = [], bodies = [];
+  const colOf = (nd) => (nd < C ? nd : nd - C), rowOf = (nd) => (nd < C ? 0 : 11);
   return (pl) => {
+    segs.length = 0; bodies.length = 0;
     stripNet.fill(-1); use.fill(0);
     for (let i = 0; i < 2 * C; i++) cap[i] = 5;
     for (let i = 2 * C; i < N; i++) cap[i] = 9999;
@@ -325,6 +398,7 @@ function makeEvalBB(prob, ctx, W) {
       }
       if (p.cover) for (const [nd, n] of p.cover) cap[nd] -= n;
       if (p.straddle) ivs.push(p.cols);
+      if (xw && p.body) bodies.push(p.body);
       if (p.cols[0] < minC) minC = p.cols[0];
       if (p.cols[1] > maxC) maxC = p.cols[1];
       const d = (p.cols[0] + p.cols[1]) / 2 / Math.max(1, C - 1) - prob.comps[ci].sx;
@@ -343,6 +417,7 @@ function makeEvalBB(prob, ctx, W) {
           if (nd >= 2 * C) { if (nd === ctx.node.TP || nd === ctx.node.TN) top = true; else bot = true; continue; }
           const isTop = nd < C;
           jumpers++; use[nd]++;
+          if (xw) { const rail = (isTop ? rr.top || rr.bot : rr.bot || rr.top); segs.push(colOf(nd), rowOf(nd), colOf(nd), RAIL_ROW[rail]); }
           if (isTop ? rr.top : rr.bot) { len += 3; if (isTop) top = true; else bot = true; } else { len += 13; if (isTop) bot = true; else top = true; }
         }
         if (top && bot && rr.top && rr.bot) { jumpers++; len += 16; }
@@ -355,7 +430,7 @@ function makeEvalBB(prob, ctx, W) {
             let u = -1;
             for (let i = 0; i < k; i++) if (!inT[i] && (u < 0 || best[i] < best[u])) u = i;
             inT[u] = true;
-            if (from[u] >= 0) { len += best[u]; jumpers++; use[nodes[u]]++; use[nodes[from[u]]]++; }
+            if (from[u] >= 0) { len += best[u]; jumpers++; use[nodes[u]]++; use[nodes[from[u]]]++; if (xw) segs.push(colOf(nodes[u]), rowOf(nodes[u]), colOf(nodes[from[u]]), rowOf(nodes[from[u]])); }
             const [ux, uy] = pos(nodes[u]);
             for (let i = 0; i < k; i++) if (!inT[i]) { const [vx, vy] = pos(nodes[i]); const dd = Math.abs(ux - vx) + Math.abs(uy - vy); if (dd < best[i]) { best[i] = dd; from[i] = u; } }
           }
@@ -366,8 +441,10 @@ function makeEvalBB(prob, ctx, W) {
     let overflow = 0;
     for (let i = 0; i < 2 * C; i++) if (use[i] > cap[i]) overflow += use[i] - cap[i];
     const span = maxC >= minC ? maxC - minC + 1 : 0;
-    const cost = W.j * jumpers + W.l * len + W.a * span + W.f * flow + 1e4 * conflicts + 500 * overflow + 1e4 * overlap + 1e5 * missing;
-    return { cost, jumpers, len, span, conflicts, overflow, overlap, missing };
+    let crossings = 0;
+    if (xw) for (let i = 0; i < segs.length; i += 4) for (let b = 0; b < bodies.length; b++) if (segHitsRect(segs[i], segs[i + 1], segs[i + 2], segs[i + 3], bodies[b])) crossings++;
+    const cost = W.j * jumpers + W.l * len + W.a * span + W.f * flow + xw * crossings + 1e4 * conflicts + 500 * overflow + 1e4 * overlap + 1e5 * missing;
+    return { cost, jumpers, len, span, conflicts, overflow, overlap, missing, crossings };
   };
 }
 
@@ -396,7 +473,7 @@ function perfCtx(prob, board) {
     if (fp.kind === '2lead') m.spans = fp.standing && board.opts.allowStanding ? [1, ...fp.spans] : fp.spans;
     return m;
   });
-  return { W, H, edge, ext, busTop, busBot, area, meta };
+  return { W, H, edge, ext, busTop, busBot, area, meta, noCross: board.opts.noCross === false };
 }
 
 /** Local footprint (rotation 0) → pins & keep-out cells. */
@@ -676,11 +753,15 @@ function finalizeBB(prob, ctx, P, Wt) {
       parts[i].pins[pi] = { x: col, y, net: prob.comps[i].pinNets[pi] };
     }
   });
-  // 3) jumpers
+  // 3) jumpers — pick holes so a jumper does not lie across a part body whenever a free hole allows it
+  const bodies = ctx.noCross ? [] : bodiesOf(parts);
   const jumpers = [], externals = [];
   const netStrips = prob.nets.map(() => new Set()), netRailsUsed = prob.nets.map(() => new Set());
   R.forEach((r, i) => { if (!r) return; r.nodes.forEach((nd, pi) => { if (nd < 0) return; const net = prob.comps[i].pinNets[pi]; if (nd >= 2 * C) netRailsUsed[net].add(railOf(nd)); else netStrips[net].add(nd); }); });
   const stripHole = (nd, order) => { const [col, half] = nodeXY(nd); const y = order(half).find((yy) => holeFree(col, yy)); if (y == null) return null; return [col, y]; };
+  const holeCands = (nd) => { const [col, half] = nodeXY(nd); return outerFirst(half).filter((yy) => holeFree(col, yy)).map((yy) => [col, yy]); };
+  const peekRail = (rail, x) => { const s = railCols[rail]; for (let d = 0; d < C; d++) for (const xx of [x + d, x - d]) if (xx >= 0 && xx < C && !s.has(xx)) return xx; return x; };
+  const bestPair = (A, B) => { let best = null; for (const a of A) for (const b of B) { if (a[0] === b[0] && a[1] === b[1]) continue; const c = crossCount(a, b, bodies), l = Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]); if (!best || c < best.c || (c === best.c && l < best.l)) best = { a, b, c, l }; } return best; };
   const addJ = (a, b, net, kindJ) => jumpers.push({ a, b, net, kind: kindJ, len: Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) });
   prob.nets.forEach((info, n) => {
     const strips = [...netStrips[n]];
@@ -689,7 +770,13 @@ function finalizeBB(prob, ctx, P, Wt) {
       for (const nd of strips) {
         const isTop = nd < C;
         const rail = isTop ? rr.top || rr.bot : rr.bot || rr.top;
-        const h = stripHole(nd, outerFirst);
+        const cands = holeCands(nd);
+        let h = null;
+        if (cands.length) {
+          let bc = null;
+          for (const c of cands) { const rc = peekRail(rail, c[0]); const x = crossCount(c, [rc, RAIL_ROW[rail]], bodies), l = Math.abs(c[0] - rc) + Math.abs(c[1] - RAIL_ROW[rail]); if (!bc || x < bc.x || (x === bc.x && l < bc.l)) bc = { c, x, l }; }
+          h = bc.c;
+        }
         if (!h) { issues.push(`${info.name}: strip ${nodeXY(nd)[0] + 1}${isTop ? ' a–e' : ' f–j'} is full — no hole for the rail jumper`); continue; }
         take(h[0], h[1], 'jumper');
         const col = takeRail(rail, h[0]);
@@ -711,9 +798,8 @@ function finalizeBB(prob, ctx, P, Wt) {
         for (let i = 0; i < k; i++) if (!inT[i] && (u < 0 || best[i] < best[u])) u = i;
         inT[u] = true;
         if (from[u] >= 0) {
-          const a = stripHole(strips[from[u]], outerFirst); if (a) take(a[0], a[1], 'jumper');
-          const b = stripHole(strips[u], outerFirst); if (b) take(b[0], b[1], 'jumper');
-          if (a && b) addJ(a, b, n, 'wire'); else issues.push(`${info.name}: strip full — no hole for a jumper`);
+          const bp = bestPair(holeCands(strips[from[u]]), holeCands(strips[u]));
+          if (bp) { take(bp.a[0], bp.a[1], 'jumper'); take(bp.b[0], bp.b[1], 'jumper'); addJ(bp.a, bp.b, n, 'wire'); } else issues.push(`${info.name}: strip full — no hole for a jumper`);
         }
         const pu = pos(strips[u]);
         for (let i = 0; i < k; i++) if (!inT[i]) { const pv = pos(strips[i]); const dd = Math.abs(pu[0] - pv[0]) + Math.abs(pu[1] - pv[1]); if (dd < best[i]) { best[i] = dd; from[i] = u; } }
@@ -729,10 +815,21 @@ function finalizeBB(prob, ctx, P, Wt) {
   if (metrics.conflicts) issues.unshift(`${metrics.conflicts} strip conflict${metrics.conflicts > 1 ? 's' : ''} (two nets in one strip) — try a larger board or Optimize again`);
   if (metrics.overlap) issues.unshift('ICs / modules overlap — Optimize again or use a longer board');
   if (metrics.missing) issues.unshift(`${metrics.missing} part${metrics.missing > 1 ? 's' : ''} not placed`);
-  const len = jumpers.reduce((s, j) => s + j.len, 0);
   const cols = parts.flatMap((p) => p.pins.filter(Boolean).map((q) => q.x));
   const used = cols.length ? Math.max(...cols) - Math.min(...cols) + 1 : 0;
-  const L = { parts, jumpers, externals, traces: [], issues, notes, rails: ctx.railNet, C, stats: { jumpers: jumpers.length, len, used, cost: metrics.cost, holes: taken.size } };
+  let crossings = 0, detours = 0;
+  if (!ctx.noCross) for (const j of jumpers) {
+    const hits = bodies.filter((bd) => segHitsRect(j.a[0], j.a[1], j.b[0], j.b[1], bd.r));
+    j.path = [j.a, j.b]; j.over = [];
+    if (hits.length) {
+      const r = routeWire(j.a, j.b, bodies, [0, -3, C - 1, 14]);
+      if (r.clear) { j.path = r.path; j.around = hits.map((h) => h.ref); j.len = pathLen(r.path); detours++; }
+      else { j.over = hits.map((h) => h.ref); crossings++; }
+    }
+  }
+  if (crossings) notes.push(`${crossings} jumper${crossings > 1 ? 's' : ''} cannot avoid a part (${[...new Set(jumpers.flatMap((j) => j.over || []))].join(', ')}) — lift the wire over it or use a larger board`);
+  const lenR = jumpers.reduce((sum, j) => sum + j.len, 0);
+  const L = { parts, jumpers, externals, traces: [], issues, notes, rails: ctx.railNet, C, stats: { jumpers: jumpers.length, len: lenR, used, crossings, detours, cost: metrics.cost, holes: taken.size } };
   L.verify = verifyBB(L, prob, ctx);
   return L;
 }
@@ -803,9 +900,10 @@ function finalizePerf(prob, ctx, P, Wt) {
   const hp = (n) => { const t = term[n]; const xs = t.map((p) => p[0]), ys = t.map((p) => p[1]); return Math.max(...xs) - Math.min(...xs) + Math.max(...ys) - Math.min(...ys); };
   const orders = [nets.slice().sort((a, b) => hp(a) - hp(b)), nets.slice().sort((a, b) => hp(b) - hp(a)), nets.slice().sort((a, b) => term[b].length - term[a].length)];
   let best = null;
+  const bodies = ctx.noCross ? [] : bodiesOf(parts);
   for (const order of orders) {
-    const r = routeAll(order, term, base, buses, W, H);
-    const score = Wt.j * r.jumpers.length + Wt.l * r.len;
+    const r = routeAll(order, term, base, buses, W, H, bodies);
+    const score = Wt.j * r.jumpers.length + Wt.l * r.len + CROSS_W * r.jumpers.filter((j) => j.over && j.over.length).length;
     if (!best || score < best.score) best = { ...r, score };
   }
   if (m.conflicts) issues.unshift(`${m.conflicts} overlapping hole${m.conflicts > 1 ? 's' : ''} — Optimize again or use a bigger board`);
@@ -813,12 +911,23 @@ function finalizePerf(prob, ctx, P, Wt) {
   const xs = parts.flatMap((p) => p.pins.filter(Boolean).map((q) => q.x)), ys = parts.flatMap((p) => p.pins.filter(Boolean).map((q) => q.y));
   const used = xs.length ? `${Math.max(...xs) - Math.min(...xs) + 1} × ${Math.max(...ys) - Math.min(...ys) + 1}` : '0';
   const cost = Wt.j * best.jumpers.length + Wt.l * best.len + Wt.a * (xs.length ? Math.max(...xs) - Math.min(...xs) + Math.max(...ys) - Math.min(...ys) : 0) + 1e4 * m.conflicts;
-  const L = { parts, jumpers: best.jumpers, traces: best.traces, externals, buses, issues, notes, W, H, stats: { jumpers: best.jumpers.length, len: best.len, used, cost } };
+  let crossings = 0, detours = 0, plen = best.len;
+  if (!ctx.noCross) for (const j of best.jumpers) {
+    const hits = bodies.filter((bd) => segHitsRect(j.a[0], j.a[1], j.b[0], j.b[1], bd.r));
+    j.path = [j.a, j.b]; j.over = [];
+    if (hits.length) {
+      const r = routeWire(j.a, j.b, bodies, [0, 0, W - 1, H - 1]);
+      if (r.clear) { j.path = r.path; j.around = hits.map((h) => h.ref); plen += pathLen(r.path) - j.len; j.len = pathLen(r.path); detours++; }
+      else { j.over = hits.map((h) => h.ref); crossings++; }
+    }
+  }
+  if (crossings) notes.push(`${crossings} insulated jumper${crossings > 1 ? 's' : ''} cannot avoid a part (${[...new Set(best.jumpers.flatMap((j) => j.over || []))].join(', ')}) — try another orientation or a larger board`);
+  const L = { parts, jumpers: best.jumpers, traces: best.traces, externals, buses, issues, notes, W, H, stats: { jumpers: best.jumpers.length, len: plen, used, crossings, detours, cost } };
   L.verify = verifyPerf(L, prob, W, H);
   return L;
 }
 
-function routeAll(order, term, base, buses, W, H) {
+function routeAll(order, term, base, buses, W, H, bodies = []) {
   const own = base.slice();
   const traces = [], jumpers = [];
   let len = 0;
@@ -850,9 +959,13 @@ function routeAll(order, term, base, buses, W, H) {
       }
       if (hit < 0) {
         // no free path on the bottom side → insulated jumper from the nearest tree cell
-        let target = -1, from = -1, bd = 1e9;
-        for (const t of todo) for (const c of tree) { const d = Math.abs((t % W) - (c % W)) + Math.abs(((t / W) | 0) - ((c / W) | 0)); if (d < bd) { bd = d; target = t; from = c; } }
-        jumpers.push({ a: [from % W, (from / W) | 0], b: [target % W, (target / W) | 0], net: n, kind: 'wire', len: bd });
+        let target = -1, from = -1, bd = 1e9, bx = 1e9;
+        for (const t of todo) for (const c of tree) {
+          const d = Math.abs((t % W) - (c % W)) + Math.abs(((t / W) | 0) - ((c / W) | 0));
+          const x = bodies.length ? crossCount([c % W, (c / W) | 0], [t % W, (t / W) | 0], bodies) : 0;
+          if (x < bx || (x === bx && d < bd)) { bx = x; bd = d; target = t; from = c; }
+        }
+        jumpers.push({ a: [from % W, (from / W) | 0], b: [target % W, (target / W) | 0], net: n, kind: 'wire', len: bd, over: bodies.filter((b2) => segHitsRect(from % W, (from / W) | 0, target % W, (target / W) | 0, b2.r)).map((b2) => b2.ref) });
         len += bd;
         tree.add(target); todo.delete(target);
         continue;
@@ -911,7 +1024,7 @@ export function steps(L) {
   }
   const order = (p) => ({ dip: 0, dual: 0, inline: 1, '2lead': 2 }[p.fp.kind] ?? 3);
   const flat = L.kind === 'bb' ? L.jumpers.filter((j) => j.kind !== 'link').sort((a, b) => a.len - b.len) : [];
-  for (const j of flat) out.push({ id: 'j' + j.a + j.b, group: 'Jumper wires (lay flat first)', text: `${nm(j.net)}: ${hole(...j.a)} → ${hole(...j.b)} (${j.len} holes)` , net: j.net });
+  for (const j of flat) out.push({ id: 'j' + j.a + j.b, group: 'Jumper wires (lay flat first)', text: `${nm(j.net)}: ${hole(...j.a)} → ${hole(...j.b)} (${j.len} holes${j.around ? `, routed around ${j.around.join(', ')}` : ''}${j.over && j.over.length ? `, passes over ${j.over.join(', ')}` : ''})` , net: j.net });
   for (const p of L.parts.slice().sort((a, b) => order(a) - order(b) || a.ref.localeCompare(b.ref, undefined, { numeric: true }))) {
     if (!p.ok) continue;
     let hint = p.fp.kind === 'dip' ? ' (check the notch / pin-1 dot)' : '';
@@ -920,7 +1033,7 @@ export function steps(L) {
   }
   if (L.kind === 'perf') {
     for (const t of L.traces) out.push({ id: 't' + t.cells[0] + t.cells.length, group: 'Bottom side: solder trails', text: `${nm(t.net)}: ${ccw(t.cells).map((c) => hole(...c)).join(' → ')}`, net: t.net });
-    for (const j of L.jumpers) out.push({ id: 'pj' + j.a + j.b, group: 'Insulated jumpers (where trails would cross)', text: `${nm(j.net)}: ${hole(...j.a)} → ${hole(...j.b)}`, net: j.net });
+    for (const j of L.jumpers) out.push({ id: 'pj' + j.a + j.b, group: 'Insulated jumpers (where trails would cross)', text: `${nm(j.net)}: ${hole(...j.a)} → ${hole(...j.b)}${j.around ? ` (routed around ${j.around.join(', ')})` : ''}`, net: j.net });
   }
   for (const e of L.externals) out.push({ id: 'e' + e.net, group: 'Off-board connections', text: `${e.name} at ${e.where || hole(e.x, e.y)} → ${e.dests.join(', ') || 'external'}`, net: e.net });
   return out;
