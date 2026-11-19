@@ -334,7 +334,8 @@ function realizeBB(x, P, ctx) {
   nodes.forEach((nd, pi) => { if (nd < 0) return; const xx = nd >= 2 * C ? cols[0] : nd < C ? nd : nd - C; const yy = fy[pi] != null ? fy[pi] : nd < C ? 3 : 8; pts.push([xx, yy]); });
   let body = rectOf(pts);
   if (fp.kind === 'dip') body = [cols[0], 4, cols[1], 7];
-  return { nodes, fy, cols, straddle, cover, body };
+  const rcol = fp.kind === '2lead' && P.mode === 'r' ? nodes[fp.map[1 - P.k]] : -1; // strip the standing lead sits in
+  return { nodes, fy, cols, straddle, cover, body, rcol };
 }
 
 function randBB(x, m, ctx, rnd) {
@@ -370,6 +371,7 @@ function mutateBB(x, m, P, ctx, rnd) {
 function makeEvalBB(prob, ctx, W) {
   const { C, N } = ctx;
   const stripNet = new Int32Array(N), use = new Int16Array(N), cap = new Int16Array(N);
+  const rcolUse = new Int8Array(N);
   const netNodes = prob.nets.map(() => []);
   const pos = (nd) => (nd < C ? [nd, 2] : [nd - C, 9]);
   const xw = ctx.noCross ? 0 : (W.x ?? CROSS_W);
@@ -383,6 +385,7 @@ function makeEvalBB(prob, ctx, W) {
     for (const a of netNodes) a.length = 0;
     let conflicts = 0, overlap = 0, minC = 1e9, maxC = -1e9, flow = 0, missing = 0;
     const ivs = [];
+    rcolUse.fill(0);
     for (let ci = 0; ci < pl.length; ci++) {
       const p = pl[ci];
       if (!p) { missing++; continue; }
@@ -396,6 +399,7 @@ function makeEvalBB(prob, ctx, W) {
         const arr = netNodes[net];
         if (!arr.includes(nd)) arr.push(nd);
       }
+      if (p.rcol >= 0 && rcolUse[p.rcol]++) conflicts++; // two rail-direct parts cannot stand in one column
       if (p.cover) for (const [nd, n] of p.cover) cap[nd] -= n;
       if (p.straddle) ivs.push(p.cols);
       if (xw && p.body) bodies.push(p.body);
@@ -689,13 +693,15 @@ export async function optimize(doc, board, { onProgress, shouldStop, fresh, only
 export function conflictParts(doc, board) {
   const { prob, ctx, kind } = setup(doc, board);
   if (kind !== 'bb') return [];
-  const out = new Set(), atNode = new Map();
+  const out = new Set(), atNode = new Map(), rc = new Map();
   prob.comps.forEach((x, i) => {
     const P = board.params?.[x.c.id];
     const r = P ? realizeBB(x, P, ctx) : null;
     if (!r) { out.add(x.c.id); return; }
     r.nodes.forEach((nd, pi) => { if (nd < 0) return; if (!atNode.has(nd)) atNode.set(nd, []); atNode.get(nd).push([x.c.id, x.pinNets[pi]]); });
+    if (r.rcol >= 0) { if (!rc.has(r.rcol)) rc.set(r.rcol, []); rc.get(r.rcol).push(x.c.id); }
   });
+  for (const ids of rc.values()) if (ids.length > 1) for (const id of ids.slice(1)) out.add(id); // two rail-direct parts stacked in one column
   for (const list of atNode.values()) if (new Set(list.map((q) => q[1])).size > 1) for (const [id] of list) out.add(id);
   return [...out];
 }
@@ -849,6 +855,7 @@ function finalizeBB(prob, ctx, P, Wt) {
       fp.map.forEach((pi, k) => { if (pi >= 0) return; let col, top; if (p.r === 0) { if (k < h) { col = p.x + k; top = false; } else { col = p.x + (n - 1 - k); top = true; } } else { if (k < h) { col = p.x + h - 1 - k; top = true; } else { col = p.x + k - h; top = false; } } take(col, top ? 4 : 7, parts[i].ref); (parts[i].nc ||= []).push({ x: col, y: top ? 4 : 7 }); });
     }
   });
+  const flatBodies = [];
   // 2) inline parts & 2-lead parts: try a common row
   R.forEach((r, i) => {
     if (!r) return;
@@ -858,8 +865,12 @@ function finalizeBB(prob, ctx, P, Wt) {
     const pref = P[i] && P[i].mode === 'r' ? outerFirst : innerFirst;
     if (halves.size === 1) {
       const half = [...halves][0];
-      const row = pref(half).find((y) => flex.every((pi) => holeFree(nodeXY(r.nodes[pi])[0], y)));
-      if (row != null) { for (const pi of flex) { const col = nodeXY(r.nodes[pi])[0]; take(col, row, parts[i].ref); parts[i].pins[pi] = { x: col, y: row, net: prob.comps[i].pinNets[pi] }; } return; }
+      const cs = flex.map((pi) => nodeXY(r.nodes[pi])[0]), c0 = Math.min(...cs), c1 = Math.max(...cs);
+      const fits = (y) => flex.every((pi) => holeFree(nodeXY(r.nodes[pi])[0], y));
+      // keep bodies apart: avoid the row next to a part that already lies across the same columns
+      const clear = (y) => !flatBodies.some((b) => b.half === half && Math.abs(b.y - y) < 2 && b.x0 <= c1 && c0 <= b.x1);
+      const row = pref(half).find((y) => fits(y) && clear(y)) ?? pref(half).find(fits);
+      if (row != null) { if (c1 > c0) flatBodies.push({ half, y: row, x0: c0, x1: c1 }); for (const pi of flex) { const col = nodeXY(r.nodes[pi])[0]; take(col, row, parts[i].ref); parts[i].pins[pi] = { x: col, y: row, net: prob.comps[i].pinNets[pi] }; } return; }
     }
     for (const pi of flex) {
       const [col, half] = nodeXY(r.nodes[pi]);
@@ -928,7 +939,7 @@ function finalizeBB(prob, ctx, P, Wt) {
       else issues.push(`${info.name}: no free hole for the off-board connection`);
     }
   });
-  if (metrics.conflicts) issues.unshift(`${metrics.conflicts} strip conflict${metrics.conflicts > 1 ? 's' : ''} (two nets in one strip) — try a larger board or Optimize again`);
+  if (metrics.conflicts) issues.unshift(`${metrics.conflicts} placement conflict${metrics.conflicts > 1 ? 's' : ''} (two nets in one strip, or parts stacked in one column) — try a larger board or Optimize again`);
   if (metrics.overlap) issues.unshift('ICs / modules overlap — Optimize again or use a longer board');
   if (metrics.missing) issues.unshift(`${metrics.missing} part${metrics.missing > 1 ? 's' : ''} not placed`);
   const cols = parts.flatMap((p) => p.pins.filter(Boolean).map((q) => q.x));
