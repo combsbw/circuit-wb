@@ -4,7 +4,7 @@ import { buildNets } from './netlist.js';
 import { Circuit } from './sim.js';
 import { resistance, lcr, thevenin, bode, zSweep, designChecks } from './analysis.js';
 import { Editor, fmtV, designSvg } from './editor.js';
-import { newDesign, uid, snap, makeComp, removeComps, detachComp, duplicate, cleanup, splitWire, addWire, mergeJunc, pinPos, endPos, wirePoints, nearestOnWire, compBBox, describeEnd, makeIndex, xf } from './doc.js';
+import { designBBox, newDesign, uid, snap, makeComp, removeComps, detachComp, duplicate, cleanup, splitWire, addWire, mergeJunc, pinPos, endPos, wirePoints, nearestOnWire, compBBox, describeEnd, makeIndex, xf } from './doc.js';
 import { store } from './store.js';
 import { icon } from './icons.js';
 import { fmt, parseEng, stepE } from './units.js';
@@ -81,7 +81,7 @@ class App {
 
   _decorate() {
     const set = (sel, name) => { const el = $(sel); if (el) el.innerHTML = icon(name); };
-    set('#btnFiles', 'folder'); set('#btnUndo', 'undo'); set('#btnRedo', 'redo'); set('#btnSim', 'bolt'); set('#btnTools', 'calc'); set('#btnInstall', 'download');
+    set('#btnFiles', 'folder'); set('#btnUndo', 'undo'); set('#btnRedo', 'redo'); set('#btnSim', 'bolt'); set('#btnTools', 'calc'); set('#btnBoards', 'chip'); set('#btnInstall', 'download');
     set('#btnAdd', 'plus'); set('#btnBox', 'box'); set('#btnZoomIn', 'zin'); set('#btnZoomOut', 'zout'); set('#btnFit', 'fit'); set('#partsClose', 'x'); set('#modalClose', 'x');
     document.querySelectorAll('.mi[data-icon]').forEach((el) => { el.innerHTML = icon(el.dataset.icon); });
   }
@@ -92,6 +92,7 @@ class App {
     $('#btnRedo').onclick = () => this.redo();
     $('#btnSim').onclick = () => { this.simOn = !this.simOn; this.toast(this.simOn ? 'Live voltages on' : 'Live voltages off'); this.render(); this.saveSession(); };
     $('#btnTools').onclick = () => openTools(this);
+    $('#btnBoards').onclick = () => this.openBoardMenu();
     $('#btnInstall').onclick = () => this.openInstall();
     $('#btnFiles').onclick = () => this.openFiles();
     $('#docTitle').onclick = () => this.rename();
@@ -166,7 +167,7 @@ class App {
   _validateSel() {
     const ids = new Set(this.doc.comps.map((c) => c.id));
     for (const id of [...this.sel.comps]) if (!ids.has(id)) this.sel.comps.delete(id);
-    if (this.doc.boards) { for (const b of this.doc.boards) b.compIds = b.compIds.filter((id) => ids.has(id)); this.doc.boards = this.doc.boards.filter((b) => b.compIds.length); }
+    if (this.doc.boards) { for (const b of this.doc.boards) b.compIds = b.compIds.filter((id) => ids.has(id)); }
     const jids = new Set(this.doc.juncs.map((j) => j.id));
     for (const id of [...this.sel.juncs]) if (!jids.has(id)) this.sel.juncs.delete(id);
     if (this.sel.wire && !this.doc.wires.some((w) => w.id === this.sel.wire)) this.sel.wire = null;
@@ -432,7 +433,7 @@ class App {
     if (s.comps.size === 1) return this.propSheet(this.comp([...s.comps][0]));
     if (s.comps.size > 1) {
       return `<div class="sh-head"><h3>${s.comps.size} components selected</h3></div>
-      <div class="actions">${this.btn('mkboard', 'Build board', 'chip', 'pri')}${this.btn('rotate', 'Rotate', 'rotate')}${this.btn('dup', 'Duplicate', 'copy')}${this.btn('delete', 'Delete', 'trash', 'danger')}${this.btn('clearsel', 'Clear', 'x')}</div>
+      <div class="actions">${this.btn('mkboard', 'Build board', 'chip', 'pri')}${(this.doc.boards || []).length ? this.btn('addtoboard', 'Add to board', 'chip') : ''}${this.btn('rotate', 'Rotate', 'rotate')}${this.btn('dup', 'Duplicate', 'copy')}${this.btn('delete', 'Delete', 'trash', 'danger')}${this.btn('clearsel', 'Clear', 'x')}</div>
       <div class="hint"><b>Build board</b> lays these parts out on a breadboard, solderable breadboard or perfboard. Drag any selected part to move the group. In <b>Measure</b> mode you can analyse just this selection (“Isolate”).</div>`;
     }
     if (s.wire) {
@@ -482,6 +483,7 @@ class App {
     }
     h += `<div class="actions">`;
     if (def.toggle) h += this.btn('toggle', 'Toggle', 'toggle', 'pri');
+    if ((this.doc.boards || []).length && PHYSICAL(c)) h += this.btn('addtoboard', 'Add to board', 'chip');
     h += this.btn('rotate', 'Rotate', 'rotate') + this.btn('flip', 'Flip', 'flip') + this.btn('dup', 'Duplicate', 'copy') + this.btn('detach', 'Detach', 'unlink') + this.btn('delete', 'Delete', 'trash', 'danger');
     h += `</div>`;
     h += `<div class="sec">Operating point</div><div data-live="comp" data-cid="${c.id}" class="kv"></div><div data-live="compwarn" data-cid="${c.id}"></div>`;
@@ -942,8 +944,7 @@ class App {
         this.checkpoint();
         this.doc.boards ||= [];
         const moved = this.doc.boards.filter((b) => b.compIds.some((id) => ids.includes(id))).map((b) => b.name);
-        for (const b of this.doc.boards) b.compIds = b.compIds.filter((id) => !ids.includes(id));
-        this.doc.boards = this.doc.boards.filter((b) => b.compIds.length);
+        for (const b of this.doc.boards) { b.compIds = b.compIds.filter((id) => !ids.includes(id)); for (const id of ids) { delete b.params?.[id]; delete b.locks?.[id]; } }
         const b = newBoard(this.doc, ids);
         if (ids.length <= 6) b.cols = 30;
         this.doc.boards.push(b);
@@ -953,6 +954,22 @@ class App {
         break;
       }
       case 'openboard': openBoard(this, el.dataset.id); break;
+      case 'addtoboard': {
+        const ids = selIds.filter((id) => { const c = this.comp(id); return c && PHYSICAL(c); });
+        const boards = this.doc.boards || [];
+        if (!ids.length || !boards.length) { this.toast(boards.length ? 'Select some real parts first' : 'No boards yet — use Build board'); return; }
+        const doIt = (b) => {
+          this.checkpoint();
+          for (const o of boards) { o.compIds = o.compIds.filter((id) => !ids.includes(id)); for (const id of ids) { delete o.params?.[id]; delete o.locks?.[id]; } }
+          b.compIds.push(...ids);
+          this.changed('board');
+          this.toast(`Added ${ids.length} part${ids.length === 1 ? '' : 's'} to ${b.name}`);
+          openBoard(this, b.id);
+        };
+        if (boards.length === 1) { doIt(boards[0]); break; }
+        this.openModal('Add to which board?', `<div class="list">${boards.map((b) => `<div class="li" data-b="${b.id}"><i class="dot" style="background:#8b5cf6"></i><div class="grow"><div class="t1">${esc(b.name)}</div></div></div>`).join('')}</div>`, (body) => body.querySelectorAll('[data-b]').forEach((el) => el.addEventListener('click', () => { this.closeModal(); doIt(boards.find((b) => b.id === el.dataset.b)); })));
+        break;
+      }
       case 'closechecks': this.showChecks = false; this.renderSheet(); break;
       case 'unignore': this.checkpoint(); this.doc.ignored = []; this.changed('ignore', { keepSheet: false }); break;
       case 'dup': {
@@ -1110,8 +1127,9 @@ class App {
   }
 
   // ======================= parts drawer =======================
-  openParts() {
-    if (this.mode !== 'edit') this.setMode('edit');
+  openParts(boardId) {
+    this._partBoard = boardId || null; // when set, the chosen part is added to that board
+    if (this.mode !== 'edit' && !boardId) this.setMode('edit');
     $('#partsDrawer').hidden = false;
     this._partCat = this._partCat || 'All';
     this.renderParts();
@@ -1194,6 +1212,7 @@ class App {
     return `<svg viewBox="${b.x - pad} ${b.y - pad} ${b.w + 2 * pad} ${b.h + 2 * pad}" preserveAspectRatio="xMidYMid meet">${body}${texts}</svg>`;
   }
   addPart(p) {
+    const bid = this._partBoard; this._partBoard = null;
     this.closeParts();
     if (PALETTE.includes(p)) this._noteRecent(p);
     this.checkpoint();
@@ -1210,11 +1229,57 @@ class App {
         if (!hits()) break outer;
       }
     }
+    const board = bid && (this.doc.boards || []).find((b) => b.id === bid);
+    if (board) {
+      // board-first: put the new part in free schematic space to the right of everything, and on the board
+      const ex = designBBox(this.doc);
+      const boxes2 = this.doc.comps.map((o) => compBBox(o));
+      c.x = snap((ex ? ex.x + ex.w : 0) + 160, 20); c.y = snap(ex ? ex.y : 0, 20);
+      const clash = () => { const b = compBBox(c); return boxes2.some((o) => b.x < o.x + o.w + 16 && b.x + b.w + 16 > o.x && b.y < o.y + o.h + 16 && b.y + b.h + 16 > o.y); };
+      for (let i = 0; i < 60 && clash(); i++) { c.y += 80; if (i % 8 === 7) { c.x += 140; c.y = snap(ex ? ex.y : 0, 20); } }
+      this.doc.comps.push(c);
+      board.compIds.push(c.id);
+      this.changed('add', { keepSheet: true });
+      this.toast(`${c.ref} added to ${board.name} and the schematic`);
+      if (this.onBoardPartAdded) this.onBoardPartAdded(c.id);
+      return;
+    }
     this.doc.comps.push(c);
     this.changed('add');
     this.select({ comps: [c.id] });
     if (this.settings.autoInfo && p.part && (PARTS[p.part]?.pinout || ICS[p.part])) this.showInfo(c);
     else this.toast(`${c.ref} added — drag to place, drag from its pins to wire`);
+  }
+
+  // ======================= boards: design ⇄ board =======================
+  openBoardMenu() {
+    const boards = this.doc.boards || [];
+    const phys = (ids) => ids.filter((id) => { const c = this.comp(id); return c && PHYSICAL(c); });
+    const nSel = phys([...this.sel.comps]).length, nAll = phys(this.doc.comps.map((c) => c.id)).length;
+    let h = `<div class="hint">A <b>board</b> is a physical layout (breadboard, solderable breadboard or perfboard) of part of this circuit. The schematic and the board always describe the same circuit: change one and the other follows.</div>`;
+    h += boards.length ? `<div class="sec">Boards in this design</div><div class="list">${boards.map((b) => `<div class="li" data-open="${b.id}"><i class="dot" style="background:#8b5cf6"></i><div class="grow"><div class="t1">${esc(b.name)}</div><div class="t2">${esc(BOARD_TYPES[b.type]?.name || '')} · ${b.compIds.length} part${b.compIds.length === 1 ? '' : 's'}</div></div>${icon('chip')}</div>`).join('')}</div>` : '';
+    h += `<div class="sec">Design → board</div><div class="actions">${nSel ? `<button class="btn pri" data-bm="sel">${icon('chip')}Build board from ${nSel} selected part${nSel === 1 ? '' : 's'}</button>` : ''}<button class="btn ${nSel ? '' : 'pri'}" data-bm="all" ${nAll ? '' : 'disabled'}>${icon('chip')}Build board from all ${nAll} parts</button></div>
+      <div class="sec">Board → design</div><div class="actions"><button class="btn" data-bm="blank">${icon('plus')}New blank board</button></div>
+      <div class="hint">On a blank board, add parts and tap their pins to connect them. The schematic is built from what you do on the board.</div>`;
+    this.openModal('Boards', h, (body) => {
+      body.querySelectorAll('[data-open]').forEach((el) => el.addEventListener('click', () => { this.closeModal(); openBoard(this, el.dataset.open); }));
+      body.querySelectorAll('[data-bm]').forEach((el) => el.addEventListener('click', () => {
+        const k = el.dataset.bm;
+        this.closeModal();
+        if (k === 'sel') this.act('mkboard');
+        else if (k === 'all') this.act('mkboardall');
+        else this.newBlankBoard();
+      }));
+    });
+  }
+  newBlankBoard() {
+    this.checkpoint();
+    this.doc.boards ||= [];
+    const b = newBoard(this.doc, []);
+    b.cols = 30;
+    this.doc.boards.push(b);
+    this.changed('board');
+    openBoard(this, b.id);
   }
 
   // ======================= modals =======================

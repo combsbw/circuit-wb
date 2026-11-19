@@ -1,5 +1,5 @@
 // Board designer view: physical layout on breadboard / solderable breadboard / perfboard.
-import { BOARD_TYPES, OBJECTIVES, EFFORT, optimize, layout, steps, holeName, RAIL_ROW, RAIL_LABEL, weightsOf } from './boards.js';
+import { BOARD_TYPES, OBJECTIVES, EFFORT, optimize, layout, steps, holeName, RAIL_ROW, RAIL_LABEL, weightsOf, conflictParts, PHYSICAL } from './boards.js';
 import { icon } from './icons.js';
 import { fmt, parseEng } from './units.js';
 import { addWire, cleanup, describeEnd } from './doc.js';
@@ -19,11 +19,12 @@ export function openBoard(app, id) {
   el.id = 'boardView';
   el.innerHTML = `
     <header class="bv-top">
-      <button class="ib" data-bv="close" title="Back to schematic" aria-label="Back">${icon('x')}</button>
+      <div class="seg bv-toggle" role="tablist" aria-label="View"><button data-bv="close" title="Back to the schematic">${icon('edit')}<b>Design</b></button><button class="on"><span class="mi">${icon('chip')}</span><b>Board</b></button></div>
       <input class="bv-name inp" aria-label="Board name">
       <div class="bv-stats"></div>
       <div class="bv-actions">
-        <button class="btn" data-bv="new" title="Start from a new random layout">${icon('rotate')}New layout</button>
+        <button class="btn" data-bv="add" title="Add a part to this board (and the schematic)">${icon('plus')}Add part</button>
+        <button class="btn" data-bv="new" title="Start from a new random layout">${icon('rotate')}Rebuild</button>
         <button class="btn pri" data-bv="opt">${icon('bolt')}Optimize</button>
       </div>
     </header>
@@ -41,7 +42,7 @@ export function openBoard(app, id) {
       </aside>
     </div>`;
   document.body.appendChild(el);
-  V = { app, board, el, svg: el.querySelector('.bv-svg'), tab: 'setup', sel: null, net: null, ext: null, rot: 0, bottom: false, vb: null, ptrs: new Map(), L: null };
+  V = { app, board, el, svg: el.querySelector('.bv-svg'), tab: 'setup', sel: null, net: null, ext: null, pin: null, pending: null, rot: 0, bottom: false, vb: null, ptrs: new Map(), L: null };
   el.querySelector('.bv-name').value = board.name;
   el.querySelector('.bv-name').addEventListener('input', (e) => { board.name = e.target.value || 'Board'; app.changed('board', { keepSheet: true }); });
   el.addEventListener('click', onClick);
@@ -50,14 +51,18 @@ export function openBoard(app, id) {
   relayout();
   fit();
   renderPanel();
-  if (!Object.keys(board.params || {}).length) runOptimize(true);
+  app.onBoardPartAdded = () => { if (V) settle(); };
+  if (!Object.keys(board.params || {}).length) { if (board.compIds.length) runOptimize(true); }
+  else if (V.L.stale || V.L.parts.some((p) => !p.ok)) settle();
 }
 export function closeBoard() {
   if (!V) return;
   V.el.remove();
   const app = V.app;
+  app.onBoardPartAdded = null; app._partBoard = null;
   V = null;
   app.editor.render();
+  app.renderSheet();
 }
 export function isBoardOpen() { return !!V; }
 
@@ -206,6 +211,7 @@ function render() {
     items.unshift({ text: `${e.name} ↗`, cls: 'bv-extl', box: [x - 6, y - 6, x + 6, y + 6], own: null });
   }
   for (const bus of L.buses || []) { const [x, y] = M(L.W - 1, bus.y); items.unshift({ text: bus.name, cls: 'bv-lbl bv-busl', box: [x - 3, y - 3, x + 3, y + 3], own: null }); }
+  if (V.pin || V.pending) for (const pn of [V.pending, V.pin]) { if (!pn) continue; const part = L.parts.find((q) => q.id === pn.id), q = part && part.pins[pn.pi]; if (q) { const [x, y] = M(q.x, q.y); hlSvg += `<circle class="bv-pinsel${pn === V.pending ? ' pend' : ''}" cx="${r1(x)}" cy="${r1(y)}" r="8"/>`; } }
   // pin hole highlight for the selected net
   if (V.net != null) for (const p of L.parts) for (const q of p.pins) if (q && q.net === V.net) { const [x, y] = M(q.x, q.y); hlSvg += `<circle class="bv-hlpin" cx="${r1(x)}" cy="${r1(y)}" r="6.5"/>`; }
   // external labels first (they are tied to a hole), then parts
@@ -217,7 +223,8 @@ function render() {
   V.svg.innerHTML = `<g transform="matrix(${mat.join(',')})">${shapes}</g>${texts}${partsSvg}${jumpSvg}${hlSvg}${extSvg}${labelsSvg}`;
   const ban = V.el.querySelector('.bv-banner');
   const msgs = [];
-  if (L.stale) msgs.push('The schematic changed since this layout — tap <b>Optimize</b> to update it (locked parts stay).');
+  if (L.stale) msgs.push('The schematic changed since this layout. <button class="btn small pri" data-bv="update">Update layout</button> <button class="btn small" data-bv="rebuild">Rebuild</button>');
+  if (!L.parts.length) msgs.push('Empty board — tap <b>Add part</b>, then tap pins to connect them. Everything you do here is written to the schematic.');
   if (V.bottom) msgs.push('Bottom view (mirrored) — the side you solder.');
   ban.hidden = !msgs.length;
   ban.innerHTML = msgs.join('<br>');
@@ -353,10 +360,12 @@ function renderPanel() {
       <div class="field"><label>Standing resistors / diodes</label><div><button class="toggle ${b.opts.allowStanding ? 'on' : ''}" data-set="allowStanding"></button></div></div>
       ${T.kind === 'bb' ? `<div class="field"><label>Leads straight into rails</label><div><button class="toggle ${b.opts.directRails !== false ? 'on' : ''}" data-set="directRails"></button></div></div>` : ''}
       <div class="field"><label>Search effort</label><select class="inp" data-set="effort">${Object.keys(EFFORT).map((e) => `<option ${b.opts.effort === e ? 'selected' : ''}>${e}</option>`).join('')}</select></div>
-      <div class="sec">Parts on this board (${L.parts.length})</div>
-      <div class="hint">${L.parts.map((p) => esc(p.ref)).join(', ') || '—'}${L.notes.length ? '<br>' + L.notes.map(esc).join('<br>') : ''}</div>
-      <div class="hint">Tap a part to rotate / flip / lock it; drag to move. Locked parts stay put when you Optimize.</div>
-      <div class="actions"><button class="btn" data-bv="unlockall">Unlock all</button><button class="btn danger" data-bv="delete">${icon('trash')}Delete board</button></div>`;
+      <div class="sec">Parts on this board (${b.compIds.length})</div>
+      ${b.compIds.length ? `<div class="pchips">${b.compIds.map((id) => V.app.comp(id)).filter(Boolean).map((c) => `<span class="pchip">${esc(c.ref)} <small>${esc(c.props.part || c.type)}</small><button data-rmpart="${c.id}" title="Remove from this board (stays in the schematic)" aria-label="Remove ${esc(c.ref)} from board">×</button></span>`).join('')}</div>` : '<div class="hint">This board is empty. Add parts, then tap their pins to connect them — the schematic is built from what you do here.</div>'}
+      ${L.notes.length ? '<div class="hint">' + L.notes.map(esc).join('<br>') + '</div>' : ''}
+      <div class="actions"><button class="btn pri" data-bv="add">${icon('plus')}Add new part</button><button class="btn" data-bv="addfrom">Add from schematic…</button></div>
+      <div class="hint">Tap a part to rotate / flip / lock it. Tap a pin (the dot at a lead) to connect it to another pin or <b>Disconnect</b> it. Locked parts stay put when you Optimize, so build by hand, lock what you like, then Optimize to tidy the rest.</div>
+      <div class="actions"><button class="btn" data-bv="lockall">Lock all</button><button class="btn" data-bv="unlockall">Unlock all</button><button class="btn danger" data-bv="delete">${icon('trash')}Delete board</button></div>`;
   } else if (V.tab === 'steps') {
     const list = steps(L);
     const done = b.done || (b.done = {});
@@ -397,6 +406,7 @@ function renderPanel() {
 }
 
 function bindPanel(body) {
+  const b0 = V.board; void b0;
   const b = V.board, app = V.app;
   const save = (re = true) => { app.changed('board', { keepSheet: true }); if (re) { relayout(); renderPanel(); } };
   body.querySelectorAll('[data-set]').forEach((el) => {
@@ -432,6 +442,15 @@ function bindPanel(body) {
     render();
   }));
   body.querySelectorAll('[data-open]').forEach((el) => el.addEventListener('click', () => openBoard(app, el.dataset.open)));
+  body.querySelectorAll('[data-rmpart]').forEach((el) => el.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const id = el.dataset.rmpart;
+    app.checkpoint();
+    b.compIds = b.compIds.filter((x) => x !== id); delete b.params?.[id]; delete b.locks?.[id];
+    if (V.sel === id) V.sel = null;
+    app.changed('board', { keepSheet: true });
+    await settle();
+  }));
   body.querySelectorAll('[data-link]').forEach((el) => el.addEventListener('click', (e) => { e.stopPropagation(); openLinkPicker(+el.dataset.link); }));
   body.querySelectorAll('[data-unlink]').forEach((el) => el.addEventListener('click', async (e) => {
     e.stopPropagation();
@@ -443,8 +462,29 @@ function bindPanel(body) {
   body.querySelectorAll('.li[data-ext]').forEach((el) => el.addEventListener('click', () => { V.ext = +el.dataset.ext; V.sel = null; render(); }));
 }
 
+function pinInfo(pn) {
+  const part = V.L.parts.find((q) => q.id === pn.id), c = V.app.comp(pn.id);
+  if (!part || !c) return null;
+  const q = part.pins[pn.pi], nl = V.L.prob.nl, nid = nl.pinNet(pn.id, pn.pi);
+  return { ref: c.ref, name: getPins(c)[pn.pi]?.name || String(pn.pi), net: nid == null ? '' : nl.nets[nid].name, hole: q ? (V.L.kind === 'bb' ? holeName(q.x, q.y) : `(${q.x + 1},${q.y + 1})`) : '' };
+}
 function renderPartbar() {
   const bar = V.el.querySelector('.bv-partbar');
+  if (V.pending) {
+    const pi = pinInfo(V.pending);
+    bar.hidden = false;
+    bar.innerHTML = `<div class="grow">Tap another pin to connect <b>${esc(pi ? `${pi.ref}.${pi.name}` : '')}</b> to it</div><button class="btn small" data-bv="pcancel">Cancel</button>`;
+    return;
+  }
+  if (V.pin && !V.sel && V.ext == null) {
+    const pi = pinInfo(V.pin);
+    if (pi) {
+      bar.hidden = false;
+      bar.innerHTML = `<div class="grow"><b>${esc(pi.ref)}.${esc(pi.name)}</b> <span class="t2">${esc(pi.hole)}</span><div class="t2" style="font-family:var(--font)">net ${esc(pi.net)}</div></div>
+        <button class="btn small pri" data-bv="pconnect">${icon('plus')}Connect to pin</button><button class="btn small" data-bv="plink">Connect to…</button><button class="btn small danger" data-bv="pdisc">${icon('unlink')}Disconnect</button><button class="ib" data-bv="desel">${icon('x')}</button>`;
+      return;
+    }
+  }
   const ex = V.ext != null && !V.sel ? V.L.externals.find((e) => e.net === V.ext) : null;
   if (ex) {
     bar.hidden = false;
@@ -478,7 +518,16 @@ function onClick(e) {
     case 'flipview': V.bottom = !V.bottom; V.vb = null; fit(!!V.fitWhole); app.toast(V.bottom ? 'Bottom view (mirrored)' : 'Top view'); break;
     case 'rotview': V.rot = ((V.rot || 0) + 1) % 4; V.vb = null; fit(!!V.fitWhole); app.toast(`View rotated ${(V.rot || 0) * 90}°`); break;
     case 'connect': if (V.ext != null) openLinkPicker(V.ext); break;
-    case 'desel': V.sel = null; V.ext = null; render(); break;
+    case 'desel': V.sel = null; V.ext = null; V.pin = null; V.pending = null; V.net = null; render(); break;
+    case 'add': app.openParts(b.id); break;
+    case 'update': settle(); break;
+    case 'rebuild': runOptimize(true); break;
+    case 'pconnect': V.pending = V.pin; V.pin = null; render(); break;
+    case 'pcancel': V.pending = null; render(); break;
+    case 'plink': if (V.pin) openPickerFrom({ c: V.pin.id, p: V.pin.pi }); break;
+    case 'pdisc': disconnectPin(V.pin); break;
+    case 'lockall': b.locks ||= {}; for (const id of b.compIds) if (b.params?.[id]) b.locks[id] = b.params[id]; app.changed('board', { keepSheet: true }); render(); app.toast('All parts locked — Optimize will only add wiring'); break;
+    case 'addfrom': addFromSchematic(); break;
     case 'lock': { b.locks ||= {}; if (b.locks[V.sel]) delete b.locks[V.sel]; else b.locks[V.sel] = b.params[V.sel]; app.changed('board', { keepSheet: true }); render(); break; }
     case 'unlockall': b.locks = {}; app.changed('board', { keepSheet: true }); render(); app.toast('All parts unlocked'); break;
     case 'rot': case 'flip': transformSel(a); break;
@@ -538,7 +587,7 @@ function commitMove() {
   if (V.tab !== 'setup') renderPanel();
 }
 
-async function runOptimize(fresh) {
+async function runOptimize(fresh, o = {}) {
   if (V.busy) return;
   const b = V.board;
   V.busy = true; V.stop = false;
@@ -547,38 +596,127 @@ async function runOptimize(fresh) {
   const t0 = performance.now();
   try {
     const r = await optimize(V.app.doc, b, {
-      fresh,
+      fresh, only: o.only, warm: o.warm,
       onProgress: (f) => { if (!V) return; pr.querySelector('i').style.width = Math.round(f * 100) + '%'; pr.querySelector('span').textContent = `Optimizing… ${Math.round(f * 100)}%`; },
       shouldStop: () => !V || V.stop,
     });
     if (!V) return;
     b.params = r.params; b.sig = r.sig;
     V.app.changed('board', { keepSheet: true });
-    relayout(); renderPanel(); fit();
+    relayout(); renderPanel();
+    if (!o.keepView) fit();
     const L = V.L;
-    V.app.toast(`${L.verify.ok && !L.issues.length ? '✓' : '⚠'} ${L.stats.jumpers} jumper${L.stats.jumpers === 1 ? '' : 's'}, ${L.stats.len} holes of wire — ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+    if (!o.quiet) V.app.toast(`${L.verify.ok && !L.issues.length ? '✓' : '⚠'} ${L.stats.jumpers} jumper${L.stats.jumpers === 1 ? '' : 's'}, ${L.stats.len} holes of wire — ${((performance.now() - t0) / 1000).toFixed(1)} s`);
   } finally {
     if (V) { V.busy = false; pr.hidden = true; }
   }
 }
+/** After the circuit changed (connections edited, parts added / removed): re-lay out with as little movement as possible. */
+async function settle() {
+  if (!V) return;
+  const app = V.app, b = V.board;
+  relayout();
+  if (V.L.parts.length) {
+    const missing = V.L.parts.filter((p) => !p.ok).map((p) => p.id);
+    const bad = V.L.kind === 'bb' ? conflictParts(app.doc, b) : [];
+    const only = new Set([...missing, ...bad]);
+    if (only.size) await runOptimize(false, { only, warm: true, quiet: true, keepView: true });
+    if (V && (V.L.issues.length || !V.L.verify.ok)) await runOptimize(false, { warm: true, quiet: true, keepView: true });
+  }
+  if (!V) return;
+  if (V.L.verify.ok && !V.L.issues.length) b.sig = V.L.prob.sig;
+  app.changed('board', { keepSheet: true });
+  relayout(); renderPanel();
+  // keep everything in view: re-fit when a part (or connection point) now lies outside the visible area
+  const { M } = vgeom(), vb = V.vb;
+  const out = !vb || V.L.parts.some((p) => p.ok && p.pins.some((q) => { if (!q) return false; const [x, y] = M(q.x, q.y); return x < vb.x + 5 || x > vb.x + vb.w - 5 || y < vb.y + 5 || y > vb.y + vb.h - 5; }));
+  if (out || !V.L.parts.length) fit(V.fitWhole && !!V.L.parts.length);
+}
+
+// ------------------------------------------------------------------ editing the circuit from the board
+function pruneStubs(doc, start) {
+  const cand = [...start];
+  while (cand.length) {
+    const j = cand.pop();
+    const ws = doc.wires.filter((w) => w.a.j === j || w.b.j === j);
+    if (ws.length !== 1) continue;
+    const w = ws[0], o = w.a.j === j ? w.b : w.a;
+    doc.wires = doc.wires.filter((x) => x !== w);
+    if (o.j != null) cand.push(o.j);
+  }
+}
+async function disconnectPin(pn) {
+  if (!pn) return;
+  const app = V.app, doc = app.doc, touched = new Set();
+  const had = doc.wires.some((w) => (w.a.c === pn.id && w.a.p === pn.pi) || (w.b.c === pn.id && w.b.p === pn.pi));
+  if (!had) { app.toast('Nothing is wired to this pin'); return; }
+  const pi = pinInfo(pn);
+  app.checkpoint();
+  doc.wires = doc.wires.filter((w) => {
+    const hit = (w.a.c === pn.id && w.a.p === pn.pi) || (w.b.c === pn.id && w.b.p === pn.pi);
+    if (hit) for (const e of [w.a, w.b]) if (e.j != null) touched.add(e.j);
+    return !hit;
+  });
+  pruneStubs(doc, touched);
+  cleanup(doc);
+  V.pin = null; V.net = null;
+  app.changed('board', { keepSheet: true });
+  app.toast(`Disconnected ${pi ? `${pi.ref}.${pi.name}` : 'pin'}`);
+  await settle();
+}
+async function connectPins(a, b) {
+  const nl = V.L.prob.nl;
+  V.pending = null;
+  if (nl.pinNet(a.id, a.pi) === nl.pinNet(b.id, b.pi)) { V.app.toast('Those pins are already on the same net'); render(); return; }
+  await doLink({ c: a.id, p: a.pi }, { c: b.id, p: b.pi }, { link: false });
+}
+async function addFromSchematic() {
+  const app = V.app, doc = app.doc, b = V.board;
+  const owner = new Map();
+  for (const o of doc.boards || []) for (const id of o.compIds) owner.set(id, o.name);
+  const cands = doc.comps.filter((c) => PHYSICAL(c) && !b.compIds.includes(c.id));
+  if (!cands.length) { app.toast('Every part is already on this board'); return; }
+  cands.sort((x, y) => (owner.has(x.id) ? 1 : 0) - (owner.has(y.id) ? 1 : 0) || x.ref.localeCompare(y.ref, undefined, { numeric: true }));
+  const html = `<div class="hint">Tick the parts to put on <b>${esc(b.name)}</b>. Parts that are on another board move here.</div><div class="list">${cands.map((c, i) => `<label class="li"><input type="checkbox" data-i="${i}" ${owner.has(c.id) ? '' : 'checked'}><div class="grow"><div class="t1">${esc(c.ref)} <span class="t2">${esc(c.props.part || c.type)}</span></div>${owner.has(c.id) ? `<div class="t2">now on ${esc(owner.get(c.id))}</div>` : ''}</div></label>`).join('')}</div><div class="actions"><button class="btn pri" id="afGo">Add selected</button></div>`;
+  app.openModal('Add parts from the schematic', html, (body) => {
+    body.querySelector('#afGo').addEventListener('click', async () => {
+      const ids = [...body.querySelectorAll('input:checked')].map((el) => cands[+el.dataset.i].id);
+      app.closeModal();
+      if (!ids.length) return;
+      app.checkpoint();
+      for (const o of doc.boards) if (o !== b) { o.compIds = o.compIds.filter((id) => !ids.includes(id)); for (const id of ids) { delete o.params?.[id]; delete o.locks?.[id]; } }
+      b.compIds.push(...ids);
+      app.changed('board', { keepSheet: true });
+      await settle();
+      fit();
+    });
+  });
+}
 
 // ------------------------------------------------------------------ connecting board points to other boards / wires / components
 function openLinkPicker(net) {
+  const L = V.L, srcPin = L.prob.nets[net].pins[0];
+  if (!srcPin) return;
+  openPickerFrom({ c: L.prob.comps[srcPin.ci].c.id, p: srcPin.pi });
+}
+function openPickerFrom(src) {
   const app = V.app, doc = app.doc, L = V.L, nl = L.prob.nl;
-  const ext = L.externals.find((e) => e.net === net);
-  const srcPin = L.prob.nets[net].pins[0];
-  if (!ext || !srcPin) return;
-  const src = { c: L.prob.comps[srcPin.ci].c.id, p: srcPin.pi };
+  const srcNet = nl.pinNet(src.c, src.p);
+  const srcComp = app.comp(src.c);
+  const srcLabel = `${srcComp ? srcComp.ref : ''}.${srcComp ? getPins(srcComp)[src.p]?.name : ''} (${nl.nets[srcNet].name})`;
   const mine = new Set(V.board.compIds);
   const netName = (c, p) => { const id = nl.pinNet(c, p); return id == null ? '' : nl.nets[id].name; };
   const rows = []; // {sec, label, sub, target}
+  for (const c of doc.comps) {
+    if (mine.has(c.id) && c.id !== src.c) getPins(c).forEach((pin, i) => rows.push({ sec: 'Other parts on this board', label: `${c.ref} · ${pin.name}`, sub: netName(c.id, i), target: { c: c.id, p: i } }));
+  }
   for (const o of doc.boards || []) {
     if (o.id === V.board.id) continue;
     let OL; try { OL = layout(doc, o); } catch { continue; }
     for (const e2 of OL.externals) {
       const pin = OL.prob.nets[e2.net].pins[0];
       if (!pin) continue;
-      rows.push({ sec: `Other boards`, label: `${o.name} · ${e2.name}`, sub: `${e2.where || ''}`, target: { c: OL.prob.comps[pin.ci].c.id, p: pin.pi } });
+      rows.push({ sec: 'Other boards', label: `${o.name} · ${e2.name}`, sub: `${e2.where || ''}`, target: { c: OL.prob.comps[pin.ci].c.id, p: pin.pi } });
     }
   }
   for (const c of doc.comps) {
@@ -588,15 +726,15 @@ function openLinkPicker(net) {
   const seen = new Set();
   for (const n of nl.nets) {
     const key = n.keys.find((k) => k[0] === 'c');
-    if (!key || n.id === L.prob.nets[net].nid) continue;
+    if (!key || n.id === srcNet) continue;
     const [, cid, p] = key.split(':');
     if (seen.has(n.id)) continue; seen.add(n.id);
     rows.push({ sec: 'Wires / nets (join to an existing wire)', label: /^N\d+$/.test(n.name) ? nl.describe(n.id) : n.name, sub: /^N\d+$/.test(n.name) ? 'unnamed wire' : nl.describe(n.id), target: { c: cid, p: +p } });
   }
-  const html = `<div class="hint">Connect <b>${esc(ext.name)}</b> (${esc(ext.where || '')}) to…</div>
+  const html = `<div class="hint">Connect <b>${esc(srcLabel)}</b> to…</div>
     <input class="inp" id="lkSearch" placeholder="Search boards, parts, nets…" autocapitalize="off" autocomplete="off" style="margin-bottom:8px">
     <div id="lkList"></div>`;
-  app.openModal(`Connect ${ext.name}`, html, (body) => {
+  app.openModal('Connect…', html, (body) => {
     const draw = () => {
       const q = body.querySelector('#lkSearch').value.trim().toLowerCase();
       let h = '', last = null, n = 0;
@@ -607,13 +745,13 @@ function openLinkPicker(net) {
         h += `<div class="li" data-i="${i}"><div class="grow"><div class="t1">${esc(r.label)}</div>${r.sub ? `<div class="t2">${esc(r.sub)}</div>` : ''}</div>${icon('plus')}</div>`;
       }
       body.querySelector('#lkList').innerHTML = h || '<div class="hint">Nothing matches.</div>';
-      body.querySelectorAll('#lkList .li').forEach((el) => el.addEventListener('click', () => { const r = rows[+el.dataset.i]; app.closeModal(); doLink(src, r.target, net); }));
+      body.querySelectorAll('#lkList .li').forEach((el) => el.addEventListener('click', () => { const r = rows[+el.dataset.i]; app.closeModal(); doLink(src, r.target, { link: true }); }));
     };
     body.querySelector('#lkSearch').addEventListener('input', draw);
     draw();
   });
 }
-async function doLink(src, tgt, net) {
+async function doLink(src, tgt, o = { link: true }) {
   const app = V.app, doc = app.doc, nl = V.L.prob.nl;
   const a = nl.pinNet(src.c, src.p), b = nl.pinNet(tgt.c, tgt.p);
   if (a === b) { app.toast('Those are already the same net'); return; }
@@ -626,13 +764,12 @@ async function doLink(src, tgt, net) {
   app.checkpoint();
   const w = addWire(doc, { c: src.c, p: src.p }, { c: tgt.c, p: tgt.p });
   if (!w) { app.cancelCheckpoint(); app.toast('Already connected'); return; }
-  w.link = true;
+  if (o.link) w.link = true;
   cleanup(doc);
-  app.changed('board');
-  app.toast(`Connected ${nl.nets[a].name} ⟷ ${nl.nets[b].name} — updating layout…`);
-  V.ext = null;
-  relayout(); renderPanel();
-  await runOptimize(false);
+  app.changed('board', { keepSheet: true });
+  app.toast(`Connected ${nl.nets[a].name} ⟷ ${nl.nets[b].name}`);
+  V.ext = null; V.pin = null; V.net = null;
+  await settle();
 }
 
 // ------------------------------------------------------------------ canvas interaction
@@ -641,7 +778,7 @@ function fit(whole) {
   if (!V) return;
   const VG = vgeom(), { out, M } = VG;
   V.vb = { x: -10, y: -10, w: out.w + 20, h: out.h + 20 };
-  if (!whole && V.L) {
+  if (!whole && V.L && V.L.parts.some((p) => p.ok)) {
     const pts = [];
     for (const p of V.L.parts) for (const q of p.pins) if (q) pts.push(M(q.x, q.y));
     for (const j of V.L.jumpers) for (const q of j.path || [j.a, j.b]) pts.push(M(q[0], q[1]));
@@ -728,7 +865,17 @@ function bindCanvas() {
     if (dr.moved) { if (dr.part) commitMove(); return; }
     // tap
     V.net = null;
-    if (dr.ext != null) { V.ext = dr.ext; V.sel = null; render(); return; }
+    if (dr.ext != null) { V.ext = dr.ext; V.sel = null; V.pin = null; render(); return; }
+    {
+      const w = toWorld(e), { M } = vgeom();
+      let bp = null;
+      for (const p of V.L.parts) p.pins.forEach((q, pi) => { if (!q) return; const [px, py] = M(q.x, q.y); const d = Math.hypot(px - w[0], py - w[1]); if (d < 5.5 && (!bp || d < bp.d)) bp = { d, id: p.id, pi, net: q.net }; });
+      if (bp) {
+        if (V.pending) { const a = V.pending; if (a.id === bp.id && a.pi === bp.pi) { V.pending = null; render(); } else connectPins(a, { id: bp.id, pi: bp.pi }); return; }
+        V.pin = { id: bp.id, pi: bp.pi }; V.sel = null; V.ext = null; V.net = bp.net; render(); return;
+      }
+    }
+    V.pin = null;
     V.sel = dr.part; V.ext = null;
     if (!dr.part) {
       const w = toWorld(e), { M } = vgeom();

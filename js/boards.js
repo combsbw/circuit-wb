@@ -156,7 +156,7 @@ export function buildProblem(doc, board) {
   const owner = new Map(); // comp id → board name (other boards)
   for (const b of doc.boards || []) if (b.id !== board.id) for (const id of b.compIds) owner.set(id, b.name);
   const xs = doc.comps.filter((c) => members.has(c.id)).map((c) => c.x);
-  const sx0 = Math.min(...xs), sx1 = Math.max(...xs);
+  const sx0 = xs.length ? Math.min(...xs) : 0, sx1 = xs.length ? Math.max(...xs) : 0;
   const comps = [], skipped = [];
   for (const c of doc.comps) {
     if (!members.has(c.id)) continue;
@@ -593,8 +593,9 @@ export function setup(doc, board) {
 }
 
 /** Optimise placements. Returns new params map {compId: params}. Locked parts keep their params. */
-export async function optimize(doc, board, { onProgress, shouldStop, fresh } = {}) {
+export async function optimize(doc, board, { onProgress, shouldStop, fresh, only, warm } = {}) {
   const { prob, ctx, kind } = setup(doc, board);
+  if (!prob.comps.length) return { params: {}, metrics: { cost: 0 }, sig: prob.sig };
   const W = weightsOf(board);
   const bb = kind === 'bb';
   const evalFn = bb ? makeEvalBB(prob, ctx, W) : makeEvalPerf(prob, ctx, W);
@@ -603,7 +604,9 @@ export async function optimize(doc, board, { onProgress, shouldStop, fresh } = {
   const mut = (i, P, rnd) => (bb ? mutateBB(prob.comps[i], ctx.meta[i], P, ctx, rnd) : mutatePerf(prob.comps[i], ctx.meta[i], P, ctx, rnd));
   const ids = prob.comps.map((x) => x.c.id);
   const usable = prob.comps.map((x, i) => ctx.meta[i].ok);
-  const locked = ids.map((id) => !!board.locks?.[id]);
+  // locked = user-locked parts, plus (when `only` is given) every placed part that is not in `only`
+  const lockedP = (id) => board.locks?.[id] || (only && !only.has(id) && board.params?.[id]) || null;
+  const locked = ids.map((id) => !!lockedP(id));
   const E = EFFORT[board.opts.effort || 'normal'];
   const rnd0 = rng((board.seed || 1) * 7919 + 13);
   let best = null;
@@ -613,7 +616,7 @@ export async function optimize(doc, board, { onProgress, shouldStop, fresh } = {
     const rnd = rng(Math.floor(rnd0() * 1e9) + rs);
     const P = ids.map((id, i) => {
       if (!usable[i]) return null;
-      if (locked[i] && board.locks[id]) return board.locks[id];
+      if (locked[i]) return lockedP(id);
       if (!fresh && rs === 0 && board.params?.[id]) return board.params[id];
       return null;
     });
@@ -630,7 +633,7 @@ export async function optimize(doc, board, { onProgress, shouldStop, fresh } = {
     const R = P.map((p, i) => real(i, p));
     let cur = evalFn(R);
     let bestLocal = { P: P.slice(), m: cur };
-    const N = E.it, T0 = 25, T1 = 0.08;
+    const N = only ? Math.min(E.it, 20000) : E.it, T0 = warm ? 4 : 25, T1 = 0.08;
     const free = ids.map((_, i) => i).filter((i) => usable[i] && !locked[i]);
     if (!free.length) { best = !best || cur.cost < best.m.cost ? bestLocal : best; continue; }
     for (let it = 0; it < N; it++) {
@@ -680,6 +683,21 @@ export async function optimize(doc, board, { onProgress, shouldStop, fresh } = {
   const params = {};
   ids.forEach((id, i) => { if (best.P[i]) params[id] = best.P[i]; });
   return { params, metrics: best.m, sig: prob.sig };
+}
+
+/** Breadboard parts that now share a strip with a different net (after the connections were edited) or are unplaced. */
+export function conflictParts(doc, board) {
+  const { prob, ctx, kind } = setup(doc, board);
+  if (kind !== 'bb') return [];
+  const out = new Set(), atNode = new Map();
+  prob.comps.forEach((x, i) => {
+    const P = board.params?.[x.c.id];
+    const r = P ? realizeBB(x, P, ctx) : null;
+    if (!r) { out.add(x.c.id); return; }
+    r.nodes.forEach((nd, pi) => { if (nd < 0) return; if (!atNode.has(nd)) atNode.set(nd, []); atNode.get(nd).push([x.c.id, x.pinNets[pi]]); });
+  });
+  for (const list of atNode.values()) if (new Set(list.map((q) => q[1])).size > 1) for (const [id] of list) out.add(id);
+  return [...out];
 }
 
 // ---------------------------------------------------------------- final layouts

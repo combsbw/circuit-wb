@@ -433,3 +433,15 @@ details.adv summary { cursor: pointer; font-weight: 650; font-size: 14px; paddin
 .bv-lbl.bv-busl { text-anchor: middle; }
 .bv-extl, .bv-ref { pointer-events: none; }
 .li.on { background: var(--accent-soft); border-radius: 8px; }
+
+.bv-toggle { flex: none; }
+.bv-toggle button { padding: 6px 12px; }
+.bv-toggle svg { width: 17px; height: 17px; }
+.bv-toggle .mi { display: inline-flex; }
+.bv-pinsel { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+.bv-pinsel.pend { stroke-dasharray: 3 2; animation: pend 1s linear infinite; }
+.pchips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.pchip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--panel-2); font-weight: 700; font-size: 13px; }
+.pchip small { font-weight: 500; color: var(--muted); }
+.pchip button { width: 22px; height: 22px; border-radius: 50%; color: var(--muted); font-size: 16px; line-height: 1; }
+.pchip button:hover { background: var(--err-soft); color: var(--err); }

@@ -5,7 +5,7 @@ export const uid = (p = '') => p + Math.random().toString(36).slice(2, 9) + Date
 export const snap = (v, g = GRID) => Math.round(v / g) * g;
 
 export function newDesign(name = 'Untitled circuit') {
-  return { v: 1, id: uid('d'), name, created: Date.now(), updated: Date.now(), comps: [], wires: [], juncs: [], status: {}, readings: [], notes: '' };
+  return { v: 1, id: uid('d'), name, created: Date.now(), updated: Date.now(), comps: [], wires: [], juncs: [], boards: [], status: {}, readings: [], notes: '' };
 }
 
 // ---------- geometry ----------

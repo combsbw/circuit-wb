@@ -104,6 +104,17 @@ Pages and from the iOS Home Screen with no connection.
     trails, optional power buses on the top and bottom rows, and insulated jumpers only where a
     trail can't get through.
 - Every layout is re-traced hole by hole and compared with the schematic (✓ matches / list of problems).
+- **Design ⇄ Board, both ways.** The schematic and its boards always describe the same circuit. Switch
+  with the **Design | Board** control in the board header or the Boards button in the top bar.
+  - *Design → board:* box-select parts → **Build board** (or Boards → build from all parts).
+  - *Board → design:* Boards → **New blank board**, **Add part** (it is added to the schematic too),
+    tap a pin → **Connect to pin** / **Connect to…** / **Disconnect**. Every connection is written to the
+    schematic as a wire.
+  - *Changing a board:* **Add from schematic…**, **Add to board** (from the schematic), remove parts
+    with ×, or **Update layout** / **Rebuild** when the schematic changed. After edits the layout
+    repairs itself with as little movement as possible (only conflicting parts move).
+  - *Optimize:* lock the parts you placed by hand (**Lock all**), then **Optimize** to tidy the rest,
+    or unlock and optimize everything for a more efficient version.
 - **Jumpers avoid parts:** holes are chosen so a jumper doesn't lie across a part body, and where
   it still would, the wire is routed in right angles around the part (shown as "routed around"). It
   can be switched off in Options; anything that genuinely cannot avoid a part is flagged.
