@@ -393,6 +393,7 @@ class App {
 
   _bindSheet(body) {
     body.querySelectorAll('[data-act]').forEach((el) => {
+      if (el.tagName === 'INPUT' && el.dataset.act === 'pwm') return;
       const ev = el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' ? 'change' : el.tagName === 'INPUT' ? (el.type === 'range' ? 'input' : 'change') : 'click';
       el.addEventListener(ev, (e) => { e.stopPropagation(); this.act(el.dataset.act, el, e); });
     });
@@ -408,6 +409,10 @@ class App {
           el.addEventListener('keydown', (e) => { if (e.key === 'Enter') el.blur(); });
         }
       }
+    });
+    body.querySelectorAll('input[data-act=pwm]').forEach((el) => {
+      el.addEventListener('input', (e) => { e.stopPropagation(); this.act('pwm', el, e); });
+      el.addEventListener('blur', () => { if (this._typingEl === el) this._typingEl = null; });
     });
     // reference designator & notes also apply as you type
     body.querySelectorAll('input[data-act=ref]').forEach((el) => el.addEventListener('input', () => this.act('ref', el, { type: 'input' })));
@@ -516,9 +521,25 @@ class App {
     for (const [p, i] of io) {
       const m = (c.props.gpio || {})[p.name] || 'in';
       const isOnly = only.has(p.name.split('/')[0]);
-      h += `<tr><td class="mono">${esc(p.name)}</td><td><select class="inp" data-act="gpio" data-cid="${c.id}" data-pin="${esc(p.name)}" style="padding:5px 26px 5px 8px;font-size:13px">${modes.filter(([k]) => !isOnly || k === 'in').map(([k, l]) => `<option value="${k}" ${k === m ? 'selected' : ''}>${l}</option>`).join('')}</select>${m === 'pwm' ? `<input class="inp" style="width:64px;margin-top:4px;padding:4px 6px" data-act="duty" data-cid="${c.id}" data-pin="${esc(p.name)}" value="${esc((c.props.duty || {})[p.name] ?? 50)}" inputmode="decimal" autocapitalize="off"> %` : ''}</td><td class="mono" data-live="pinv" data-cid="${c.id}" data-pin="${i}">—</td></tr>`;
+      h += `<tr><td class="mono">${esc(p.name)}</td><td><select class="inp" data-act="gpio" data-cid="${c.id}" data-pin="${esc(p.name)}" style="padding:5px 26px 5px 8px;font-size:13px">${modes.filter(([k]) => !isOnly || k === 'in').map(([k, l]) => `<option value="${k}" ${k === m ? 'selected' : ''}>${l}</option>`).join('')}</select>${m === 'pwm' && clocks ? `<input class="inp" style="width:64px;margin-top:4px;padding:4px 6px" data-act="duty" data-cid="${c.id}" data-pin="${esc(p.name)}" value="${esc((c.props.duty || {})[p.name] ?? 50)}" inputmode="decimal" autocapitalize="off"> %` : ''}</td><td class="mono" data-live="pinv" data-cid="${c.id}" data-pin="${i}">—</td></tr>`;
+      if (m === 'pwm' && !clocks) h += `<tr class="pwmrow"><td colspan="3">${this.pwmBlock(c, p.name)}</td></tr>`;
     }
     return h + '</table>';
+  }
+
+  /** PWM editor for one pin: linked frequency / pulse width (µs) / duty, with timer resolution info. */
+  pwmBlock(c, pin) {
+    const st = pwmState(c, pin);
+    const per = 1e6 / st.f;
+    const fineStep = per < 20 ? 0.01 : per < 200 ? 0.1 : 1;
+    const a = (f, extra = '') => `data-act="pwm" data-field="${f}" data-cid="${c.id}" data-pin="${esc(pin)}" ${extra}`;
+    return `<div class="pwm">
+      <div class="pwmf"><label>Frequency</label><div class="valrow"><input class="inp" ${a('f')} value="${esc(fmt(st.f, '', 4).replace(/\s/g, ''))}" autocapitalize="off" autocorrect="off" spellcheck="false"><span class="unit">Hz</span></div></div>
+      <div class="pwmf"><label>Pulse width</label><div class="valrow"><button class="stepb" ${a('w-')} data-step="${fineStep}">−</button><input class="inp" ${a('w')} value="${+st.wUs.toPrecision(6)}" inputmode="decimal" autocapitalize="off"><button class="stepb" ${a('w+')} data-step="${fineStep}">+</button><span class="unit">µs</span></div></div>
+      <div class="pwmf"><label>Duty</label><div class="valrow"><input class="inp" ${a('d')} value="${+st.duty.toFixed(3)}" inputmode="decimal" autocapitalize="off"><span class="unit">%</span></div></div>
+      <input type="range" min="0" max="${per}" step="any" value="${st.wUs}" ${a('ws')} aria-label="Pulse width slider">
+      <div class="pwminfo" data-pwminfo="${esc(pin)}">${pwmInfo(c, st)}</div>
+    </div>`;
   }
 
   setProp(cid, key, val, el, live) {
@@ -728,6 +749,8 @@ class App {
     } else if (c.type === 'ic') {
       const g = icGeom(c);
       const rows = g.pins.map((p, i) => [p, i]).filter(([p]) => p.fn !== 'nc');
+      const pw = Object.entries(c.props.gpio || {}).filter(([, m]) => m === 'pwm' && !g.def.gpioPins);
+      if (pw.length) h += pw.map(([pn]) => { const st = pwmState(c, pn); return `<dt>${esc(pn)} PWM</dt><dd>${fmt(st.f, 'Hz', 4)} · ${fmt(st.wUs * 1e-6, 's', 4)} (${st.duty.toFixed(2)} %)</dd>`; }).join('');
       const adc = adcInfo(c, g, V);
       if (adc) h += `<dt><b>ADC</b></dt><dd>${adc.bits}-bit · FSR ±${fmt(adc.fsr, 'V', 4)} · LSB ${fmt(adc.lsb, 'V', 3)}</dd>` + adc.channels.map((ch) => `<dt>${esc(ch.name)} → code</dt><dd>${fmt(ch.v, 'V', 5)} → ${ch.code} (0x${ch.hex})${ch.clip ? ' ⚠ clipped' : ''}</dd>`).join('');
       const def = g.def;
@@ -909,6 +932,31 @@ class App {
         this.checkpoint();
         c.props.gpio = { ...(c.props.gpio || {}), [el.dataset.pin]: el.value };
         this.changed('prop');
+        break;
+      }
+      case 'pwm': {
+        const c = this.comp(el.dataset.cid), pin = el.dataset.pin, fld = el.dataset.field;
+        if (!c) return;
+        const st = pwmState(c, pin);
+        let { f, duty } = st;
+        const per = 1e6 / f;
+        let wUs = st.wUs;
+        if (fld === 'f') { const x = parseEng(el.value); if (!(x > 0)) { el.classList.add('bad'); return; } el.classList.remove('bad'); f = Math.min(x, pwmTimer(c).fmax); wUs = (duty / 100) * 1e6 / f; }
+        else if (fld === 'w' || fld === 'ws') { const x = parseFloat(el.value); if (!(x >= 0)) return; wUs = Math.min(x, per); duty = (wUs / per) * 100; }
+        else if (fld === 'w-' || fld === 'w+') { const stp = per < 20 ? 0.01 : per < 200 ? 0.1 : 1; wUs = Math.max(0, Math.min(per, +(wUs + (fld === 'w+' ? stp : -stp)).toFixed(4))); duty = (wUs / per) * 100; }
+        else if (fld === 'd') { const x = parseFloat(el.value); if (!(x >= 0)) return; duty = Math.min(100, x); wUs = (duty / 100) * per; }
+        if (this._typingEl !== el || fld === 'w-' || fld === 'w+') { this.checkpoint(); this._typingEl = fld.length === 1 || fld === 'ws' ? el : null; }
+        c.props.pwmf = { ...(c.props.pwmf || {}), [pin]: String(+f.toPrecision(6)) };
+        c.props.duty = { ...(c.props.duty || {}), [pin]: String(+duty.toPrecision(8)) };
+        // refresh the sibling fields (not the one being typed in)
+        const box = el.closest('.pwm');
+        const set = (k, v) => { const i = box.querySelector(`[data-field="${k}"]`); if (i && i !== el) i.value = v; };
+        set('f', fmt(f, '', 4).replace(/\s/g, ''));
+        set('w', +wUs.toPrecision(6));
+        set('d', +duty.toFixed(3));
+        const sl = box.querySelector('[data-field="ws"]'); if (sl) { sl.max = 1e6 / f; if (sl !== el) sl.value = wUs; }
+        box.querySelector('.pwminfo').innerHTML = pwmInfo(c, pwmState(c, pin));
+        this.changed('prop', { keepSheet: true });
         break;
       }
       case 'duty': {
@@ -1348,6 +1396,28 @@ function defaultPropsSafe(p) {
   const props = defaultProps(p.type, p.part);
   if (p.preset) Object.assign(props, p.preset);
   return props;
+}
+/** PWM timer model for a board: ESP32 LEDC (80 MHz APB clock) or AVR timers (16 MHz). */
+function pwmTimer(c) {
+  const part = String(c.props.part || '');
+  if (/nano|uno|atmega|arduino/i.test(part)) return { clk: 16e6, maxBits: 16, fmax: 8e6, def: 490, name: 'AVR timer' };
+  if (/^ESP32 DevKit|ESP32-WROOM|^ESP32$/i.test(part)) return { clk: 80e6, maxBits: 20, fmax: 40e6, def: 1000, name: 'ESP32 LEDC' };
+  return { clk: 80e6, maxBits: 14, fmax: 40e6, def: 1000, name: /ESP32/i.test(part) || /custom/i.test(part) || ICS[part]?.custom ? 'ESP32 LEDC' : 'PWM timer' };
+}
+function pwmState(c, pin) {
+  const t = pwmTimer(c);
+  const f = parseEng((c.props.pwmf || {})[pin]) || t.def;
+  const duty = Math.min(100, Math.max(0, num((c.props.duty || {})[pin], 50)));
+  return { f, duty, wUs: (duty / 100) * 1e6 / f, t };
+}
+function pwmInfo(c, st) {
+  const t = st.t;
+  const bits = Math.max(1, Math.min(t.maxBits, Math.floor(Math.log2(t.clk / st.f))));
+  const steps = 2 ** bits;
+  const stepS = 1 / (st.f * steps);
+  const q = Math.round((st.duty / 100) * steps);
+  const avg = (st.duty / 100);
+  return `Period ${fmt(1 / st.f, 's', 4)} · ${t.name}: ${bits}-bit (${steps} steps), resolution ${fmt(stepS, 's', 3)}<br>Nearest achievable: duty ${q}/${steps} = ${fmt(q * stepS, 's', 4)} · DC average ${(avg * 100).toFixed(2)} % of logic level${bits < 8 ? '<br>⚠ Low resolution at this frequency' : ''}`;
 }
 const palKey = (p) => `${p.type}|${p.part || ''}|${p.label}`;
 const findPal = (key) => PALETTE.find((p) => palKey(p) === key);

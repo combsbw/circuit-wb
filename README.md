@@ -53,8 +53,9 @@ Pages and from the iOS Home Screen with no connection.
   - The part drawer has **★ Pinned** parts and your **10 most recently used**.
 - Values take engineering notation (`4.7k`, `4k7`, `100n`, `10u`, `1M`), and − / + buttons step
   through E24 values.
-- MCU boards: each GPIO can be set to input, pull-up, pull-down, HIGH, LOW or PWM (average) and drives
-  the simulation.
+- MCU boards: each GPIO can be set to input, pull-up, pull-down, HIGH, LOW or PWM and drives the
+  simulation. PWM pins have linked **frequency / pulse width (µs) / duty** fields, a pulse-width
+  slider with fine ± steps, and the real timer resolution (ESP32 LEDC 80 MHz, 14–20 bit; AVR 16 MHz).
 
 **Live simulation**
 - DC operating point uses modified nodal analysis with damped Newton-Raphson, gain homotopy and source
