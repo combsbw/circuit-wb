@@ -428,13 +428,20 @@ class App {
     body.querySelectorAll('textarea[data-act=note]').forEach((el) => el.addEventListener('input', () => { this.status(el.dataset.id).note = el.value; this.dirty = true; this._updateTitle(); this.saveSession(); }));
   }
 
+  /** Boards that currently hold any of these parts. */
+  boardsOf(ids) { return (this.doc.boards || []).filter((b) => b.compIds.some((id) => ids.includes(id))); }
+  boardsLine(ids) {
+    const on = this.boardsOf(ids);
+    return on.length ? ` On ${on.map((b) => `<span class="lnk" data-act="openboard" data-id="${b.id}">${esc(b.name)}</span>`).join(', ')}.` : '';
+  }
+
   sheetEdit() {
     const s = this.sel;
     if (s.comps.size === 1) return this.propSheet(this.comp([...s.comps][0]));
     if (s.comps.size > 1) {
       return `<div class="sh-head"><h3>${s.comps.size} components selected</h3></div>
-      <div class="actions">${this.btn('mkboard', 'Build board', 'chip', 'pri')}${(this.doc.boards || []).length ? this.btn('addtoboard', 'Add to board', 'chip') : ''}${this.btn('rotate', 'Rotate', 'rotate')}${this.btn('dup', 'Duplicate', 'copy')}${this.btn('delete', 'Delete', 'trash', 'danger')}${this.btn('clearsel', 'Clear', 'x')}</div>
-      <div class="hint"><b>Build board</b> lays these parts out on a breadboard, solderable breadboard or perfboard. Drag any selected part to move the group. In <b>Measure</b> mode you can analyse just this selection (“Isolate”).</div>`;
+      <div class="actions">${this.btn('mkboard', 'Build board', 'chip', 'pri')}${(this.doc.boards || []).length ? this.btn('addtoboard', 'Add to board', 'chip') : ''}${this.boardsOf([...s.comps]).length ? this.btn('rmfromboard', 'Remove from board', 'x') : ''}${this.btn('rotate', 'Rotate', 'rotate')}${this.btn('dup', 'Duplicate', 'copy')}${this.btn('delete', 'Delete', 'trash', 'danger')}${this.btn('clearsel', 'Clear', 'x')}</div>
+      <div class="hint"><b>Build board</b> lays these parts out on a new board. <b>Add to board</b> puts them on an existing board (or moves them from another one). <b>Remove from board</b> takes them off their board but keeps them in the design.${this.boardsLine([...s.comps])} In <b>Measure</b> mode you can analyse just this selection (“Isolate”).</div>`;
     }
     if (s.wire) {
       const w = this.doc.wires.find((x) => x.id === s.wire);
@@ -483,9 +490,11 @@ class App {
     }
     h += `<div class="actions">`;
     if (def.toggle) h += this.btn('toggle', 'Toggle', 'toggle', 'pri');
-    if ((this.doc.boards || []).length && PHYSICAL(c)) h += this.btn('addtoboard', 'Add to board', 'chip');
+    if ((this.doc.boards || []).length && PHYSICAL(c)) h += this.btn('addtoboard', this.boardsOf([c.id]).length ? 'Move to board' : 'Add to board', 'chip');
+    if (this.boardsOf([c.id]).length) h += this.btn('rmfromboard', 'Remove from board', 'x');
     h += this.btn('rotate', 'Rotate', 'rotate') + this.btn('flip', 'Flip', 'flip') + this.btn('dup', 'Duplicate', 'copy') + this.btn('detach', 'Detach', 'unlink') + this.btn('delete', 'Delete', 'trash', 'danger');
     h += `</div>`;
+    if (PHYSICAL(c) && (this.doc.boards || []).length) { const bl = this.boardsLine([c.id]); h += `<div class="hint">${bl || 'This part is not on any board.'}</div>`; }
     h += `<div class="sec">Operating point</div><div data-live="comp" data-cid="${c.id}" class="kv"></div><div data-live="compwarn" data-cid="${c.id}"></div>`;
     if (info.pinout && info.pinout.length && c.type !== 'ic') {
       h += `<div class="sec">Pinout · ${esc(info.pkg || '')}</div><table class="pins-table">${info.pinout.map(([a, b]) => `<tr><td class="mono">${esc(a)}</td><td>${esc(b)}</td></tr>`).join('')}</table>`;
@@ -954,6 +963,20 @@ class App {
         break;
       }
       case 'openboard': openBoard(this, el.dataset.id); break;
+      case 'rmfromboard': {
+        const on = this.boardsOf(selIds);
+        if (!on.length) { this.toast('Those parts are not on a board'); return; }
+        this.checkpoint();
+        let n = 0;
+        for (const b of on) {
+          for (const id of selIds) if (b.compIds.includes(id)) n++;
+          b.compIds = b.compIds.filter((id) => !selIds.includes(id));
+          for (const id of selIds) { delete b.params?.[id]; delete b.locks?.[id]; if (b.done) delete b.done['p' + id]; }
+        }
+        this.changed('board');
+        this.toast(`Removed ${n} part${n === 1 ? '' : 's'} from ${on.map((b) => b.name).join(', ')} — still in the design`);
+        break;
+      }
       case 'addtoboard': {
         const ids = selIds.filter((id) => { const c = this.comp(id); return c && PHYSICAL(c); });
         const boards = this.doc.boards || [];
@@ -966,8 +989,13 @@ class App {
           this.toast(`Added ${ids.length} part${ids.length === 1 ? '' : 's'} to ${b.name}`);
           openBoard(this, b.id);
         };
-        if (boards.length === 1) { doIt(boards[0]); break; }
-        this.openModal('Add to which board?', `<div class="list">${boards.map((b) => `<div class="li" data-b="${b.id}"><i class="dot" style="background:#8b5cf6"></i><div class="grow"><div class="t1">${esc(b.name)}</div></div></div>`).join('')}</div>`, (body) => body.querySelectorAll('[data-b]').forEach((el) => el.addEventListener('click', () => { this.closeModal(); doIt(boards.find((b) => b.id === el.dataset.b)); })));
+        const doNew = () => {
+          this.checkpoint();
+          for (const o of boards) { o.compIds = o.compIds.filter((id) => !ids.includes(id)); for (const id of ids) { delete o.params?.[id]; delete o.locks?.[id]; } }
+          const nb = newBoard(this.doc, ids); if (ids.length <= 6) nb.cols = 30;
+          this.doc.boards.push(nb); this.changed('board'); openBoard(this, nb.id);
+        };
+        this.openModal('Put these parts on which board?', `<div class="list">${boards.map((b) => `<div class="li" data-b="${b.id}"><i class="dot" style="background:#8b5cf6"></i><div class="grow"><div class="t1">${esc(b.name)}</div></div></div>`).join('')}<div class="li" data-new="1"><i class="dot" style="background:var(--accent)"></i><div class="grow"><div class="t1">+ New board with these parts</div></div></div></div>`, (body) => { body.querySelectorAll('[data-b]').forEach((el) => el.addEventListener('click', () => { this.closeModal(); doIt(boards.find((b) => b.id === el.dataset.b)); })); body.querySelector('[data-new]').addEventListener('click', () => { this.closeModal(); doNew(); }); });
         break;
       }
       case 'closechecks': this.showChecks = false; this.renderSheet(); break;

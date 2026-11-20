@@ -110,8 +110,12 @@ Pages and from the iOS Home Screen with no connection.
   - *Board → design:* Boards → **New blank board**, **Add part** (it is added to the schematic too),
     tap a pin → **Connect to pin** / **Connect to…** / **Disconnect**. Every connection is written to the
     schematic as a wire.
-  - *Changing a board:* **Add from schematic…**, **Add to board** (from the schematic), remove parts
-    with ×, or **Update layout** / **Rebuild** when the schematic changed. After edits the layout
+  - *Changing a board:* parts can move between the design and any board without being deleted.
+    **Remove from board** (tap a part on the board, or × in its Setup list, or select it in the
+    schematic) takes it off the board but keeps it in the design; **Add to board / Move to board**
+    (select parts in the schematic) or **Add from schematic…** (inside a board) puts them on an existing
+    board or on a **new board**, moving them off any other board. The part's sheet shows which board
+    it is on. **Update layout** / **Rebuild** when the schematic changed. After edits the layout
     repairs itself with as little movement as possible (only conflicting parts move).
   - *Optimize:* lock the parts you placed by hand (**Lock all**), then **Optimize** to tidy the rest,
     or unlock and optimize everything for a more efficient version.

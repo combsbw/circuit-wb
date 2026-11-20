@@ -430,7 +430,7 @@ function renderPanel() {
       ${T.kind === 'bb' ? `<div class="field"><label>Leads straight into rails</label><div><button class="toggle ${b.opts.directRails !== false ? 'on' : ''}" data-set="directRails"></button></div></div>` : ''}
       <div class="field"><label>Search effort</label><select class="inp" data-set="effort">${Object.keys(EFFORT).map((e) => `<option ${b.opts.effort === e ? 'selected' : ''}>${e}</option>`).join('')}</select></div>
       <div class="sec">Parts on this board (${b.compIds.length})</div>
-      ${b.compIds.length ? `<div class="pchips">${b.compIds.map((id) => V.app.comp(id)).filter(Boolean).map((c) => `<span class="pchip">${esc(c.ref)} <small>${esc(c.props.part || c.type)}</small><button data-rmpart="${c.id}" title="Remove from this board (stays in the schematic)" aria-label="Remove ${esc(c.ref)} from board">×</button></span>`).join('')}</div>` : '<div class="hint">This board is empty. Add parts, then tap their pins to connect them — the schematic is built from what you do here.</div>'}
+      ${b.compIds.length ? `<div class="hint">Tap a part on the board, or × here, to take it off this board — it stays in the design and can go on another board.</div><div class="pchips">${b.compIds.map((id) => V.app.comp(id)).filter(Boolean).map((c) => `<span class="pchip">${esc(c.ref)} <small>${esc(c.props.part || c.type)}</small><button data-rmpart="${c.id}" title="Remove from this board (stays in the schematic)" aria-label="Remove ${esc(c.ref)} from board">×</button></span>`).join('')}</div>` : '<div class="hint">This board is empty. Add parts, then tap their pins to connect them — the schematic is built from what you do here.</div>'}
       ${L.notes.length ? '<div class="hint">' + L.notes.map(esc).join('<br>') + '</div>' : ''}
       <div class="actions"><button class="btn pri" data-bv="add">${icon('plus')}Add new part</button><button class="btn" data-bv="addfrom">Add from schematic…</button></div>
       <div class="hint">Tap a part to rotate / flip / lock it. Tap a pin (the dot at a lead) to connect it to another pin or <b>Disconnect</b> it. Locked parts stay put when you Optimize, so build by hand, lock what you like, then Optimize to tidy the rest.</div>
@@ -603,7 +603,7 @@ function renderPartbar() {
   bar.hidden = false;
   bar.innerHTML = `<div class="grow"><b>${esc(p.ref)}</b> ${esc(p.name || p.label)}<div class="t2">${esc(pins)}</div></div>
     <button class="btn small" data-bv="rot">${icon('rotate')}Rotate</button><button class="btn small" data-bv="flip">${icon('flip')}Flip</button>
-    <button class="btn small ${locked ? 'sel' : ''}" data-bv="lock">${locked ? '🔒 Locked' : '🔓 Lock'}</button><button class="ib" data-bv="desel">${icon('x')}</button>`;
+    <button class="btn small ${locked ? 'sel' : ''}" data-bv="lock">${locked ? '🔒 Locked' : '🔓 Lock'}</button><button class="btn small danger" data-bv="rmsel" title="Takes it off this board; it stays in the design">${icon('x')}Remove from board</button><button class="ib" data-bv="desel">${icon('x')}</button>`;
 }
 
 // ------------------------------------------------------------------ actions
@@ -622,6 +622,17 @@ function onClick(e) {
     case 'flipview': V.bottom = !V.bottom; V.vb = null; fit(!!V.fitWhole); app.toast(V.bottom ? 'Bottom view (mirrored)' : 'Top view'); break;
     case 'rotview': V.rot = ((V.rot || 0) + 1) % 4; V.vb = null; fit(!!V.fitWhole); app.toast(`View rotated ${(V.rot || 0) * 90}°`); break;
     case 'connect': if (V.ext != null) openLinkPicker(V.ext); break;
+    case 'rmsel': {
+      const id = V.sel, c = id && app.comp(id);
+      if (!c) break;
+      app.checkpoint();
+      b.compIds = b.compIds.filter((x) => x !== id); delete b.params?.[id]; delete b.locks?.[id]; if (b.done) delete b.done['p' + id];
+      V.sel = null;
+      app.changed('board', { keepSheet: true });
+      app.toast(`${c.ref} removed from ${b.name} — it is still in the design`);
+      settle();
+      break;
+    }
     case 'desel': V.sel = null; V.ext = null; V.pin = null; V.pending = null; V.net = null; render(); break;
     case 'mlayout': case 'mbuild': {
       V.build = a === 'mbuild'; b.build = V.build; V.sel = null; V.ext = null; V.pin = null; V.pending = null; V.net = null;
