@@ -156,6 +156,23 @@ Pages and from the iOS Home Screen with no connection.
   your design with probes already placed.
 - Voltage divider (with load, and solving R2 for a target voltage), LED resistor, Ohm's law,
   reactance, op-amp gain, LM317, 555 astable, MOSFET gate drive.
+- **Decoupling**: choose what you are decoupling (ESP32-S3, logic, op-amp, gate driver, ADC supply, clock
+  generator or your own numbers) and give the supply voltage, load current step, edge time, allowed ripple,
+  regulator bandwidth, supply pins, capacitor technology, ceramic dielectric / voltage rating and how the
+  parts are mounted (plane via … breadboard wiring). It works out the target impedance ΔV/ΔI, the edge's
+  knee frequency, the reservoir and charge-hold capacitance, then builds a capacitor bank (bulk → mid →
+  100 nF per pin → small) and checks the combined impedance of regulator and capacitors, with DC-bias
+  derating, ESR, ESL and mounting inductance, against the target. It plots |Z| against frequency and tells
+  you when the wiring inductance, not the capacitor value, is the limit.
+- **Sensor → ADC**: for high-impedance or low-level sensors (pH electrode, thermocouple, pickup coil, bridge,
+  microphone, photodiode or your own Rs / cable C / coil L) into an ESP32, ADS1115 / ADS1220 / ADS1256,
+  MCP3008 or generic SAR / ΔΣ ADC. Give the target resolution (V, mV, µV or A), signal bandwidth and sample
+  rate. It decides direct drive vs buffer, and gives the series R, filter C, SAR charge-reservoir
+  capacitor and isolation resistor, gain network or PGA setting, coil damping resistor, transimpedance
+  Rf / Cf and candidate op-amps (input bias, noise, GBW, supply). The resolution budget lists thermal,
+  op-amp, bias-current and converter noise, the achievable resolution with and without averaging, what
+  dominates it, and the offset and gain errors. The designed path can be inserted into the circuit and its
+  frequency response is simulated with the real solver.
 
 **Files**
 - Saved designs live in IndexedDB on the device. You can name, rename, open, duplicate and delete them.
@@ -201,6 +218,7 @@ python3 -m http.server 8000   # then open http://localhost:8000
 | `js/doc.js` | Design document operations and geometry |
 | `js/app.js` | App controller: modes, panels, meter, build/debug tracking, files |
 | `js/tools.js` | Calculators and circuit templates |
+| `js/design.js` | Decoupling and sensor-interface design maths (no DOM) |
 | `js/store.js` | IndexedDB persistence |
 | `js/partEditor.js` | Custom part / board editor and library |
 | `js/boards.js` | Board designer: footprints, optimiser, perfboard router, verification, build steps |

@@ -466,3 +466,15 @@ details.adv summary { cursor: pointer; font-weight: 650; font-size: 14px; paddin
 .bv-next { fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-dasharray: 5 3; animation: pend 1s linear infinite; }
 .bv-next.line { stroke-width: 6; opacity: .55; stroke-dasharray: none; animation: nextp 1.2s ease-in-out infinite alternate; }
 @keyframes nextp { from { opacity: .2; } to { opacity: .75; } }
+
+/* calculators: sections, tables, warnings */
+.kv dt.sec { grid-column: 1 / -1; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 11.5px; font-weight: 650; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.kv dt.sec:first-child { margin-top: 0; border-top: 0; padding-top: 0; }
+.calc .res .big.long { font-size: 16px; line-height: 1.3; word-break: break-word; }
+.rtw { margin-top: 10px; overflow-x: auto; }
+.rt { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rt th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11.5px; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.rt td { padding: 5px 8px 5px 0; border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 12.5px; vertical-align: top; }
+.rt td:nth-child(2) { font-family: inherit; }
+.cw { margin: 10px 0 0; padding-left: 18px; font-size: 12.8px; color: var(--text); }
+.cw li { margin: 3px 0; }

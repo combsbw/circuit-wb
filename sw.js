@@ -1,5 +1,5 @@
 // Offline-first service worker: precache the whole app, serve cache-first, refresh in background.
-const VERSION = 'cwb-v1.9.1';
+const VERSION = 'cwb-v1.10.0';
 const ASSETS = [
   './',
   './index.html',
@@ -21,6 +21,7 @@ const ASSETS = [
   './js/sim.js',
   './js/store.js',
   './js/tools.js',
+  './js/design.js',
   './js/units.js',
   './icons/icon-192.png',
   './icons/icon-512.png',

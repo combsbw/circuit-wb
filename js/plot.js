@@ -44,7 +44,7 @@ function paint(cv) {
   const X = (fr) => pl + ((Math.log10(fr) - lf0) / (lf1 - lf0)) * w;
   const muted = css('--muted'), line = css('--line'), text = css('--text'), accent = css('--accent'), warn = css('--warn');
   // y1 range
-  const v1 = d.y1.filter(Number.isFinite);
+  const v1 = d.y1.filter(Number.isFinite).concat((d.hlines || []).map((h) => h.y));
   let y1min = Math.min(...v1), y1max = Math.max(...v1);
   if (!v1.length) { y1min = -1; y1max = 1; }
   if (y1max - y1min < (d.y1Log ? 1 : 6)) { const m = (y1max + y1min) / 2; y1min = m - (d.y1Log ? 0.5 : 3); y1max = m + (d.y1Log ? 0.5 : 3); }
@@ -75,7 +75,7 @@ function paint(cv) {
     g.fillText(d.y1Log ? fmt(Math.pow(10, v), '', 1).replace(' ', '') : String(Math.round(v * 10) / 10), pl - 5, y + 3);
   }
   g.textAlign = 'left';
-  for (let v = y2min; v <= y2max + 1e-9; v += st2) g.fillText(Math.round(v) + '°', pl + w + 5, Y2(v) + 3);
+  if (!d.noPhase) for (let v = y2min; v <= y2max + 1e-9; v += st2) g.fillText(Math.round(v) + '°', pl + w + 5, Y2(v) + 3);
   // markers
   g.setLineDash([3, 3]); g.strokeStyle = warn;
   for (const m of d.markers || []) { if (m >= f[0] && m <= f[n - 1]) { const x = X(m); g.beginPath(); g.moveTo(x, pt); g.lineTo(x, pt + h); g.stroke(); } }
@@ -92,11 +92,16 @@ function paint(cv) {
     }
     g.stroke(); g.setLineDash([]);
   };
-  trace(d.y2, Y2, muted, 1.4, [4, 3]);
+  if (!d.noPhase) trace(d.y2, Y2, muted, 1.4, [4, 3]);
+  for (const hl of d.hlines || []) {
+    g.strokeStyle = warn; g.lineWidth = 1.4; g.setLineDash([6, 4]);
+    g.beginPath(); g.moveTo(pl, Y1(hl.y)); g.lineTo(pl + w, Y1(hl.y)); g.stroke(); g.setLineDash([]);
+    g.fillStyle = warn; g.font = '600 10px -apple-system, system-ui, sans-serif'; g.textAlign = 'left'; g.fillText(hl.label || '', pl + 4, Y1(hl.y) - 4);
+  }
   trace(d.y1, Y1, accent, 2.2);
   g.font = '600 10px -apple-system, system-ui, sans-serif';
   g.fillStyle = accent; g.textAlign = 'left'; g.fillText((d.y1Label || '') + ' ━', 6, 11);
-  g.fillStyle = muted; g.textAlign = 'right'; g.fillText('phase ┅', W - 6, 11);
+  if (!d.noPhase) { g.fillStyle = muted; g.textAlign = 'right'; g.fillText('phase ┅', W - 6, 11); }
   // cursor
   if (cv._cursor != null) {
     const fr = Math.pow(10, lf0 + cv._cursor * (lf1 - lf0));
@@ -106,7 +111,7 @@ function paint(cv) {
     g.beginPath(); g.moveTo(x, pt); g.lineTo(x, pt + h); g.stroke();
     const yv = d.y1[i];
     if (Number.isFinite(yv)) { g.fillStyle = accent; g.beginPath(); g.arc(x, Y1(yv), 3.5, 0, 7); g.fill(); }
-    const label = `${fmt(f[i], 'Hz', 3)}  ${d.y1Log ? fmt(Math.pow(10, yv), 'Ω', 3) : (yv ?? 0).toFixed(2) + ' dB'}  ${Number.isFinite(d.y2[i]) ? d.y2[i].toFixed(1) + '°' : ''}`;
+    const label = `${fmt(f[i], 'Hz', 3)}  ${d.y1Log ? fmt(Math.pow(10, yv), 'Ω', 3) : (yv ?? 0).toFixed(2) + ' dB'}  ${!d.noPhase && Number.isFinite(d.y2[i]) ? d.y2[i].toFixed(1) + '°' : ''}`;
     g.font = '600 11px -apple-system, system-ui, sans-serif';
     const tw = g.measureText(label).width + 12;
     const bx = Math.min(Math.max(x - tw / 2, pl), pl + w - tw);

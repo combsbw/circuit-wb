@@ -7,6 +7,7 @@ import { bode, classify, logspace } from './analysis.js';
 import { PARTS } from './library.js';
 import { drawPlot } from './plot.js';
 import { icon } from './icons.js';
+import { designDecoupling, designSensor, IC_PRESETS, MOUNTS, BULK_TECH, DIELECTRICS, SOURCES, ADCS, OPAMPS } from './design.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const TAU = 2 * Math.PI;
@@ -383,6 +384,224 @@ const CALCS = [
   },
 ];
 
+// ---------- decoupling capacitors ----------
+const DEF_IC = IC_PRESETS['ESP32-S3 (Wi-Fi TX bursts)'];
+const decoupleCalc = {
+  id: 'decap', name: 'Decoupling', inputs: [
+    { k: 'preset', label: 'What are you decoupling?', options: Object.keys(IC_PRESETS), def: 'ESP32-S3 (Wi-Fi TX bursts)', onSelect: (v, val) => { const p = IC_PRESETS[val]; if (p) Object.assign(v, p); } },
+    { k: 'Vdd', label: 'Rail voltage', unit: 'V', range: [0.8, 60], log: true, def: DEF_IC.Vdd },
+    { k: 'dI', label: 'Load current step ΔI', unit: 'A', range: [1e-3, 100], log: true, def: DEF_IC.dI },
+    { k: 'tr', label: 'Edge / rise time', unit: 's', range: [100e-12, 10e-6], log: true, def: DEF_IC.tr },
+    { k: 'dV', label: 'Allowed rail ripple ΔV', unit: 'V', range: [1e-3, 5], log: true, def: DEF_IC.dV },
+    { k: 'Q', label: 'Charge per switching event (0 = ignore)', unit: 'C', range: [1e-9, 1e-5], log: true, allowZero: true, def: 0 },
+    { k: 'fReg', label: 'Regulator / source bandwidth', unit: 'Hz', range: [100, 2e6], log: true, def: DEF_IC.fReg },
+    { k: 'pins', label: 'Supply pins to decouple', unit: '', range: [1, 16], step: 1, def: DEF_IC.pins },
+    { k: 'bulk', label: 'Bulk capacitor type', options: BULK_TECH, def: BULK_TECH[1] },
+    { k: 'diel', label: 'Ceramic dielectric', options: DIELECTRICS, def: DIELECTRICS[0] },
+    { k: 'Vr', label: 'Ceramic voltage rating', unit: 'V', range: [4, 100], log: true, def: 10 },
+    { k: 'mount', label: 'Mounting / wiring', options: Object.keys(MOUNTS), def: Object.keys(MOUNTS)[1] },
+  ],
+  compute: (v) => {
+    const r = designDecoupling({ ...v, pins: Math.round(v.pins) });
+    const rows = [
+      ['__h', 'What the rail needs'],
+      ['Target impedance  ΔV / ΔI', fmt(r.Zt, 'Ω')],
+      ['Edge knee frequency  0.35 / tr', fmt(r.fKnee, 'Hz')],
+      ['Regulator holds the rail up to', fmt(r.fReg, 'Hz')],
+      ['Reservoir until the regulator reacts', fmt(r.Cbulk, 'F') + '  (ΔI / 2π·f·ΔV)'],
+      ['Charge to hold during the edge', fmt(r.Cloc, 'F') + '  (max(ΔI·tr, Q) / ΔV)'],
+      ['__h', 'Result'],
+      ['Worst impedance in the band', `${fmt(r.peak, 'Ω')} at ${fmt(r.fPeak, 'Hz')} — ${r.ok ? '✓ under' : '✗ above'} the target${r.ok ? ` (${r.margin.toFixed(2)}× margin)` : ''}`],
+      ['Parts / effective capacitance', `${r.nTot} / ${fmt(r.totalC, 'F')}`],
+      ['Mounting inductance per part', fmt(r.Lm, 'H', 2) + ' (+ the part’s own ESL)'],
+      ['Highest frequency this bank can serve', fmt(r.fMax, 'Hz') + '  (Z ≈ ω·L / N)'],
+    ];
+    const table = { head: ['Qty', 'Part', 'C (effective)', 'ESR', 'Resonance'], rows: r.parts.map((p) => [p.n + ' ×', p.name, fmt(p.Ceff, 'F') + (p.Ceff < p.C * 0.95 ? ` (of ${fmt(p.C, 'F')})` : ''), fmt(p.esr, 'Ω'), fmt(p.srf, 'Hz')]) };
+    const warns = [];
+    if (!r.ok) {
+      if (r.fMax < r.fKnee) warns.push(`The mounting inductance (${fmt(r.Lm, 'H', 2)} per part) limits this bank to about ${fmt(r.fMax, 'Hz')} with ${r.nTot} parts, but the edge reaches ${fmt(r.fKnee, 'Hz')}. Shorten the leads / use a plane and via at the pad, slow the edge, or reduce ΔI.`);
+      else warns.push('The target could not be met with a practical number of parts. Relax ΔV, slow the edge, or give the regulator more bandwidth.');
+    }
+    if (r.parts.some((p) => p.cls === 'mlcc' && p.Ceff < p.C * 0.7)) warns.push('Ceramic capacitance falls with DC bias (the listed effective values include it). A higher voltage rating or C0G keeps more of it.');
+    if (v.mount.startsWith('Breadboard')) warns.push('Breadboards and perfboard wiring add ~15 nH per capacitor, so only the larger capacitors help; fast edges need a proper board.');
+    warns.push('Put the smallest capacitor closest to the pin, then the larger ones further out; one 100 nF per supply pin is included regardless.');
+    const lz = (x) => Math.log10(Math.max(x, 1e-9));
+    return {
+      main: ['Capacitor bank for this rail', r.parts.map((p) => `${p.n}× ${p.name.replace(/ (aluminium electrolytic|polymer|ceramic|C0G)/, ' $1')}`).join('  +  ') || '—'],
+      rows, table, warns,
+      freqPlot: { f: r.f, y1: r.z.map(lz), y2: [], y1Log: true, noPhase: true, y1Label: '|Z| of the rail', hlines: [{ y: lz(r.Zt), label: 'target ' + fmt(r.Zt, 'Ω') }], markers: [r.fReg, r.fKnee] },
+      note: 'Model: regulator (R + L set by its bandwidth) in parallel with every capacitor as ESR + ESL + mounting L in series with its DC-bias-derated C. Values are typical catalogue figures.',
+    };
+  },
+};
+
+// ---------- sensor → ADC interface ----------
+const DEF_SRC = SOURCES['pH / ion-selective electrode'], DEF_ADC = ADCS['ADS1115 (16-bit ΔΣ)'];
+const KIND = ['Voltage source (Thévenin)', 'Current source (photodiode → transimpedance)'];
+const adcSet = (v, a) => Object.assign(v, a);
+const sensorCalc = {
+  id: 'sensor', name: 'Sensor → ADC', inputs: [
+    { k: 'src', label: 'Sensor / source', options: Object.keys(SOURCES), def: 'pH / ion-selective electrode', onSelect: (v, val) => {
+      const s = SOURCES[val]; v.kind = s.type === 'I' ? KIND[1] : KIND[0]; v.Rs = s.Rs; v.Cs = s.Cs; v.Ls = s.Ls; v.fsig = s.fsig;
+      if (s.type === 'I') { v.ispan = s.span; v.resI = s.res; } else { v.span = s.span; v.res = s.res; } } },
+    { k: 'kind', label: 'Output type', options: KIND, def: KIND[0] },
+    { k: 'Rs', label: 'Source resistance Rs (coil: DCR)', unit: 'Ω', range: [1, 10e9], log: true, def: DEF_SRC.Rs },
+    { k: 'Cs', label: 'Source + cable capacitance', unit: 'F', range: [1e-12, 1e-6], log: true, def: DEF_SRC.Cs },
+    { k: 'Ls', label: 'Source inductance (coil; 0 = none)', unit: 'H', range: [1e-6, 100], log: true, allowZero: true, def: 0 },
+    { k: 'span', label: 'Signal span (peak-to-peak)', unit: 'V', range: [1e-6, 10], log: true, def: DEF_SRC.span },
+    { k: 'ispan', label: 'Maximum photocurrent', unit: 'A', range: [1e-9, 1e-2], log: true, def: 5e-6 },
+    { k: 'fsig', label: 'Signal bandwidth (highest frequency of interest)', unit: 'Hz', range: [0.01, 1e6], log: true, def: DEF_SRC.fsig },
+    { k: 'res', label: 'Target resolution (smallest change to see)', unit: 'V', range: [1e-9, 1], log: true, def: DEF_SRC.res },
+    { k: 'resI', label: 'Target resolution (current)', unit: 'A', range: [1e-12, 1e-3], log: true, def: 5e-9 },
+    { k: 'adc', label: 'ADC', options: Object.keys(ADCS), def: 'ADS1115 (16-bit ΔΣ)', onSelect: (v, val) => adcSet(v, ADCS[val]) },
+    { k: 'fs', label: 'Sample rate / output data rate', unit: 'Hz', range: [0.5, 5e6], log: true, def: DEF_ADC.fs },
+    { k: 'fc', label: 'Filter corner (0 = automatic)', unit: 'Hz', range: [0.01, 1e6], log: true, allowZero: true, def: 0 },
+    { k: 'gain', label: 'Gain before the ADC (0 = automatic)', unit: '', range: [1, 1000], log: true, allowZero: true, def: 0 },
+    { k: 'Vsup', label: 'Buffer op-amp supply', unit: 'V', range: [1.8, 36], log: true, def: 3.3 },
+    { k: 'adcd', label: 'ADC details', options: ['Hide', 'Show / edit'], def: 'Hide' },
+    { k: 'bits', label: 'ADC resolution (bits)', unit: '', range: [8, 32], step: 1, def: DEF_ADC.bits },
+    { k: 'vfs', label: 'ADC full-scale input', unit: 'V', range: [0.01, 12], log: true, def: DEF_ADC.vfs },
+    { k: 'enob', label: 'Effective bits (noise-limited)', unit: '', range: [6, 26], step: 0.1, def: DEF_ADC.enob },
+    { k: 'csamp', label: 'Sampling capacitor (0 = ΔΣ / buffered)', unit: 'F', range: [1e-12, 1e-9], log: true, allowZero: true, def: DEF_ADC.csamp },
+    { k: 'rsw', label: 'Sampling switch resistance', unit: 'Ω', range: [1, 10e3], log: true, allowZero: true, def: DEF_ADC.rsw },
+    { k: 'ib', label: 'ADC input current', unit: 'A', range: [1e-12, 1e-5], log: true, def: DEF_ADC.ib },
+    { k: 'zin', label: 'ΔΣ input impedance', unit: 'Ω', range: [1e3, 1e10], log: true, allowZero: true, def: DEF_ADC.zin },
+    { k: 'tacq', label: 'Acquisition share of the sample period', unit: '', range: [0.02, 1], def: DEF_ADC.tacq },
+  ],
+  hide: (v) => {
+    const h = [];
+    if (v.kind === KIND[1]) h.push('span', 'res'); else h.push('ispan', 'resI');
+    if (v.adcd === 'Hide') h.push('bits', 'vfs', 'enob', 'csamp', 'rsw', 'ib', 'zin', 'tacq');
+    return h;
+  },
+  compute: (v) => sensorCompute(v),
+};
+function sensorCompute(v) {
+  const isI = v.kind === KIND[1];
+  const dv = { ...v, type: isI ? 'I' : 'V', span: isI ? v.ispan : v.span, res: isI ? v.resI : v.res };
+  const o = designSensor(dv);
+  const U = isI ? 'A' : 'V';
+  const nz = (x) => fmt(x, U);
+  const rows = [];
+  const E = (x) => fmt(x, 'Ω'), F = (x) => fmt(x, 'F');
+  const srcNote = (SOURCES[v.src] || {}).note;
+  // ---------- signal chain
+  rows.push(['__h', 'Recommended signal chain']);
+  if (isI) {
+    const t = o.tia;
+    rows.push(['Transimpedance stage', `Rf = ${E(t.Rf)}, Cf = ${F(t.Cf)} → ${fmt(t.vout, 'V')} at ${fmt(dv.span, 'A')}`]);
+    rows.push(['Bandwidth  1 / (2π·Rf·Cf)', fmt(t.bw, 'Hz') + (t.bw < v.fsig ? ' ✗ below the signal band' : ' ✓')]);
+    rows.push(['Op-amp needs', `GBW ≳ ${fmt(o.GBWmin, 'Hz')}, input bias ≪ ${fmt(dv.res, 'A')}${o.cands.length ? '' : ' — none in the list'}`]);
+  } else {
+    const dirLine = o.arch === 'direct';
+    rows.push(['Architecture', dirLine ? 'Sensor → R → C → ADC (no buffer needed)' : `Sensor → R → C → buffer${o.G > 1 ? ' + gain' : ''} → ${o.Riso ? 'R → C (charge reservoir) → ' : ''}ADC`]);
+    if (v.Ls > 0) {
+      rows.push(['Coil + cable resonance', `${fmt(o.f0, 'Hz')}, Q ${o.Qraw.toFixed(1)}${o.Rdamp ? ' → damp with ' + E(o.Rdamp) + ' across the coil (Q ≈ 0.7)' : ''}`]);
+      if (o.C1 > 0) rows.push(['Extra capacitor across the coil', F(o.C1)]);
+    } else {
+      rows.push(['Series resistor R1 (incl. Rs)', `${E(o.R1)}${o.Rser > 0 ? ' — add ' + E(o.Rser) : ' (the source alone)'}`]);
+      rows.push(['Shunt capacitor C1', o.C1 > 0 ? F(o.C1) + ' (C0G / film)' : 'none needed — the cable capacitance already does it']);
+    }
+    rows.push(['Filter corner', `${fmt(o.fcAct, 'Hz')}  (${o.droopDb.toFixed(2)} dB at ${fmt(v.fsig, 'Hz')}; ${o.aliasDb.toFixed(0)} dB at ${fmt(o.fAlias, 'Hz')})`]);
+    if (!dirLine) {
+      rows.push(['Buffer op-amp', o.cands.length ? o.cands.slice(0, 3).map((c) => `${c.name} (Ib ${fmt(c.ib, 'A', 2)}, ${fmt(c.en * 1e9, '', 2).trim()} nV/√Hz)`).join(' · ') : 'none in the list fits'] );
+      rows.push(['Needs GBW of at least', fmt(o.GBWmin, 'Hz')]);
+      if (o.gainNet) rows.push([`Gain ×${o.gainNet.G.toFixed(2)}`, `Rg = ${E(o.gainNet.Rg)}, Rf = ${E(o.gainNet.Rf)} (non-inverting)`]);
+      if (o.Cf) rows.push(['Charge reservoir', `${E(o.Riso)} in series, ${F(o.Cf)} to ground  (C ≥ 2^N × C_sample = ${F(o.Cbucket)})`]);
+    } else if (o.pga) rows.push(['ADC gain setting', `PGA ×${o.pga} (signal ${fmt(v.span * o.pga, 'V')} of ${fmt(v.vfs, 'V')})`]);
+    else if (o.G > 1) rows.push(['Gain', `×${o.G}`]);
+    if (!dirLine) { rows.push(['Why not direct?', o.direct.fail.length ? o.direct.fail.join('; ') : 'a gain stage is needed']); }
+  }
+  // ---------- resolution
+  rows.push(['__h', 'Resolution']);
+  rows.push(['ADC step (LSB)', `${fmt(o.LSB, 'V')}${o.G > 1 && !isI ? ' → ' + fmt(o.lsbIn, 'V') + ' at the sensor (÷' + o.G + ')' : ''}`]);
+  if (!isI) rows.push(['Bits the target needs / ADC delivers', `${o.bitsNeeded.toFixed(1)} / ${v.enob}`]);
+  rows.push(['Achievable (6.6σ noise)', `${nz(o.resAnalog)}${!isI ? '  ≈ ' + o.enobIn.toFixed(1) + ' bits' : ''}  — ${o.meets ? '✓ meets' : '✗ misses'} ${nz(dv.res)}`]);
+  if (!isI) {
+    rows.push(['With averaging (×' + Math.floor(o.osrMax) + ' samples)', `${nz(o.resAvg)}  ≈ ${o.enobAvg.toFixed(1)} bits — ${o.meetsAvg ? '✓ meets' : '✗ misses'} the target`]);
+    if (!o.meets) rows.push(['Samples to average needed', `${Math.ceil(o.osrNeed)} (rate ${fmt(v.fs / Math.ceil(o.osrNeed), 'Hz')} out${Math.ceil(o.osrNeed) > o.osrMax ? '; bandwidth would suffer' : ''})`]);
+    rows.push(['Highest Rs for the target (thermal only)', E(o.rsMaxNoise)]);
+    if (!o.direct.ok || o.arch === 'buffered') { /* offsets */ }
+    rows.push(['Offset from input current × Rs', `${fmt((o.amp ? o.amp.ib : v.ib) * v.Rs, 'V')} (${o.amp ? o.amp.name : 'ADC'})`]);
+  } else {
+    const t = o.tia;
+    rows.push(['Transimpedance noise', `Rf ${fmt(t.eRf, 'V')} · in ${fmt(t.eIn, 'V')} · en ${fmt(t.eEn, 'V')} · ADC ${fmt(t.eAdc, 'V')} (rms)`]);
+    rows.push(['Op-amp bias × Rf', fmt(t.ibErr * t.Rf, 'V')]);
+  }
+  let table = null;
+  if (!isI) {
+    const a = o.noiseAnalog, b = o.noiseAvg;
+    const line = (n, x, y) => [n, fmt(x, 'V', 3), fmt(y, 'V', 3)];
+    table = { head: ['Noise at the sensor (rms)', 'single sample', 'averaged'], rows: [line('Source resistance', a.eRs, b.eRs), line('Series resistor', a.eSer, b.eSer), line('Op-amp voltage noise', a.eAmp, b.eAmp), line('Op-amp current noise × R', a.eIn, b.eIn), line('ADC noise ÷ gain', a.eAdc, b.eAdc), ['Total', fmt(a.total, 'V', 3), fmt(b.total, 'V', 3)]] };
+  }
+  const warns = o.warns.slice();
+  if (srcNote) warns.push(srcNote);
+  return {
+    main: isI ? ['Smallest current you can resolve', fmt(o.resI, 'A')] : ['Achievable resolution (noise-limited)', fmt(o.resAnalog, 'V')],
+    rows, table, warns,
+    plot: () => (isI ? simOpamp(sensorTemplate(dv, o)) : simTemplate(sensorTemplate(dv, o))),
+    insert: () => sensorTemplate(dv, o),
+    note: 'Noise: Rs thermal √(4kTR·B), op-amp en and in·R, converter noise from its effective bits. Currents/offsets use typical datasheet values, which vary a lot — check the real parts.',
+  };
+}
+
+/** Build the designed signal path as a schematic: source → Rs (+L) → filter → [buffer] → reservoir → OUT. */
+function sensorTemplate(v, o) {
+  if (v.type === 'I' && o.tia) {
+    const pdv = { cfg: 'Transimpedance (photodiode)', model: o.amp ? o.amp.name : 'MCP6002', supply: 'Single supply', Vs: v.Vsup, Rf: o.tia.Rf, Cf: o.tia.Cf, lux: Math.max(1, (v.span / 70e-6) * 1000) };
+    if (!PARTS[pdv.model]) pdv.model = 'MCP6002';
+    return opampDesign(pdv);
+  }
+  const d = T();
+  const buffered = o.arch !== 'direct';
+  const src = put(d, 'vac', 0, 60, { amp: '1', freq: ev(Math.max(v.fsig / 2, 0.1)), offset: buffered ? String(+(v.Vsup / (2 * (o.gainNet ? o.gainNet.G : 1))).toFixed(4)) : '0' });
+  const g0 = put(d, 'ground', 0, 110); W(d, src, 1, g0, 0);
+  let x = 80, prev = pe(src, 0), last = null;
+  const series = (type, value) => { const e = put(d, type, x, 0, { value: ev(value) }); addWire(d, prev, pe(e, 0)); prev = pe(e, 1); last = pe(e, 1); x += 90; return e; };
+  let node = null, nodeX = 0, ns = 0;
+  const startNode = () => { nodeX = x; node = jn(d, nodeX, 0); addWire(d, prev, node); prev = node; ns = 0; x += 60; };
+  const shunt = (type, value) => {
+    const e = put(d, type, nodeX + ns * 50, 50, { value: ev(value) }, 1);
+    addWire(d, node, pe(e, 0));
+    const g = put(d, 'ground', e.x, 100); addWire(d, pe(e, 1), pe(g, 0));
+    last = pe(e, 0); ns++; x = nodeX + ns * 50 + 60;
+    return e;
+  };
+  series('resistor', v.Rs);
+  if (v.Ls > 0) series('inductor', v.Ls);
+  if (v.Ls <= 0 && o.Rser > 0) series('resistor', o.Rser);
+  const direct = o.arch === 'direct';
+  const C1 = direct && o.Cbucket ? Math.max(o.C1, o.Cbucket) : o.C1;
+  startNode();
+  if (v.Cs > 0) shunt('capacitor', v.Cs);
+  if (v.Ls > 0 && o.Rdamp > 0) shunt('resistor', o.Rdamp);
+  if (C1 > 0) shunt('capacitor', C1);
+  if (!direct) {
+    const model = o.amp && PARTS[o.amp.name] ? o.amp.name : 'MCP6002';
+    const u = put(d, 'opamp', x + 150, 10, { plusTop: true }, 0, model);
+    addWire(d, prev, pe(u, 0));
+    const rp = put(d, 'rail', x + 150, -30, { volts: String(v.Vsup), name: '+V' }); W(d, rp, 0, u, 3);
+    const gg = put(d, 'ground', x + 150, 60); W(d, u, 4, gg, 0);
+    const j1 = jn(d, x + 100, 100); addWire(d, pe(u, 1), j1);
+    if (o.gainNet) {
+      const rf = put(d, 'resistor', x + 150, 100, { value: ev(o.gainNet.Rf) }); addWire(d, j1, pe(rf, 0)); W(d, rf, 1, u, 2);
+      const rg = put(d, 'resistor', x + 100, 150, { value: ev(o.gainNet.Rg) }, 1); addWire(d, j1, pe(rg, 0));
+      const g2 = put(d, 'ground', x + 100, 200); addWire(d, pe(rg, 1), pe(g2, 0));
+    } else addWire(d, j1, pe(u, 2));
+    prev = pe(u, 2); x += 320; last = pe(u, 2);
+    if (o.Cf) {
+      const ri = put(d, 'resistor', x, 0, { value: ev(o.Riso) }); addWire(d, prev, pe(ri, 0)); prev = pe(ri, 1); x += 70;
+      const cf = put(d, 'capacitor', x, 50, { value: ev(o.Cf) }, 1); addWire(d, prev, pe(cf, 0));
+      const g3 = put(d, 'ground', x, 100); addWire(d, pe(cf, 1), pe(g3, 0)); last = pe(cf, 0); x += 60;
+    }
+  }
+  const lbl = put(d, 'netlabel', x + 20, 0, { name: 'OUT' });
+  addWire(d, prev, pe(lbl, 0));
+  return { d, inRef: pe(src, 0), outRef: last };
+}
+
+CALCS.push(decoupleCalc, sensorCalc);
+
 function simTemplate(t) {
   try {
     const ckt = new Circuit(t.d);
@@ -431,12 +650,17 @@ export function openTools(app) {
     const calc = CALCS.find((c) => c.id === state.tab);
     const v = vals(calc);
     const r = calc.compute(v);
-    let h = `<div class="t2" style="color:var(--muted);font-size:13px">${esc(r.main[0])}</div><div class="big">${esc(r.main[1])}</div><dl class="kv">${(r.rows || []).map(([a, b]) => `<dt>${esc(a)}</dt><dd>${esc(b)}</dd>`).join('')}</dl>`;
+    const big = String(r.main[1]).length > 26;
+    let h = `<div class="t2" style="color:var(--muted);font-size:13px">${esc(r.main[0])}</div><div class="big${big ? ' long' : ''}">${esc(r.main[1])}</div><dl class="kv">${(r.rows || []).map(([a, b]) => (a === '__h' ? `<dt class="sec">${esc(b)}</dt>` : `<dt>${esc(a)}</dt><dd>${esc(b)}</dd>`)).join('')}</dl>`;
+    if (r.table) h += `<div class="rtw"><table class="rt"><thead><tr>${r.table.head.map((x) => `<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${r.table.rows.map((row) => `<tr>${row.map((x) => `<td>${esc(x)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    if (r.freqPlot) h += `<canvas class="plot" id="calcFreq" style="margin-top:10px"></canvas>`;
+    if (r.warns && r.warns.length) h += `<ul class="cw">${r.warns.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`;
     if (r.plot) h += `<canvas class="plot" id="calcPlot" style="margin-top:10px"></canvas><div class="hint" id="calcSim"></div>`;
     if (r.insert) h += `<div class="actions">${`<button class="btn pri" id="calcInsert">${icon('plus')}Insert into circuit</button>`}</div>`;
     if (r.note) h += `<div class="hint" style="font-size:12.5px">${esc(r.note)}</div>`;
     const res = body.querySelector('#calcRes');
     res.innerHTML = h;
+    if (r.freqPlot) { const cv = res.querySelector('#calcFreq'); if (cv) requestAnimationFrame(() => drawPlot(cv, r.freqPlot)); }
     if (r.plot) {
       clearTimeout(update._t);
       update._t = setTimeout(() => {
@@ -456,7 +680,7 @@ export function openTools(app) {
     body.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; body.innerHTML = render(); bind(body); });
     const calc = CALCS.find((c) => c.id === state.tab);
     const v = vals(calc);
-    body.querySelectorAll('select[data-k]').forEach((s) => s.onchange = () => { v[s.dataset.k] = s.value; body.innerHTML = render(); bind(body); });
+    body.querySelectorAll('select[data-k]').forEach((s) => s.onchange = () => { v[s.dataset.k] = s.value; const i = calc.inputs.find((x) => x.k === s.dataset.k); if (i && i.onSelect) i.onSelect(v, s.value); body.innerHTML = render(); bind(body); });
     body.querySelectorAll('input[data-s]').forEach((s) => s.oninput = () => {
       const i = calc.inputs.find((x) => x.k === s.dataset.s);
       v[i.k] = fromSlider(i, +s.value);
