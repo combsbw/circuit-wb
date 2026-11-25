@@ -498,7 +498,7 @@ export const REF_THEORY = [
       "Planning with the full printed capacity; derate for cut-off voltage, temperature and pulse loads.",
       "Ignoring the internal resistance of coin cells, which sag under radio bursts.",
     ],
-    calculators: ["power", "lm317"],
+    calculators: ["power", "lm317", "battery", "charger"],
     related: ["lipo-battery", "dc-source-battery", "nrf52-ble-soc", "battery-charger", "current-monitor", "theory-power-supplies"],
   },
   {

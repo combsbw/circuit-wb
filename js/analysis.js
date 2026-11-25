@@ -2,6 +2,7 @@
 import { Circuit } from './sim.js';
 import { PARTS, TYPES, icGeom, getPins, helpers } from './library.js';
 import { fmt } from './units.js';
+import { batteryInfo } from './battery.js';
 
 const { num } = helpers;
 const TWO_PI = 2 * Math.PI;
@@ -236,6 +237,16 @@ export function designChecks(ckt) {
     if (ckt.opInfo?.singular) out.push({ level: 'err', msg: 'Circuit could not be solved (singular) — check for loops of ideal sources.' });
     else if (ckt.elems.length) out.push({ level: 'err', msg: 'Simulation did not converge — check for conflicting sources or impossible feedback.' });
     return out;
+  }
+  for (const e of ckt.elems) {
+    if (e.c.type !== 'battery') continue;
+    const c = e.c, b = batteryInfo(c.props), I = (ckt.pinI.get(c.id) || [])[0] || 0, dis = -I;
+    const vt = ckt.pinV(c.id, 0) - ckt.pinV(c.id, 1);
+    if (dis > b.maxI) W('warn', c, `${c.ref}: drawing ${fmt(dis, 'A')}, above the ≈ ${fmt(b.maxI, 'A')} continuous rating of this ${b.chem.short} pack`);
+    if (I > 1e-6 && b.chem.primary) W('err', c, `${c.ref}: current flows into a ${b.chem.short} cell — primary cells must never be charged`);
+    else if (I > b.chargeI * 1.05 && b.chargeI > 0) W('warn', c, `${c.ref}: charging at ${fmt(I, 'A')}, above the ≈ ${fmt(b.chargeI, 'A')} (${b.chem.chargeC}C) limit`);
+    if (vt < b.Vcut && dis > 0) W('warn', c, `${c.ref}: terminal voltage ${fmt(vt, 'V')} is below the ${fmt(b.Vcut, 'V')} cut-off — the pack is flat or overloaded`);
+    if (b.chem.short === 'Li-ion' && !c.props.prot) W('info', c, `${c.ref}: unprotected Li-ion — add a protection IC (DW01A + FS8205A) or use a protected cell`);
   }
   for (const e of ckt.elems) {
     const c = e.c, I = ckt.pinI.get(c.id) || [], V = e.nets.map((n) => ckt.V(n));

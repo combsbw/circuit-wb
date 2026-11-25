@@ -520,7 +520,7 @@ export const REF_A = [
     id: 'dc-source-battery',
     title: 'DC source & batteries',
     cat: 'Sources & symbols',
-    types: ['vdc'],
+    types: ['vdc', 'battery'],
     parts: [],
     aliases: ['battery', 'DC source', 'voltage source', 'power supply', 'bench supply', 'AA', '9V', 'coin cell', 'adapter', 'mAh'],
     summary: "Supplies a steady voltage. In the simulator it is an ideal source; in real life a battery, adapter or bench supply, each with limits of its own.",

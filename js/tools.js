@@ -1,4 +1,4 @@
-// Calculators: sliders + typed values. Filter & divider calculators run the real solver on a template
+// Tools (calculators and designers): sliders + typed values. Filter & divider calculators run the real solver on a template
 // circuit and can insert it into the design.
 import { fmt, parseEng, nearestE, E12, E24 } from './units.js';
 import { newDesign, makeComp, addWire, uid, snap, nextRef, compBBox, designBBox } from './doc.js';
@@ -8,6 +8,8 @@ import { PARTS } from './library.js';
 import { drawPlot } from './plot.js';
 import { icon } from './icons.js';
 import { powerCalc } from './power.js';
+import { batteryCalc, chargerCalc, setToolsApp } from './battools.js';
+import { powerOf, getPins as gp } from './library.js';
 import { designDecoupling, designSensor, IC_PRESETS, MOUNTS, BULK_TECH, DIELECTRICS, SOURCES, ADCS, OPAMPS } from './design.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -385,11 +387,31 @@ const CALCS = [
   },
 ];
 
+
+// ---------- "from the design" helpers: let tools pick up parts and settings from the open schematic ----------
+let TAPP = null;
+function supplyV(c) {
+  const ck = TAPP?.ckt;
+  if (!ck || !ck.op) return null;
+  const pins = gp(c);
+  const i = pins.findIndex((p) => p.fn === 'pwr' && /3V3|VDD|VCC|3\.3/i.test(p.name));
+  const v = i >= 0 ? ck.pinV(c.id, i) : NaN;
+  return Number.isFinite(v) && v > 0.5 ? v : null;
+}
+function designRadios() { return TAPP ? TAPP.doc.comps.filter((c) => c.type === 'ic' && powerOf(c)).map((c) => ({ c, m: powerOf(c), label: `From the design: ${c.ref} ${c.props.part}` })) : []; }
+const DESIGN_ADC = (c) => { const p = c.props.part || ''; return /ADS1115/.test(p) ? 'ADS1115 (16-bit ΔΣ)' : /ADS1220/.test(p) ? 'ADS1220 (24-bit ΔΣ, PGA on)' : /ADS1256/.test(p) ? 'ADS1256 (24-bit ΔΣ, buffer on)' : /ESP32/.test(p) ? 'ESP32-S3 SAR ADC (12-bit)' : null; };
+function designAdcs() { return TAPP ? TAPP.doc.comps.filter((c) => c.type === 'ic' && DESIGN_ADC(c)).map((c) => ({ c, preset: DESIGN_ADC(c), label: `From the design: ${c.ref} ${c.props.part}` })) : []; }
+
 // ---------- decoupling capacitors ----------
 const DEF_IC = IC_PRESETS['ESP32-S3 (Wi-Fi TX bursts)'];
 const decoupleCalc = {
   id: 'decap', name: 'Decoupling', inputs: [
-    { k: 'preset', label: 'What are you decoupling?', options: Object.keys(IC_PRESETS), def: 'ESP32-S3 (Wi-Fi TX bursts)', onSelect: (v, val) => { const p = IC_PRESETS[val]; if (p) Object.assign(v, p); } },
+    { k: 'preset', label: 'What are you decoupling?', options: () => [...Object.keys(IC_PRESETS), ...designRadios().filter((x) => x.m.peak > 1e-3).map((x) => x.label)], def: 'ESP32-S3 (Wi-Fi TX bursts)', onSelect: (v, val) => {
+      const p = IC_PRESETS[val]; if (p) { Object.assign(v, p); return; }
+      const r = designRadios().find((x) => x.label === val); if (!r) return;
+      const vdd = supplyV(r.c) ?? 3.3, pins = gp(r.c).filter((q) => q.fn === 'pwr').length;
+      Object.assign(v, { Vdd: +vdd.toFixed(2), dI: +Math.max(r.m.peak - r.m.sleep, 1e-3).toPrecision(3), tr: 5e-9, dV: +(0.03 * vdd).toFixed(3), pins: Math.max(1, Math.min(8, pins)), Q: 0, fReg: 50e3 });
+    } },
     { k: 'Vdd', label: 'Rail voltage', unit: 'V', range: [0.8, 60], log: true, def: DEF_IC.Vdd },
     { k: 'dI', label: 'Load current step ΔI', unit: 'A', range: [1e-3, 100], log: true, def: DEF_IC.dI },
     { k: 'tr', label: 'Edge / rise time', unit: 's', range: [100e-12, 10e-6], log: true, def: DEF_IC.tr },
@@ -454,7 +476,12 @@ const sensorCalc = {
     { k: 'fsig', label: 'Signal bandwidth (highest frequency of interest)', unit: 'Hz', range: [0.01, 1e6], log: true, def: DEF_SRC.fsig },
     { k: 'res', label: 'Target resolution (smallest change to see)', unit: 'V', range: [1e-9, 1], log: true, def: DEF_SRC.res },
     { k: 'resI', label: 'Target resolution (current)', unit: 'A', range: [1e-12, 1e-3], log: true, def: 5e-9 },
-    { k: 'adc', label: 'ADC', options: Object.keys(ADCS), def: 'ADS1115 (16-bit ΔΣ)', onSelect: (v, val) => adcSet(v, ADCS[val]) },
+    { k: 'adc', label: 'ADC', options: () => [...Object.keys(ADCS), ...designAdcs().map((x) => x.label)], def: 'ADS1115 (16-bit ΔΣ)', onSelect: (v, val) => {
+      if (ADCS[val]) return adcSet(v, ADCS[val]);
+      const a = designAdcs().find((x) => x.label === val); if (!a) return;
+      adcSet(v, ADCS[a.preset]);
+      const pga = a.c.props.pga; if (pga) { const f = parseFloat(String(pga).replace('±', '')); if (/ADS1115/.test(a.c.props.part)) v.vfs = f; else if (+pga) v.vfs = 2.048 / +pga; }
+    } },
     { k: 'fs', label: 'Sample rate / output data rate', unit: 'Hz', range: [0.5, 5e6], log: true, def: DEF_ADC.fs },
     { k: 'fc', label: 'Filter corner (0 = automatic)', unit: 'Hz', range: [0.01, 1e6], log: true, allowZero: true, def: 0 },
     { k: 'gain', label: 'Gain before the ADC (0 = automatic)', unit: '', range: [1, 1000], log: true, allowZero: true, def: 0 },
@@ -618,7 +645,11 @@ function rfLink(v, extra = 0) {
 }
 const rfCalc = {
   id: 'rf', name: 'RF link budget', inputs: [
-    { k: 'preset', label: 'Starting point', options: Object.keys(RF_PRESETS), def: 'BLE tag, etched meander (as built, ≈5 m)', onSelect: (v, val) => { const p = RF_PRESETS[val]; if (p) Object.assign(v, p); } },
+    { k: 'preset', label: 'Starting point', options: () => [...Object.keys(RF_PRESETS), ...designRadios().filter((x) => x.m.txdbm != null).map((x) => `${x.label} (TX ${x.m.txdbm} dBm)`)], def: 'BLE tag, etched meander (as built, ≈5 m)', onSelect: (v, val) => {
+      const p = RF_PRESETS[val]; if (p) { Object.assign(v, p); return; }
+      const r = designRadios().find((x) => val.startsWith(x.label)); if (!r) return;
+      v.pt = r.m.txdbm; if (/WROOM|DevKit|SuperMini|C3/.test(r.c.props.part)) { v.gt = 0; v.rl = 10; }
+    } },
     { k: 'f', label: 'Frequency', unit: 'Hz', range: [0.4e9, 6e9], log: true, def: 2.44e9 },
     { k: 'pt', label: 'TX power at the chip (dBm)', unit: '', range: [-20, 10], step: 0.5, def: 0 },
     { k: 'gt', label: 'TX antenna gain as installed (dBi)', unit: '', range: [-20, 6], step: 0.5, def: -5 },
@@ -669,8 +700,8 @@ const rfCalc = {
   },
 };
 
-CALCS.push(decoupleCalc, sensorCalc, rfCalc, powerCalc);
-const THEORY_OF = { filter: 'theory-filters', opamp: 'theory-opamps', divider: 'theory-voltage-divider', led: 'theory-semiconductors', ohm: 'theory-ohms-law', react: 'theory-reactance-impedance', lm317: 'theory-power-supplies', 555: 'theory-oscillators-timers', gate: 'theory-transistor-switching', decap: 'theory-decoupling', sensor: 'theory-adc-sampling', rf: 'theory-rf-link-budget', power: 'theory-batteries-power-budget' };
+CALCS.push(decoupleCalc, sensorCalc, rfCalc, powerCalc, batteryCalc, chargerCalc);
+const THEORY_OF = { filter: 'theory-filters', opamp: 'theory-opamps', divider: 'theory-voltage-divider', led: 'theory-semiconductors', ohm: 'theory-ohms-law', react: 'theory-reactance-impedance', lm317: 'theory-power-supplies', 555: 'theory-oscillators-timers', gate: 'theory-transistor-switching', decap: 'theory-decoupling', sensor: 'theory-adc-sampling', rf: 'theory-rf-link-budget', power: 'theory-batteries-power-budget', battery: 'theory-batteries-power-budget', charger: 'theory-power-supplies' };
 
 function simTemplate(t) {
   try {
@@ -703,18 +734,26 @@ const fromSlider = (i, s) => {
 const show = (i, x) => (i.unit === '' ? String(x) : fmt(x, i.unit, 4).replace(' ', ' '));
 
 export function openTools(app, tab) {
+  TAPP = app; setToolsApp(app);
+  // battery tools start from the design's battery when there is one
+  for (const id of ['battery', 'charger']) {
+    const calc = CALCS.find((c) => c.id === id), inp = calc && calc.inputs.find((i) => i.k === 'src');
+    if (!inp) continue;
+    const vv = vals(calc), opts = inp.options();
+    if (opts[1] && (vv.src === 'Custom' || !opts.includes(vv.src)) && !vv._auto) { vv.src = opts[1]; inp.onSelect(vv, opts[1]); vv._auto = true; }
+  }
   if (tab && CALCS.some((c) => c.id === tab)) state.tab = tab;
   const render = () => {
     const calc = CALCS.find((c) => c.id === state.tab);
     const v = vals(calc);
     const hidden = calc.hide ? calc.hide(v) : [];
     let h = `<div class="tabs">${CALCS.map((c) => `<button data-tab="${c.id}" class="${c.id === state.tab ? 'on' : ''}">${esc(c.name)}</button>`).join('')}</div>`;
-    if (THEORY_OF[calc.id] && !calc.custom) h += `<div class="calc-theory"><span class="lnk" data-ref="${THEORY_OF[calc.id]}">📖 The theory behind this calculator</span></div>`;
+    if (THEORY_OF[calc.id] && !calc.custom) h += `<div class="calc-theory"><span class="lnk" data-ref="${THEORY_OF[calc.id]}">📖 The theory behind this tool</span></div>`;
     if (calc.custom) return h + `<div class="calc" id="customCalc">${calc.custom.render(app)}</div>`;
     h += `<div class="calc">`;
     for (const i of calc.inputs) {
       if (hidden.includes(i.k)) continue;
-      if (i.options) { h += `<div class="ctl"><div class="top"><label>${esc(i.label)}</label><select class="inp" style="width:auto;flex:1" data-k="${i.k}">${i.options.map((o) => `<option ${o === v[i.k] ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div></div>`; continue; }
+      if (i.options) { const opts = typeof i.options === 'function' ? i.options() : i.options; if (!opts.includes(v[i.k])) v[i.k] = opts.includes(i.def) ? i.def : opts[0]; h += `<div class="ctl"><div class="top"><label>${esc(i.label)}</label><select class="inp" style="width:auto;flex:1" data-k="${i.k}">${opts.map((o) => `<option ${o === v[i.k] ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div></div>`; continue; }
       h += `<div class="ctl"><div class="top"><label>${esc(i.label)}</label><input class="inp" data-k="${i.k}" value="${esc(show(i, v[i.k]))}" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false"></div><input type="range" min="0" max="1000" step="1" value="${toSlider(i, v[i.k])}" data-s="${i.k}"></div>`;
     }
     h += `<div class="res" id="calcRes"></div></div>`;
@@ -753,10 +792,12 @@ export function openTools(app, tab) {
     const on = body.querySelector('.tabs button.on'); if (on) on.scrollIntoView({ block: 'nearest', inline: 'center' });
     body.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; body.innerHTML = render(); bind(body); });
     body.querySelectorAll('[data-ref]').forEach((b) => b.addEventListener('click', () => app.openReference?.(b.dataset.ref)));
+    const toolLinks = (root) => root.querySelectorAll('[data-tool]').forEach((b) => b.addEventListener('click', () => { state.tab = b.dataset.tool; body.innerHTML = render(); bind(body); body.scrollTop = 0; }));
+    toolLinks(body);
     const calc = CALCS.find((c) => c.id === state.tab);
     if (calc.custom) {
       const el = body.querySelector('#customCalc');
-      const rerender = () => { const y = body.scrollTop; el.innerHTML = calc.custom.render(app); calc.custom.bind(el, app, rerender); el.querySelectorAll('[data-ref]').forEach((b) => b.addEventListener('click', () => app.openReference?.(b.dataset.ref))); body.scrollTop = y; };
+      const rerender = () => { const y = body.scrollTop; el.innerHTML = calc.custom.render(app); calc.custom.bind(el, app, rerender); el.querySelectorAll('[data-ref]').forEach((b) => b.addEventListener('click', () => app.openReference?.(b.dataset.ref))); toolLinks(el); body.scrollTop = y; };
       calc.custom.bind(el, app, rerender);
       return;
     }
@@ -792,7 +833,7 @@ export function openTools(app, tab) {
     });
     update(body);
   };
-  app.openModal('Calculators', render(), bind);
+  app.openModal('Tools', render(), bind);
 }
 
 /** Merge a template design into the current document near the view centre. */

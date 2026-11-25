@@ -157,7 +157,7 @@ Pages and from the iOS Home Screen with no connection.
   board-to-board wiring list.
 - Boards appear as labelled frames on the schematic; tap the label to open one.
 
-**Calculators** (slider + typed value for every input)
+**Tools** (top-bar calculator button; slider + typed value for every input)
 - **Op-amp designer**: buffer, non-inverting, inverting, summing, difference, integrator / low-pass,
   photodiode transimpedance and Sallen-Key; single or dual supply (auto VREF), any op-amp model.
   Shows gain, ideal vs simulated output (clipping), swing limits, bandwidth from GBW and a Bode /
@@ -198,9 +198,37 @@ Pages and from the iOS Home Screen with no connection.
   radios, sensors and regulators), for linear or switching regulation, and gives the average current,
   battery life, peak current and energy per day.
 
+- **Battery**: chemistry (Li-ion / LiPo, LiFePO4, NiMH, alkaline, CR2032, lead-acid), cells in series and
+  parallel, capacity and state of charge — or the battery in your design. The load can be a current, a power
+  (through a converter) or the Power budget's average. It gives energy, internal resistance, C-rate, voltage
+  sag now and near empty, runtime from full and from now (with high-current derating), cell heating,
+  self-discharge, charge time and a charge-level table, and inserts the battery into the circuit.
+- **Charger & monitor designer** for single Li-ion / LiPo cells: TP4056 or TP4054, charge rate → PROG
+  resistor, USB-C / Micro-USB / pads input, status LEDs or MCU pins, an optional 10 kΩ NTC window (trip
+  temperatures shown), optional DW01A + FS8205A protection, load sharing (Schottky + P-MOSFET), and battery
+  monitoring (always-on divider sized for a drain budget, switched zero-drain divider, or INA219). It reports
+  charge current and time, charger heat, ADC readings and drain, and **Insert into circuit** adds the whole
+  circuit with net labels that join your design (VBUS, BAT, VSYS, CHG, STDBY, VBAT_ADC …).
+- **Tools talk to each other and to the design**: Decoupling can start from a radio or MCU in the schematic
+  (its rail voltage and peak current), RF link budget from a radio's transmit power, Sensor → ADC from an ADC
+  or ESP32 in the design (including the PGA setting), Battery and Charger from the design's battery, Battery
+  from the Power budget's average current; the Power budget links on to the Battery, Decoupling and Charger
+  tools and warns when peak current exceeds the battery's rating.
+
+**Batteries and power settings in the schematic**
+- A **Battery** part (Sources) with chemistry, cells in series / parallel, capacity, state of charge, internal
+  resistance and protection. It simulates the resting voltage for its charge level behind its internal
+  resistance, and the design checks warn about over-current, charging primary cells, over-rate charging,
+  voltage below cut-off and unprotected Li-ion. The Power budget uses it for capacity and "time left from now".
+- **Power settings on chips that change their consumption**: ESP32-S3 / ESP32 / ESP32-C3 boards and modules
+  (radio mode, CPU clock, transmit power, sleep mode, % of time awake), nRF52 (radio mode, TX power, DC/DC,
+  CPU busy, System ON/OFF), LSM6DS3 (accelerometer and gyro modes), QMC5883P / QMC5883L / HMC5883L, MPU-6050,
+  ADXL345, ADS1115 and Arduino Nano. They change the simulated load, the Power budget rows, peak current and
+  the RF tool's transmit power.
+
 **Reference** (book button in the top bar)
 - A searchable guide to every kind of part in the library and the theory behind the simulator and the
-  calculators, written for curious non-engineers: what each part is for, how it works, how it is wired in,
+  tools, written for curious non-engineers: what each part is for, how it works, how it is wired in,
   the circuits it appears in, wiring tips, traps and common mistakes, what it is used with, and links to
   related topics.
 - Category buttons (including **★ In this design**), full-text search with highlighting, and a "search in"
@@ -273,7 +301,9 @@ python3 -m http.server 8000   # then open http://localhost:8000
 | `js/editor.js` | SVG canvas rendering and touch/mouse interaction |
 | `js/doc.js` | Design document operations and geometry |
 | `js/app.js` | App controller: modes, panels, meter, build/debug tracking, files |
-| `js/tools.js` | Calculators and circuit templates |
+| `js/tools.js` | Tools dialog: calculators, designers and circuit templates |
+| `js/battery.js` | Battery chemistries, discharge curves and pack maths |
+| `js/battools.js` | Battery tool and charger / monitor designer |
 | `js/fab.js` | KiCad netlist, JLCPCB BOM and pin–net exports |
 | `js/design.js` | Decoupling and sensor-interface design maths (no DOM) |
 | `js/store.js` | IndexedDB persistence |

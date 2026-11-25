@@ -1,5 +1,6 @@
 // Component library: symbols, pin geometry, editable properties, part spec bank & simulation models.
 import { parseEng, short, fmt } from './units.js';
+import { batteryInfo, CHEM_NAMES } from './battery.js';
 
 export const GRID = 10;
 const VT = 0.025852;
@@ -529,6 +530,21 @@ Object.assign(ICS, {
     pins: [['SCL', 'in'], ['SDA', 'io'], ['VDD', 'pwr'], ['VDDIO', 'pwr'], ['GND', 'gnd'], ['INT', 'out'], ['NC', 'nc'], ['NC', 'nc']],
     units: [{ k: 'mod', vcc: 'VDD', gnd: 'GND', i: 0.2e-3, vnom: 3.3 }],
     specs: [['Range', '±30 G / ±8 G'], ['I²C', '0x2C'], ['Supply', '2.5–3.6 V'], ['ODR', 'up to 200 Hz']], notes: 'Functional pin list (not package pad numbers).' },
+  'DW01A': { cat: 'Power ICs', name: 'DW01A', desc: 'Single-cell Li-ion protection controller (drives two N-MOSFETs in the negative lead)', pkg: 'SOT-23-6', layout: 'dip', footprint: 'Package_TO_SOT_SMD:SOT-23-6',
+    pins: [['OD', 'out'], ['CS', 'in'], ['OC', 'out'], ['TD', 'io'], ['VCC', 'pwr'], ['GND', 'gnd']],
+    units: [{ k: 'dw01', vcc: 'VCC', gnd: 'GND', od: 'OD', oc: 'OC' }],
+    specs: [['Over-charge', '4.25–4.35 V'], ['Over-discharge', '2.3–2.5 V'], ['Over-current', '≈ 150 mV across the FETs (≈ 3 A with FS8205A)'], ['Parts', '100 Ω + 100 nF on VCC, 1–2 kΩ CS → P−']],
+    notes: 'GND is the cell negative (B−); CS goes to the pack negative (P−) through 1–2 kΩ. Current-limit sensing is not simulated.' },
+  'FS8205A': { cat: 'Power ICs', name: 'FS8205A', desc: 'Dual N-MOSFET, common drain, for battery protection (20 V, ≈ 25 mΩ)', pkg: 'TSSOP-8', layout: 'dip', footprint: 'Package_SO:TSSOP-8_4.4x3mm_P0.65mm',
+    pins: [['D', 'io'], ['S1', 'io'], ['S1', 'io'], ['G1', 'in'], ['G2', 'in'], ['S2', 'io'], ['S2', 'io'], ['D', 'io']],
+    units: [{ k: 'nfet', d: 'D', g: 'G1', s: 'S1', vth: 0.7, rds: 0.025 }, { k: 'nfet', d: 'D', g: 'G2', s: 'S2', vth: 0.7, rds: 0.025 }],
+    specs: [['VDS', '20 V'], ['RDS(on)', '≈ 25 mΩ each at 4.5 V'], ['Current', '≈ 6 A']], notes: 'FET1 (S1/G1) at the cell negative, driven by OD; FET2 (S2/G2) at the pack negative, driven by OC. Check the pin order of your package.' },
+  'USB-C receptacle': { cat: 'Power ICs', name: 'USB-C', desc: 'USB Type-C receptacle (USB 2.0 data + power)', pkg: 'USB-C', layout: 'dip', functional: true, footprint: 'Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12',
+    pins: [['VBUS', 'pwr'], ['GND', 'gnd'], ['CC1', 'io'], ['CC2', 'io'], ['NC', 'nc'], ['SHELL', 'io'], ['D−', 'io'], ['D+', 'io']],
+    units: [], specs: [['CC1/CC2', '5.1 kΩ each to GND → the host supplies 5 V'], ['Current', '500 mA (USB 2.0 default), up to 3 A if the source advertises it']], notes: 'Functional symbol — pad names depend on the connector footprint.' },
+  'Micro-USB receptacle': { cat: 'Power ICs', name: 'Micro-USB', desc: 'Micro-B USB receptacle', pkg: 'Micro-USB B', layout: 'dip', footprint: 'Connector_USB:USB_Micro-B_Molex-105017-0001',
+    pins: [['VBUS', 'pwr'], ['D−', 'io'], ['D+', 'io'], ['ID', 'io'], ['GND', 'gnd'], ['SHELL', 'io']], nums: ['1', '2', '3', '4', '5', 'S'],
+    units: [], specs: [['Current', '500 mA from a computer port, ≈ 1–2 A from chargers']] },
   'ESP32-S3-WROOM-1': { cat: 'MCU boards', name: 'ESP32-S3-WROOM-1', desc: 'ESP32-S3 module (Wi-Fi + BLE 5, PCB antenna, flash) for your own PCB — 3.3 V only', pkg: 'module 18×25.5 mm, 41 pads', layout: 'header', footprint: 'RF_Module:ESP32-S3-WROOM-1',
     left: ['GND', '3V3', 'EN', 'IO4', 'IO5', 'IO6', 'IO7', 'IO15', 'IO16', 'IO17', 'IO18', 'IO8', 'IO19', 'IO20', 'IO3', 'IO46', 'IO9', 'IO10', 'IO11', 'IO12'],
     right: ['IO13', 'IO14', 'IO21', 'IO47', 'IO48', 'IO45', 'IO0', 'IO35', 'IO36', 'IO37', 'IO38', 'IO39', 'IO40', 'IO41', 'IO42', 'RXD0', 'TXD0', 'IO2', 'IO1', 'GND', 'GND'],
@@ -536,6 +552,88 @@ Object.assign(ICS, {
     specs: [['Supply', '3.0–3.6 V, ≥ 500 mA peaks (Wi-Fi TX ≈ 350 mA)'], ['Current', 'Wi-Fi ≈ 80–110 mA avg, light sleep ≈ 0.24 mA, deep sleep ≈ 8 µA'], ['EN', '10 kΩ pull-up + 1 µF to GND (reset delay)'], ['Strapping', 'IO0 (boot), IO3, IO45, IO46 — leave free'], ['USB', 'native USB D−/D+ on IO19/IO20'], ['ADC', 'ADC1 = IO1–IO10 (usable with Wi-Fi)']],
     notes: 'Pads in datasheet order (1 GND, 2 3V3, 3 EN … 40 GND, 41 exposed pad GND). Keep the antenna end over the board edge with no copper underneath.' },
 });
+// ---------- power profiles: settings that change what a chip draws (radio, CPU clock, sleep, sensor rate) ----------
+const pick = (o, k, d) => (o[k] != null ? o[k] : d);
+const pctOf = (x, d = 100) => { const v = num(x, d); return Math.max(0, Math.min(100, v)); };
+const ESPV = {
+  s3: { cpu: { '80 MHz': 28e-3, '160 MHz': 38e-3, '240 MHz': 50e-3 }, light: 0.24e-3, deep: 8e-6, peakWifi: 0.355, peakBle: 0.1 },
+  c3: { cpu: { '80 MHz': 18e-3, '160 MHz': 25e-3 }, light: 0.13e-3, deep: 5e-6, peakWifi: 0.335, peakBle: 0.09 },
+  classic: { cpu: { '80 MHz': 30e-3, '160 MHz': 40e-3, '240 MHz': 50e-3 }, light: 0.8e-3, deep: 10e-6, peakWifi: 0.38, peakBle: 0.13 },
+};
+const RADIO_ESP = { 'Off': 0, 'BLE advertising': 8e-3, 'BLE connected': 15e-3, 'Wi-Fi connected (power save)': 20e-3, 'Wi-Fi streaming': 85e-3 };
+function espProfile(v, board, boardSleep, defCpu) {
+  const V = ESPV[v];
+  return {
+    props: [opt('radio', 'Radio', 'Wi-Fi connected (power save)', { options: Object.keys(RADIO_ESP), power: true }), opt('cpu', 'CPU clock', defCpu, { options: Object.keys(V.cpu), power: true }),
+      opt('txdbm', 'Transmit power', '20 dBm', { options: ['0 dBm', '9 dBm', '15 dBm', '20 dBm'], power: true }), opt('sleepMode', 'When not awake', 'Deep sleep', { options: ['Deep sleep', 'Light sleep'], power: true }),
+      opt('awake', 'Time awake', '100', { unit: '%', eng: true, power: true })],
+    model: (p) => {
+      const radio = pick(p, 'radio', 'Off'), cpu = V.cpu[p.cpu] ?? Object.values(V.cpu)[0];
+      const active = cpu + (RADIO_ESP[radio] ?? 0) + board;
+      const sleep = (p.sleepMode === 'Light sleep' ? V.light : V.deep) + boardSleep;
+      const tx = num(p.txdbm, 20), pa = Math.pow(10, (tx - 20) / 20);
+      const peak = /Wi-Fi/.test(radio) ? active + (V.peakWifi - active) * pa : /BLE/.test(radio) ? Math.max(active, V.peakBle * Math.max(pa, 0.6)) : active;
+      return { active, sleep, duty: pctOf(p.awake), peak, txdbm: radio === 'Off' ? null : tx,
+        note: `${radio}, ${p.cpu || ''}${board ? ', incl. ≈ ' + fmt(board, 'A', 2) + ' board overhead' : ''}; asleep: ${p.sleepMode || 'Deep sleep'}` };
+    },
+  };
+}
+const NRF_TX = { '-20 dBm': 3.0e-3, '-8 dBm': 3.8e-3, '0 dBm': 5.3e-3, '+4 dBm': 7.5e-3 };
+const NRF_MODES = ['Off', 'Advertising, 1 s interval', 'Advertising, 100 ms interval', 'Connected, 30 ms interval', 'Continuous RX', 'Continuous TX'];
+const nrfProfile = {
+  props: [opt('radio', 'Radio', 'Advertising, 1 s interval', { options: NRF_MODES, power: true }), opt('tx', 'Transmit power', '0 dBm', { options: Object.keys(NRF_TX), power: true }),
+    opt('dcdc', 'DC/DC regulator', 'On', { options: ['On', 'Off (LDO)'], power: true }), opt('busy', 'CPU busy', '0.2', { unit: '%', eng: true, power: true }),
+    opt('sleepMode', 'Sleep', 'System ON (RTC running)', { options: ['System ON (RTC running)', 'System OFF'], power: true })],
+  model: (p) => {
+    const k = p.dcdc === 'Off (LDO)' ? 1.35 : 1, txI = (NRF_TX[p.tx] ?? NRF_TX['0 dBm']) * k, rxI = 5.4e-3 * k, cpuI = 3.7e-3 * (p.dcdc === 'Off (LDO)' ? 2 : 1);
+    const sleep = p.sleepMode === 'System OFF' ? 0.3e-6 : 1.9e-6;
+    const ev = (radioMs, overheadMs) => txI * radioMs * 1e-3 + 1.6e-3 * k * overheadMs * 1e-3;   // charge per radio event (C)
+    const radio = pick(p, 'radio', NRF_MODES[1]);
+    let avgRadio = 0, peak = txI;
+    if (radio === NRF_MODES[1]) avgRadio = ev(1.2, 1) / 1;
+    else if (radio === NRF_MODES[2]) avgRadio = ev(1.2, 1) / 0.1;
+    else if (radio === NRF_MODES[3]) avgRadio = ev(0.6, 0.5) / 0.03;
+    else if (radio === NRF_MODES[4]) { avgRadio = rxI; peak = rxI; }
+    else if (radio === NRF_MODES[5]) avgRadio = txI;
+    else peak = cpuI;
+    const avg = sleep + avgRadio + cpuI * pctOf(p.busy, 0.2) / 100;
+    const active = Math.max(peak, cpuI), duty = Math.min(100, Math.max(0, ((avg - sleep) / Math.max(active - sleep, 1e-12)) * 100));
+    return { active, sleep, duty, peak, avg, txdbm: radio === 'Off' ? null : num(String(p.tx).replace('+', ''), 0), note: `${radio}, TX ${p.tx || '0 dBm'}, DC/DC ${p.dcdc || 'On'}` };
+  },
+};
+const LSM_A = { 'Power-down': 0, 'Low-power 12.5 Hz': 25e-6, 'Low-power 52 Hz': 45e-6, 'Normal 104 Hz': 85e-6, 'High-performance 104 Hz': 150e-6, 'High-performance 1.66 kHz': 240e-6 };
+const LSM_G = { 'Power-down': 0, 'Normal 104 Hz': 0.45e-3, 'High-performance 104 Hz': 0.6e-3, 'High-performance 1.66 kHz': 0.65e-3 };
+const tableProfile = (key, label, table, def, base, note) => ({
+  props: [opt(key, label, def, { options: Object.keys(table), power: true })],
+  model: (p) => { const i = base + (table[p[key]] ?? table[def]); return { active: i, sleep: i, duty: 100, peak: i, note: `${p[key] || def}${note ? ' — ' + note : ''}` }; },
+});
+export const POWER_PROFILES = [
+  { match: /^ESP32-S3-WROOM/i, ...espProfile('s3', 0, 0, '240 MHz') },
+  { match: /ESP32-S3 SuperMini/i, ...espProfile('s3', 1.5e-3, 0.06e-3, '160 MHz') },
+  { match: /ESP32-S3-DevKitC/i, ...espProfile('s3', 8e-3, 4e-3, '240 MHz') },
+  { match: /ESP32-C3/i, ...espProfile('c3', 1.5e-3, 0.06e-3, '160 MHz') },
+  { match: /ESP32 DevKit/i, ...espProfile('classic', 10e-3, 5e-3, '240 MHz') },
+  { match: /nRF52/i, ...nrfProfile },
+  { match: /Arduino Nano/i, ...tableProfile('state', 'State', { 'Active (16 MHz)': 19e-3, 'Idle sleep': 12e-3, 'Power-down sleep': 6e-3 }, 'Active (16 MHz)', 0, 'board LED, regulator and USB chip keep it above ≈ 6 mA') },
+  { match: /LSM6DS3/i, props: [opt('accel', 'Accelerometer', 'High-performance 104 Hz', { options: Object.keys(LSM_A), power: true }), opt('gyro', 'Gyroscope', 'High-performance 104 Hz', { options: Object.keys(LSM_G), power: true })],
+    model: (p) => { const i = 6e-6 + (LSM_A[p.accel] ?? LSM_A['High-performance 104 Hz']) + (LSM_G[p.gyro] ?? LSM_G['High-performance 104 Hz']); return { active: i, sleep: 6e-6, duty: 100, peak: i, note: `accel ${p.accel}, gyro ${p.gyro}` }; } },
+  { match: /QMC5883P/i, ...tableProfile('mode', 'Mode', { 'Suspend': 0, 'Continuous 10 Hz': 75e-6, 'Continuous 50 Hz': 150e-6, 'Continuous 100 Hz': 250e-6, 'Continuous 200 Hz': 450e-6 }, 'Continuous 50 Hz', 3e-6, 'estimate, depends on oversampling') },
+  { match: /QMC5883L|HMC5883L/i, ...tableProfile('mode', 'Mode', { 'Idle': 0, 'Continuous 15 Hz': 100e-6, 'Continuous 75 Hz': 250e-6 }, 'Continuous 15 Hz', 3e-6, 'module LED / regulator extra') },
+  { match: /MPU-6050/i, ...tableProfile('mode', 'Mode', { 'Sleep': 5e-6, 'Accel only, cycle 5 Hz': 70e-6, 'Accel only': 0.5e-3, 'Accel + gyro': 3.9e-3 }, 'Accel + gyro', 0, 'GY-521 LED adds ≈ 1 mA') },
+  { match: /ADXL345/i, ...tableProfile('mode', 'Mode', { 'Standby': 0.1e-6, 'Low power 25 Hz': 34e-6, '100 Hz': 140e-6, '3200 Hz': 140e-6 }, '100 Hz', 0) },
+  { match: /ADS1115/i, ...tableProfile('mode', 'Conversion', { 'Single-shot (idle between)': 0.5e-6, 'Continuous': 150e-6 }, 'Continuous', 0) },
+];
+export function powerProfile(c) { if (c.type !== 'ic') return null; const name = c.props?.part || ''; return POWER_PROFILES.find((pp) => pp.match.test(name)) || null; }
+/** Current model of a part from its power settings: { active, sleep, duty %, peak, avg, note } or null. */
+export function powerOf(c) {
+  const pf = powerProfile(c);
+  if (!pf) return null;
+  const p = {};
+  for (const o of pf.props) p[o.key] = c.props[o.key] ?? o.default;
+  const m = pf.model(p);
+  m.avg = m.avg ?? (m.active * m.duty) / 100 + m.sleep * (1 - m.duty / 100);
+  return m;
+}
 export const CUSTOM_INLINE_PROPS = [opt('title', 'Board name', 'My ESP32'), opt('leftPins', 'Left header (top→bottom, comma/newline)', '5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5'), opt('rightPins', 'Right header (top→bottom)', 'IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13'), opt('vlogic', 'Logic level', '3.3', { unit: 'V', eng: true }), opt('vinPin', 'USB / VIN pin name', '5V'), opt('railPin', '3.3 V rail pin name', '3V3')];
 
 /** Register a user-defined part (from the custom part editor). */
@@ -674,6 +772,17 @@ export const TYPES = {
     bbox: { x: 0, y: -8, w: 60, h: 16 },
     props: [opt('name', 'Name', 'SIG')],
     draw: (c) => { const w = Math.max(20, String(c.props.name || '').length * 7 + 8); return { s: `<path class="s lbl" d="M0,0H5L11,-7H${11 + w}V7H11L5,0"/>`, t: [T(11 + w / 2, 0, c.props.name || '', 'tl')] }; },
+  },
+  battery: {
+    name: 'Battery', prefix: 'BT', cat: 'Sources',
+    pins: [{ x: 0, y: -30, name: '+' }, { x: 0, y: 30, name: '−' }],
+    bbox: { x: -16, y: -30, w: 32, h: 60 },
+    props: [opt('chem', 'Chemistry', 'Li-ion / LiPo', { options: CHEM_NAMES }), opt('series', 'Cells in series (S)', '1', { eng: true }), opt('parallel', 'Cells in parallel (P)', '1', { eng: true }),
+      opt('cap', 'Capacity per cell', '100', { unit: 'mAh', eng: true }), opt('soc', 'State of charge', '80', { unit: '%', eng: true }),
+      opt('rint', 'Internal resistance per cell (blank = typical)', '', { unit: 'Ω', eng: true }), opt('prot', 'Has a protection circuit', true, { bool: true })],
+    draw: () => ({ s: P('M0,-30V-12M-14,-12H14M-14,0H14M0,6V30') + `<path class="s thick" d="M-7,-6H7M-7,6H7"/>`, t: [T(13, -17, '+', 'tp')] }),
+    label: (c) => { const b = batteryInfo(c.props); return `${b.S}S${b.P > 1 ? b.P + 'P' : ''} ${b.chem.short} ${b.capPack >= 1000 ? +(b.capPack / 1000).toPrecision(3) + 'Ah' : Math.round(b.capPack) + 'mAh'} · ${b.V.toFixed(2)}V`; },
+    stamp: (S, n, c) => { const b = batteryInfo(c.props); S.V(n[0], n[1], b.V, { rint: b.rPack }); },
   },
   vdc: {
     name: 'DC source / battery', prefix: 'V', cat: 'Sources',
@@ -1000,6 +1109,27 @@ function icStamp(S, n, c, e) {
           return [v[0] * 1e-12, v[1] * 1e-12, isink, iq, -isink - iq];
         });
       }
+    } else if (u.k === 'nfet') {
+      // N-MOSFET inside an IC (same square-law model as the discrete part, body diode S→D)
+      const vth = u.vth ?? 0.7, rds = u.rds ?? 0.025, K = 1 / (rds * Math.max((u.vgsSpec ?? 4.5) - vth, 0.5)), nvt = 0.06;
+      const sp = (x) => { const y = x / (2 * nvt); return y > 30 ? x : 2 * nvt * Math.log1p(Math.exp(y)); };
+      const F = (x) => { const q = sp(x); return q * q; };
+      S.nl([node(u.d), node(u.g), node(u.s)], (v) => {
+        const [vd, vg, vs] = v;
+        const id = (K / 2) * (F(vg - vs - vth) - F(vg - vd - vth));
+        const body = diodeI(vs - vd, 1e-12, 1.3);
+        return [id - body, (vg - vs) * 1e-12, -(id - body)];
+      });
+    } else if (u.k === 'dw01') {
+      // Li-ion protector: OD (discharge FET gate) high while VCC > 2.4 V, OC (charge FET gate) high while VCC < 4.3 V
+      S.nl([node(u.vcc), node(u.gnd), node(u.od), node(u.oc)], (v) => {
+        const vc = v[0] - v[1];
+        const odT = v[1] + vc * sig((vc - 2.4) / 0.03), ocT = v[1] + vc * sig((4.3 - vc) / 0.03);
+        const so = drive(v[2], odT, 1000, 2e-3), sc = drive(v[3], ocT, 1000, 2e-3);
+        const spO = fromRail(so, v[0], v[2]), spC = fromRail(sc, v[0], v[3]);
+        const iq = 3e-6 * Math.tanh(spos(vc, 0.01));
+        return [iq + spO + spC, so - spO + sc - spC - iq, -so, -sc];
+      });
     } else if (u.k === 'logic') {
       // CMOS gate (inverter or buffer); threshold at half supply, Schmitt hysteresis ignored in DC
       S.nl([node(u.in), node(u.out), node(u.vdd), node(u.gnd)], (v) => {
@@ -1084,7 +1214,8 @@ function icStamp(S, n, c, e) {
     } else if (u.k === 'mod') {
       const iv = idx(u.vcc), ig = idx(u.gnd);
       if (iv < 0 || ig < 0) continue;
-      if (u.i) S.R(n[iv], n[ig], (u.vnom || 3.3) / u.i);
+      const pwr = powerOf(c), iMod = pwr ? pwr.avg : u.i;
+      if (iMod) S.R(n[iv], n[ig], (u.vnom || 3.3) / iMod);
       for (const pn of u.pullups || []) { const i = idx(pn); if (i >= 0) S.R(n[i], n[iv], u.rpu || 10e3); }
     } else if (u.k === 'aout') {
       const iv = idx(u.vcc), ig = idx(u.gnd);
@@ -1123,7 +1254,8 @@ function icStamp(S, n, c, e) {
           return [sp, -s, s - sp];
         });
       }
-      S.R(n3, ng, vreg / u.load); // board / MCU current draw
+      const pwr = powerOf(c);
+      S.R(n3, ng, vreg / Math.max(pwr ? pwr.avg : u.load, 1e-9)); // board / MCU current draw (from its power settings)
       const gpio = c.props.gpio || {};
       g.pins.forEach((p, i) => {
         if (p.fn !== 'io' || (d.gpioPins && !d.gpioPins.includes(p.name))) return;
@@ -1189,7 +1321,8 @@ export function propDefs(c) {
     const def = ICS[c.props.part] || {};
     if (def.generic) return [...d.props, ...GENERIC_IC_PROPS];
     if (def.customInline) return [...d.props, ...CUSTOM_INLINE_PROPS];
-    return [...d.props, ...(def.extraProps || [])];
+    const pf = powerProfile(c);
+    return [...d.props, ...(def.extraProps || []), ...(pf ? pf.props : [])];
   }
   return d.props;
 }
@@ -1289,6 +1422,14 @@ export const PALETTE = [
   { type: 'rail', label: 'Power rail', cat: 'Sources' },
   { type: 'netlabel', label: 'Net label', cat: 'Sources' },
   { type: 'vdc', label: 'DC source', cat: 'Sources', kw: 'battery supply' },
+  { type: 'battery', label: 'LiPo 1S 100 mAh', cat: 'Sources', preset: { chem: 'Li-ion / LiPo', cap: '100' }, kw: 'battery lipo lithium cell pouch' },
+  { type: 'battery', label: '18650 Li-ion 1S 2500 mAh', cat: 'Sources', preset: { chem: 'Li-ion / LiPo', cap: '2500' }, kw: 'battery 18650 lithium cell' },
+  { type: 'battery', label: 'Li-ion 2S 2000 mAh', cat: 'Sources', preset: { chem: 'Li-ion / LiPo', cap: '2000', series: '2' }, kw: 'battery lipo 2s 7.4v pack' },
+  { type: 'battery', label: 'LiFePO4 1S 1500 mAh', cat: 'Sources', preset: { chem: 'LiFePO4', cap: '1500' }, kw: 'battery lifepo4 lfp' },
+  { type: 'battery', label: '3 × AA alkaline', cat: 'Sources', preset: { chem: 'Alkaline', cap: '2500', series: '3', prot: false }, kw: 'battery aa alkaline 4.5v' },
+  { type: 'battery', label: '4 × AA NiMH', cat: 'Sources', preset: { chem: 'NiMH', cap: '2000', series: '4', prot: false }, kw: 'battery aa nimh rechargeable 4.8v' },
+  { type: 'battery', label: 'CR2032 coin cell', cat: 'Sources', preset: { chem: 'Lithium coin (CR2032)', cap: '225', prot: false }, kw: 'battery coin cr2032 button' },
+  { type: 'battery', label: '12 V SLA 7 Ah', cat: 'Sources', preset: { chem: 'Lead-acid (SLA)', cap: '7000', series: '6', prot: false }, kw: 'battery lead acid sla 12v' },
   { type: 'vac', label: 'Signal gen', cat: 'Sources', kw: 'function generator ac sine' },
   { type: 'idc', label: 'Current src', cat: 'Sources' },
   ...['red', 'yellow', 'green', 'blue', 'white'].map((col) => ({ type: 'led', label: `LED ${col}`, cat: 'LEDs', preset: { color: col }, kw: 'led light diode indicator' })),
@@ -1324,7 +1465,7 @@ export const PALETTE = [
   ...['LM393-IC', 'LM339', 'LM311', 'LMV393', 'MCP6561', 'TLV3201', 'TLV7011'].map((p) => ({ type: 'ic', part: p, label: (ICS[p].name || p) + ' ' + ICS[p].pkg.split(' ')[0], cat: 'Comparators', kw: 'comparator threshold schmitt ' + ICS[p].desc })),
   ...['74HC595', '74HC14', 'MCP23017'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'Logic & interface', kw: 'logic cmos digital ' + ICS[p].desc })),
   ...['ULN2003A', 'L293D', 'LM386'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'Drivers', kw: 'driver motor relay audio ' + ICS[p].desc })),
-  ...['TL431', 'TP4056', 'TP4054', 'USBLC6-2SC6'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'Power ICs', kw: 'power reference charger esd ' + ICS[p].desc })),
+  ...['TL431', 'TP4056', 'TP4054', 'DW01A', 'FS8205A', 'USBLC6-2SC6', 'USB-C receptacle', 'Micro-USB receptacle'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'Power ICs', kw: 'power reference charger esd ' + ICS[p].desc })),
   ...['AP2112K-3.3', 'ME6211C33'].map((p) => ({ type: 'reg', part: p, label: p, cat: 'Regulators', kw: 'ldo regulator 3.3 enable' })),
   ...['DS18B20', 'LM35', 'INA219 module', 'LSM6DS3', 'QMC5883P'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'Sensors', kw: 'sensor ' + ICS[p].desc })),
   { type: 'ic', part: 'ESP32-S3-WROOM-1', label: 'ESP32-S3-WROOM-1 module', cat: 'MCU boards', kw: 'esp32 s3 module wroom wifi bluetooth ble' },

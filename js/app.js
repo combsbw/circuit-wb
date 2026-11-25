@@ -466,7 +466,7 @@ class App {
     return `<div class="sh-head"><h3>${n ? 'Editing' : 'Start a circuit'}</h3></div>
       <div class="hint">${n ? '' : 'Tap <b>+</b> to add parts. '}Tap a part to edit its values. <b>Drag from a pin</b> to wire it; drop on a pin, a wire or empty space. Pinch / scroll to zoom, drag the background to pan.</div>
       ${(this.doc.boards || []).length ? `<div class="sec">Boards</div><div class="list">${this.doc.boards.map((b) => `<div class="li" data-act="openboard" data-id="${b.id}"><i class="dot" style="background:#8b5cf6"></i><div class="grow"><div class="t1">${esc(b.name)}</div><div class="t2">${esc(BOARD_TYPES[b.type]?.name || '')} · ${b.compIds.length} parts</div></div>${icon('chip')}</div>`).join('')}</div>` : ''}
-      <div class="actions">${this.btn('addpart', 'Add part', 'plus', 'pri')}${n ? this.btn('mkboardall', 'Build board', 'chip') : ''}${this.btn('examples', 'Examples', 'book')}${this.btn('tools', 'Calculators', 'calc')}</div>`;
+      <div class="actions">${this.btn('addpart', 'Add part', 'plus', 'pri')}${n ? this.btn('mkboardall', 'Build board', 'chip') : ''}${this.btn('examples', 'Examples', 'book')}${this.btn('tools', 'Tools', 'calc')}</div>`;
   }
 
   netSheet(net) {
@@ -510,7 +510,7 @@ class App {
   }
 
   propField(c, o) {
-    const v = c.props[o.key];
+    const v = c.props[o.key] ?? o.default;
     const id = `p_${o.key}`;
     let ctl;
     if (o.parts) {

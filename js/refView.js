@@ -142,7 +142,7 @@ function detailHtml() {
     if (e.formulas?.length) h += `<section class="rf-sec"><h3>Key formulas</h3><table class="rf-f">${e.formulas.map(([f, m]) => `<tr><td class="fx">${esc(f)}</td><td>${mark(m, toks)}</td></tr>`).join('')}</table></section>`;
     if (e.example) h += `<section class="rf-sec rf-ex"><h3>Worked example</h3><p>${mark(e.example, toks)}</p></section>`;
     h += items('Common misunderstandings', e.pitfalls, toks, 'rf-traps');
-    if (e.calculators?.length) h += `<section class="rf-sec"><h3>Try it</h3><div class="rf-chips">${e.calculators.map((c) => `<button class="btn small" data-calc="${esc(c)}">${icon('calc')}${esc(CALC_NAMES[c] || c)} calculator</button>`).join('')}</div></section>`;
+    if (e.calculators?.length) h += `<section class="rf-sec"><h3>Try it</h3><div class="rf-chips">${e.calculators.map((c) => `<button class="btn small" data-calc="${esc(c)}">${icon('calc')}${esc(CALC_NAMES[c] || c)} tool</button>`).join('')}</div></section>`;
   } else {
     h += para(SECTION_TITLES.purpose, e.purpose, toks) + para(SECTION_TITLES.how, e.how, toks) + para(SECTION_TITLES.integration, e.integration, toks);
     h += items(SECTION_TITLES.circuits, e.circuits, toks) + items(SECTION_TITLES.tips, e.tips, toks, 'rf-tips') + items(SECTION_TITLES.traps, e.traps, toks, 'rf-traps') + items(SECTION_TITLES.companions, e.companions, toks);
@@ -153,7 +153,7 @@ function detailHtml() {
   if (rel.length) h += `<section class="rf-sec"><h3>Related</h3><div class="rf-chips">${rel.map((r) => `<button class="chip" data-go="${esc(r.id)}">${r.kind === 'theory' ? '📖 ' : ''}${esc(r.title)}</button>`).join('')}</div></section>`;
   return h;
 }
-const CALC_NAMES = { filter: 'Filters', opamp: 'Op-amp designer', divider: 'Voltage divider', led: 'LED resistor', ohm: "Ohm's law", react: 'Reactance', lm317: 'LM317', 555: '555 astable', gate: 'MOSFET gate drive', decap: 'Decoupling', sensor: 'Sensor → ADC', rf: 'RF link budget', power: 'Power budget' };
+const CALC_NAMES = { filter: 'Filters', opamp: 'Op-amp designer', divider: 'Voltage divider', led: 'LED resistor', ohm: "Ohm's law", react: 'Reactance', lm317: 'LM317', 555: '555 astable', gate: 'MOSFET gate drive', decap: 'Decoupling', sensor: 'Sensor → ADC', rf: 'RF link budget', power: 'Power budget', battery: 'Battery', charger: 'Charger & monitor' };
 function paletteFor(e) {
   const parts = new Set(e.parts || []), types = new Set(e.types || []);
   return PALETTE.filter((p) => (p.part && parts.has(p.part)) || (!p.part && types.has(p.type)) || (p.part && types.has(p.type) && !parts.size));

@@ -1,11 +1,12 @@
 // Power budget: per-component power from the DC simulation (whole circuit, selection or a board),
-// plus a duty-cycle battery-life planner. Used as a custom tab in the Calculators dialog.
-import { TYPES, ICS, PARTS } from './library.js';
+// plus a duty-cycle battery-life planner. Used as a custom tab in the Tools dialog.
+import { TYPES, ICS, PARTS, powerOf } from './library.js';
+import { batteryInfo, runtimeHours } from './battery.js';
 import { fmt, parseEng } from './units.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const num = (x, d = 0) => { const v = parseEng(x); return Number.isFinite(v) ? v : d; };
-const SOURCES = new Set(['vdc', 'vac', 'idc', 'rail']);
+const SOURCES = new Set(['vdc', 'vac', 'idc', 'rail', 'battery']);
 const SKIP = new Set(['netlabel', 'ground']);
 
 /** Typical active / sleep currents for parts the planner knows (A). Matched against the part name. */
@@ -78,10 +79,11 @@ function plannerRows(app, sim, all, scoped) {
   for (const r of loads) {
     const isReg = r.c.type === 'reg';
     const iq = isReg ? (PARTS[r.c.props.part]?.iq ?? 0) : 0;
-    const h = hintFor(r.part) || {};
+    const pm = r.c.type === 'ic' ? powerOf(r.c) : null;
+    const h = pm || hintFor(r.part) || {};
     const sv = saved.rows[r.id] || {};
     const simI = isReg ? iq : r.iSup;
-    rows.push({ key: r.id, name: `${r.ref} ${r.part}`, sim: simI, active: sv.active ?? (isReg ? iq : h.active ?? simI), sleep: sv.sleep ?? (isReg ? iq : h.sleep ?? simI), duty: sv.duty ?? (isReg ? 100 : h.duty ?? 100), note: isReg ? 'quiescent current — the load current through it is counted with each load' : h.note || '', peak: h.peak });
+    rows.push({ key: r.id, name: `${r.ref} ${r.part}`, sim: simI, active: sv.active ?? (isReg ? iq : h.active ?? simI), sleep: sv.sleep ?? (isReg ? iq : h.sleep ?? simI), duty: sv.duty ?? (isReg ? 100 : h.duty ?? 100), note: isReg ? 'quiescent current — the load current through it is counted with each load' : pm ? pm.note + ' · change in the part’s settings' : h.note || '', peak: h.peak, profiled: !!pm });
   }
   if (!scoped) {
     // whatever the sources deliver that the rows above do not explain: dividers, pull-ups, bias networks, leakage
@@ -128,18 +130,15 @@ function render(app) {
   if (hot.length) h += `<ul class="cw">${hot.map((r) => `<li>${esc(r.ref)} dissipates ${fW(r.p)} — ${r.p > r.rating ? 'above' : 'close to'} its ${fmt(r.rating, 'W')} rating. Use a bigger resistor or less current.</li>`).join('')}</ul>`;
   h += `</div>`;
   // ---- planner
-  const { rows, saved } = plannerRows(app, ids ? all.filter((r) => ids.has(r.id)) : all, all, !!ids);
-  const linear = saved.reg.startsWith('Linear');
-  let avg = 0, act = 0, slp = 0, peak = 0;
-  for (const r of rows) { const a = num(r.active), s = num(r.sleep), d = Math.min(100, Math.max(0, num(r.duty, 100))) / 100; avg += a * d + s * (1 - d); act += a; slp += s; peak += r.peak ?? a; }
-  const ibat = linear ? avg : (avg * saved.vload) / ((saved.eff / 100) * saved.vbat);
-  const usable = (saved.cap * saved.usable) / 100;
-  const hours = ibat > 0 ? usable / 1000 / ibat : Infinity;
-  const life = hours > 48 ? `${(hours / 24).toFixed(hours > 240 ? 0 : 1)} days` : `${hours.toFixed(1)} h`;
-  h += `<div class="sec">Battery-life planner</div><div class="hint">Currents start from the simulation and typical datasheet figures; edit them for your firmware. "% active" is the share of time a part is awake (a BLE radio is often 1–3 %, a streaming IMU 100 %).</div>`;
+  const P = plannerSummary(app, ids, all);
+  const { rows, saved, linear, avg, act, slp, peak, ibat, usable, hours, bat } = P;
+  const life = fmtLife(hours);
+  h += `<div class="sec">Battery-life planner</div><div class="hint">Currents start from the simulation, from each chip's power settings (radio mode, CPU clock, sleep, sensor rate — tap the part to change them) and typical datasheet figures; you can override any number here. "% active" is the share of time a part is awake.</div>`;
+  if (bat) h += `<div class="note" style="background:var(--panel-2)">🔋 <b>${esc(bat.c.ref)}</b> from the design: ${esc(bat.label)} · ${fmt(bat.info.V, 'V', 3)} now (${bat.info.soc} % charged). <label style="margin-left:8px"><input type="checkbox" data-pwlink="1" ${saved.linkBattery !== false ? 'checked' : ''}> use it</label></div>`;
+  const linked = bat && saved.linkBattery !== false;
   h += `<div class="pwbat">
-    <label>Capacity <input class="inp" data-pw="cap" value="${esc(saved.cap)}"> mAh</label>
-    <label>Cell voltage <input class="inp" data-pw="vbat" value="${esc(saved.vbat)}"> V</label>
+    <label>Capacity <input class="inp" data-pw="cap" value="${esc(linked ? Math.round(bat.info.capPack) : saved.cap)}" ${linked ? 'disabled' : ''}> mAh</label>
+    <label>Pack voltage <input class="inp" data-pw="vbat" value="${esc(linked ? +bat.info.Vnom.toFixed(2) : saved.vbat)}" ${linked ? 'disabled' : ''}> V</label>
     <label>Usable <input class="inp" data-pw="usable" value="${esc(saved.usable)}"> %</label>
     <label>Regulator <select class="inp" data-pw="reg">${['Linear (battery current = load current)', 'Switching (power conversion)'].map((o) => `<option ${o === saved.reg ? 'selected' : ''}>${o}</option>`).join('')}</select></label>
     ${linear ? '' : `<label>Efficiency <input class="inp" data-pw="eff" value="${esc(saved.eff)}"> %</label><label>Load voltage <input class="inp" data-pw="vload" value="${esc(saved.vload)}"> V</label>`}
@@ -154,11 +153,32 @@ function render(app) {
   h += `</tbody></table></div><div class="actions"><button class="btn small" data-pwadd="1">+ Add a load</button><button class="btn small" data-pwreset="1">Reset to simulation</button></div>`;
   h += `<div class="res"><div class="t2" style="color:var(--muted);font-size:13px">Estimated battery life</div><div class="big">${ibat > 0 ? life : '—'}</div><dl class="kv">
     <dt>Average current${linear ? '' : ' (load side)'}</dt><dd>${fA(avg)}</dd>${linear ? '' : `<dt>Average battery current</dt><dd>${fA(ibat)}</dd>`}
-    <dt>Everything awake</dt><dd>${fA(act)} → ${act > 0 ? (usable / 1000 / act).toFixed(1) + ' h' : '—'}</dd>
+    <dt>Everything awake</dt><dd>${fA(act)} → ${act > 0 ? fmtLife(usable / 1000 / act) : '—'}</dd>
     <dt>Everything asleep</dt><dd>${fA(slp)} → ${slp > 0 ? ((usable / 1000 / slp) / 24).toFixed(0) + ' days' : '—'}</dd>
     <dt>Peak (bursts)</dt><dd>${fA(peak)} — size the regulator and battery for this</dd>
-    <dt>Average power</dt><dd>${fW(ibat * saved.vbat)} · ${fmt(ibat * saved.vbat * 24, 'Wh', 3)} per day</dd></dl></div>`;
+    <dt>Average power</dt><dd>${fW(ibat * P.vbat)} · ${fmt(ibat * P.vbat * 24, 'Wh', 3)} per day</dd>
+    ${linked ? `<dt>From ${bat.info.soc} % charge now</dt><dd>${fmtLife(runtimeHours(bat.info, ibat, bat.info.soc) * saved.usable / 100)} (with the chemistry's high-current derating)</dd>` : ''}
+    ${linked && peak > bat.info.maxI ? `<dt>⚠ Peak vs battery</dt><dd>${fA(peak)} peaks exceed the pack's ≈ ${fA(bat.info.maxI)} rating — add bulk capacitance or a bigger cell</dd>` : ''}</dl>
+    <div class="actions"><button class="btn small" data-tool="battery">🔋 Battery tool with this load</button><button class="btn small" data-tool="decap">Decoupling for the ${fA(peak)} peak</button><button class="btn small" data-tool="charger">Charger &amp; monitor designer</button></div></div>`;
   return h;
+}
+const fmtLife = (hours) => (!Number.isFinite(hours) ? '—' : hours > 48 ? `${(hours / 24).toFixed(hours > 240 ? 0 : 1)} days` : hours >= 1 ? `${hours.toFixed(1)} h` : `${(hours * 60).toFixed(0)} min`);
+
+/** The planner's numbers without the UI — used by the battery and decoupling tools too. */
+export function plannerSummary(app, ids = null, all = null) {
+  const doc = app.doc;
+  if (!all) { if (!app.ckt || !app.ckt.op) { try { app.runSim(); } catch { /* ignore */ } } all = app.ckt && app.ckt.op ? componentPowers(app.ckt, doc) : []; }
+  const { rows, saved } = plannerRows(app, ids ? all.filter((r) => ids.has(r.id)) : all, all, !!ids);
+  const batC = doc.comps.find((c) => c.type === 'battery' && (!ids || ids.has(c.id))) || doc.comps.find((c) => c.type === 'battery');
+  const bat = batC ? { c: batC, info: batteryInfo(batC.props), label: TYPES.battery.label(batC) } : null;
+  const linked = bat && saved.linkBattery !== false;
+  const cap = linked ? bat.info.capPack : saved.cap, vbat = linked ? bat.info.Vnom : saved.vbat;
+  const linear = saved.reg.startsWith('Linear');
+  let avg = 0, act = 0, slp = 0, peak = 0;
+  for (const r of rows) { const a = num(r.active), s = num(r.sleep), d = Math.min(100, Math.max(0, num(r.duty, 100))) / 100; avg += a * d + s * (1 - d); act += a; slp += s; peak += r.peak ?? a; }
+  const ibat = linear ? avg : (avg * saved.vload) / ((saved.eff / 100) * vbat);
+  const usable = (cap * saved.usable) / 100;
+  return { rows, saved, linear, avg, act, slp, peak, ibat, usable, cap, vbat, hours: ibat > 0 ? usable / 1000 / ibat : Infinity, bat };
 }
 
 export const powerCalc = {
@@ -177,6 +197,7 @@ export const powerCalc = {
         save();
       }));
       el.querySelectorAll('[data-rmx]').forEach((b) => b.addEventListener('click', () => { doc.power.extra.splice(+b.dataset.rmx, 1); save(); }));
+      el.querySelector('[data-pwlink]')?.addEventListener('change', (e) => { doc.power.linkBattery = e.target.checked; save(); });
       el.querySelector('[data-pwadd]')?.addEventListener('click', () => { doc.power.extra.push({ name: 'Extra load', active: 1e-3, sleep: 0, duty: 100 }); save(); });
       el.querySelector('[data-pwreset]')?.addEventListener('click', () => { doc.power.rows = {}; save(); });
       el.querySelectorAll('tr[data-cid]').forEach((tr) => tr.addEventListener('click', () => { app.select({ comps: [tr.dataset.cid] }); }));
