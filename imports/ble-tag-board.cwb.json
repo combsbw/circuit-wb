@@ -1,0 +1,3612 @@
+{
+ "v": 1,
+ "id": "dbd9c3fmaon",
+ "name": "BLE tag board (reverse-engineered from photos)",
+ "created": 1795595131607,
+ "updated": 1795595131607,
+ "comps": [
+  {
+   "id": "co7ynx3daoo",
+   "type": "rail",
+   "ref": "VCC1",
+   "x": 0,
+   "y": 100,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "volts": "5",
+    "name": "VBUS"
+   }
+  },
+  {
+   "id": "cvrd3id6aoo",
+   "type": "netlabel",
+   "ref": "NET1",
+   "x": 20,
+   "y": 100,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VBUS"
+   }
+  },
+  {
+   "id": "ch4rqtweaoo",
+   "type": "ic",
+   "ref": "J1",
+   "x": 180,
+   "y": 120,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "USB-C receptacle (power)",
+    "gpio": {},
+    "duty": {},
+    "title": "IC",
+    "pinCount": "8",
+    "pinNames": "",
+    "leftPins": "5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5",
+    "rightPins": "IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13",
+    "vlogic": "3.3",
+    "vinPin": "5V",
+    "railPin": "3V3"
+   }
+  },
+  {
+   "id": "chovy5gaaoo",
+   "type": "netlabel",
+   "ref": "NET2",
+   "x": 50,
+   "y": 90,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "VBUS"
+   }
+  },
+  {
+   "id": "cjy627c0aoo",
+   "type": "netlabel",
+   "ref": "NET3",
+   "x": 50,
+   "y": 110,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "c9oax582aoo",
+   "type": "netlabel",
+   "ref": "NET4",
+   "x": 50,
+   "y": 130,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "CC1"
+   }
+  },
+  {
+   "id": "c6rqvwuuaoo",
+   "type": "netlabel",
+   "ref": "NET5",
+   "x": 50,
+   "y": 150,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "CC2"
+   }
+  },
+  {
+   "id": "cqp5f4dbaoo",
+   "type": "netlabel",
+   "ref": "NET6",
+   "x": 310,
+   "y": 130,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "c6u89j2uaoo",
+   "type": "netlabel",
+   "ref": "NET7",
+   "x": 310,
+   "y": 90,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "USB_DP"
+   }
+  },
+  {
+   "id": "c9l6srx3aoo",
+   "type": "netlabel",
+   "ref": "NET8",
+   "x": 310,
+   "y": 110,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "USB_DM"
+   }
+  },
+  {
+   "id": "cokbkhpqaoo",
+   "type": "resistor",
+   "ref": "R1",
+   "x": 420,
+   "y": 100,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "5.1k",
+    "power": "0.25"
+   }
+  },
+  {
+   "id": "cszwth6xaoo",
+   "type": "netlabel",
+   "ref": "NET9",
+   "x": 440,
+   "y": 70,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "CC1"
+   }
+  },
+  {
+   "id": "c2gpqdzpaoo",
+   "type": "ground",
+   "ref": "GND1",
+   "x": 420,
+   "y": 160,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cpkpz4p9aoo",
+   "type": "resistor",
+   "ref": "R2",
+   "x": 520,
+   "y": 100,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "5.1k",
+    "power": "0.25"
+   }
+  },
+  {
+   "id": "cvqcyqrqaoo",
+   "type": "netlabel",
+   "ref": "NET10",
+   "x": 540,
+   "y": 70,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "CC2"
+   }
+  },
+  {
+   "id": "cjju52yoaoo",
+   "type": "ground",
+   "ref": "GND2",
+   "x": 520,
+   "y": 160,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cc6wt431aoo",
+   "type": "capacitor",
+   "ref": "C1",
+   "x": 620,
+   "y": 100,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "4.7u",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "ctk05glwaoo",
+   "type": "netlabel",
+   "ref": "NET11",
+   "x": 640,
+   "y": 70,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VBUS"
+   }
+  },
+  {
+   "id": "cihmjyudaoo",
+   "type": "ground",
+   "ref": "GND3",
+   "x": 620,
+   "y": 160,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "c6xqeyusaoo",
+   "type": "ic",
+   "ref": "U2",
+   "x": 180,
+   "y": 340,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "Li-ion charger SOT-23-5 (TP4054-class)",
+    "gpio": {},
+    "duty": {},
+    "title": "IC",
+    "pinCount": "8",
+    "pinNames": "",
+    "leftPins": "5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5",
+    "rightPins": "IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13",
+    "vlogic": "3.3",
+    "vinPin": "5V",
+    "railPin": "3V3"
+   }
+  },
+  {
+   "id": "c30xvonsaop",
+   "type": "netlabel",
+   "ref": "NET12",
+   "x": 360,
+   "y": 360,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VBUS"
+   }
+  },
+  {
+   "id": "cbth69mnaop",
+   "type": "netlabel",
+   "ref": "NET13",
+   "x": 0,
+   "y": 360,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "BAT"
+   }
+  },
+  {
+   "id": "cxqbbay8aop",
+   "type": "netlabel",
+   "ref": "NET14",
+   "x": 0,
+   "y": 340,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "cuk0c2b1aop",
+   "type": "netlabel",
+   "ref": "NET15",
+   "x": 0,
+   "y": 320,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "CHRG"
+   }
+  },
+  {
+   "id": "c2mly3cnaop",
+   "type": "netlabel",
+   "ref": "NET16",
+   "x": 360,
+   "y": 340,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "PROG"
+   }
+  },
+  {
+   "id": "c8u0gfthaop",
+   "type": "resistor",
+   "ref": "R3",
+   "x": 420,
+   "y": 330,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "10k",
+    "power": "0.25"
+   }
+  },
+  {
+   "id": "cjh0r6pwaop",
+   "type": "netlabel",
+   "ref": "NET17",
+   "x": 440,
+   "y": 300,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "PROG"
+   }
+  },
+  {
+   "id": "cbhw7ubtaop",
+   "type": "ground",
+   "ref": "GND4",
+   "x": 420,
+   "y": 390,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "c6z19l4uaop",
+   "type": "vdc",
+   "ref": "BT1",
+   "x": 560,
+   "y": 330,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "volts": "3.7",
+    "rint": "0.3"
+   }
+  },
+  {
+   "id": "cndhi6cfaop",
+   "type": "netlabel",
+   "ref": "NET18",
+   "x": 580,
+   "y": 300,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "BAT"
+   }
+  },
+  {
+   "id": "cmn8wbo8aop",
+   "type": "ground",
+   "ref": "GND5",
+   "x": 560,
+   "y": 390,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cvysjz0zaop",
+   "type": "capacitor",
+   "ref": "C2",
+   "x": 680,
+   "y": 330,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "4.7u",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "cynrxlo5aop",
+   "type": "netlabel",
+   "ref": "NET19",
+   "x": 700,
+   "y": 300,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "BAT"
+   }
+  },
+  {
+   "id": "cbby4sa9aop",
+   "type": "ground",
+   "ref": "GND6",
+   "x": 680,
+   "y": 390,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "c51ik8ymaop",
+   "type": "reg",
+   "ref": "U5",
+   "x": 180,
+   "y": 560,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "MCP1700-3302"
+   }
+  },
+  {
+   "id": "cgaeiwuoaop",
+   "type": "netlabel",
+   "ref": "NET20",
+   "x": 110,
+   "y": 560,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "BAT"
+   }
+  },
+  {
+   "id": "c1troh2raop",
+   "type": "netlabel",
+   "ref": "NET21",
+   "x": 250,
+   "y": 560,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VDD"
+   }
+  },
+  {
+   "id": "c5sk7luyaoq",
+   "type": "ground",
+   "ref": "GND7",
+   "x": 180,
+   "y": 630,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "c697npmeaoq",
+   "type": "capacitor",
+   "ref": "C3",
+   "x": 420,
+   "y": 560,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "1u",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "cxsr7fmaaoq",
+   "type": "netlabel",
+   "ref": "NET22",
+   "x": 440,
+   "y": 530,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "BAT"
+   }
+  },
+  {
+   "id": "cnvn5rabaoq",
+   "type": "ground",
+   "ref": "GND8",
+   "x": 420,
+   "y": 620,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cp1i8j5waoq",
+   "type": "capacitor",
+   "ref": "C4",
+   "x": 520,
+   "y": 560,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "1u",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "c3y8x0e0aoq",
+   "type": "netlabel",
+   "ref": "NET23",
+   "x": 540,
+   "y": 530,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VDD"
+   }
+  },
+  {
+   "id": "cg9821pdaoq",
+   "type": "ground",
+   "ref": "GND9",
+   "x": 520,
+   "y": 620,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "copti3u8aoq",
+   "type": "ic",
+   "ref": "U1",
+   "x": 1100,
+   "y": 420,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "nRF52832-QFAA (functional)",
+    "gpio": {},
+    "duty": {},
+    "title": "IC",
+    "pinCount": "8",
+    "pinNames": "",
+    "leftPins": "5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5",
+    "rightPins": "IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13",
+    "vlogic": "3.3",
+    "vinPin": "5V",
+    "railPin": "3V3"
+   }
+  },
+  {
+   "id": "c7jsszgaaoq",
+   "type": "netlabel",
+   "ref": "NET24",
+   "x": 960,
+   "y": 340,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "VDD"
+   }
+  },
+  {
+   "id": "cgd06bu2aoq",
+   "type": "netlabel",
+   "ref": "NET25",
+   "x": 960,
+   "y": 380,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "DEC1"
+   }
+  },
+  {
+   "id": "cn8yazxbaoq",
+   "type": "netlabel",
+   "ref": "NET26",
+   "x": 960,
+   "y": 400,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "DEC3"
+   }
+  },
+  {
+   "id": "cpqtjproaoq",
+   "type": "netlabel",
+   "ref": "NET27",
+   "x": 960,
+   "y": 420,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "DEC4"
+   }
+  },
+  {
+   "id": "cv71p6ulaoq",
+   "type": "netlabel",
+   "ref": "NET28",
+   "x": 960,
+   "y": 440,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "DCC"
+   }
+  },
+  {
+   "id": "cgs0rv3paoq",
+   "type": "netlabel",
+   "ref": "NET29",
+   "x": 960,
+   "y": 460,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "ANT"
+   }
+  },
+  {
+   "id": "ch82vpu1aoq",
+   "type": "netlabel",
+   "ref": "NET30",
+   "x": 960,
+   "y": 480,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "XC1"
+   }
+  },
+  {
+   "id": "cl3kmd13aoq",
+   "type": "netlabel",
+   "ref": "NET31",
+   "x": 960,
+   "y": 500,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "XC2"
+   }
+  },
+  {
+   "id": "cdo1fa2gaoq",
+   "type": "netlabel",
+   "ref": "NET32",
+   "x": 960,
+   "y": 360,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "ctnuxtkcaoq",
+   "type": "netlabel",
+   "ref": "NET33",
+   "x": 1240,
+   "y": 500,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "XL1"
+   }
+  },
+  {
+   "id": "ccgwzhz9aoq",
+   "type": "netlabel",
+   "ref": "NET34",
+   "x": 1240,
+   "y": 480,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "XL2"
+   }
+  },
+  {
+   "id": "cw787hquaoq",
+   "type": "netlabel",
+   "ref": "NET35",
+   "x": 1240,
+   "y": 460,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "SWDIO"
+   }
+  },
+  {
+   "id": "cys0gaz4aoq",
+   "type": "netlabel",
+   "ref": "NET36",
+   "x": 1240,
+   "y": 440,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "SWDCLK"
+   }
+  },
+  {
+   "id": "ccgaic4yaoq",
+   "type": "netlabel",
+   "ref": "NET37",
+   "x": 1240,
+   "y": 420,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "nRESET"
+   }
+  },
+  {
+   "id": "c8xkr5lmaoq",
+   "type": "netlabel",
+   "ref": "NET38",
+   "x": 1240,
+   "y": 400,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "SDA"
+   }
+  },
+  {
+   "id": "cuigj34haoq",
+   "type": "netlabel",
+   "ref": "NET39",
+   "x": 1240,
+   "y": 380,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "SCL"
+   }
+  },
+  {
+   "id": "c171i92faoq",
+   "type": "netlabel",
+   "ref": "NET40",
+   "x": 1240,
+   "y": 360,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "BTN"
+   }
+  },
+  {
+   "id": "c0rnw9pmaoq",
+   "type": "netlabel",
+   "ref": "NET41",
+   "x": 1240,
+   "y": 340,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "INT"
+   }
+  },
+  {
+   "id": "ce01cm8zaoq",
+   "type": "capacitor",
+   "ref": "C5",
+   "x": 760,
+   "y": 700,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "4.7u",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "cil1ybtzaoq",
+   "type": "netlabel",
+   "ref": "NET42",
+   "x": 780,
+   "y": 670,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VDD"
+   }
+  },
+  {
+   "id": "cxxkklk7aoq",
+   "type": "ground",
+   "ref": "GND10",
+   "x": 760,
+   "y": 760,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cpwdep0maoq",
+   "type": "capacitor",
+   "ref": "C6",
+   "x": 870,
+   "y": 700,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "100n",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "ceis4h4xaoq",
+   "type": "netlabel",
+   "ref": "NET43",
+   "x": 890,
+   "y": 670,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VDD"
+   }
+  },
+  {
+   "id": "c2617eraaoq",
+   "type": "ground",
+   "ref": "GND11",
+   "x": 870,
+   "y": 760,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cxg8fmwzaoq",
+   "type": "capacitor",
+   "ref": "C7",
+   "x": 980,
+   "y": 700,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "100n",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "cdwt2kyiaoq",
+   "type": "netlabel",
+   "ref": "NET44",
+   "x": 1000,
+   "y": 670,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "DEC1"
+   }
+  },
+  {
+   "id": "ca34y3ayaoq",
+   "type": "ground",
+   "ref": "GND12",
+   "x": 980,
+   "y": 760,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cjcvkptsaoq",
+   "type": "capacitor",
+   "ref": "C8",
+   "x": 1090,
+   "y": 700,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "100n",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "cbicvlzuaoq",
+   "type": "netlabel",
+   "ref": "NET45",
+   "x": 1110,
+   "y": 670,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "DEC3"
+   }
+  },
+  {
+   "id": "cyhhu9alaor",
+   "type": "ground",
+   "ref": "GND13",
+   "x": 1090,
+   "y": 760,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cbh9t4mnaor",
+   "type": "capacitor",
+   "ref": "C9",
+   "x": 1200,
+   "y": 700,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "1u",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "cdaa4tloaor",
+   "type": "netlabel",
+   "ref": "NET46",
+   "x": 1220,
+   "y": 670,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "DEC4"
+   }
+  },
+  {
+   "id": "c7u6gzvkaor",
+   "type": "ground",
+   "ref": "GND14",
+   "x": 1200,
+   "y": 760,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "c0ifouz0aor",
+   "type": "inductor",
+   "ref": "L1",
+   "x": 780,
+   "y": 860,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "value": "10u",
+    "dcr": "0.1"
+   }
+  },
+  {
+   "id": "cek9rx0xaor",
+   "type": "netlabel",
+   "ref": "NET47",
+   "x": 730,
+   "y": 860,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "DCC"
+   }
+  },
+  {
+   "id": "cscd2035aor",
+   "type": "netlabel",
+   "ref": "NET48",
+   "x": 830,
+   "y": 860,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "DCCL"
+   }
+  },
+  {
+   "id": "c11quv8aaor",
+   "type": "inductor",
+   "ref": "L2",
+   "x": 1000,
+   "y": 860,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "value": "15n",
+    "dcr": "0.1"
+   }
+  },
+  {
+   "id": "caaj40blaor",
+   "type": "netlabel",
+   "ref": "NET49",
+   "x": 950,
+   "y": 860,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "DCCL"
+   }
+  },
+  {
+   "id": "c95y79isaor",
+   "type": "netlabel",
+   "ref": "NET50",
+   "x": 1050,
+   "y": 860,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "DEC4"
+   }
+  },
+  {
+   "id": "czmra8gdaor",
+   "type": "ic",
+   "ref": "Y1",
+   "x": 780,
+   "y": 1020,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "Crystal 32 MHz",
+    "gpio": {},
+    "duty": {},
+    "title": "IC",
+    "pinCount": "8",
+    "pinNames": "",
+    "leftPins": "5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5",
+    "rightPins": "IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13",
+    "vlogic": "3.3",
+    "vinPin": "5V",
+    "railPin": "3V3"
+   }
+  },
+  {
+   "id": "c5bv05tdaor",
+   "type": "netlabel",
+   "ref": "NET51",
+   "x": 680,
+   "y": 1020,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "XC1"
+   }
+  },
+  {
+   "id": "cxlp4o9naor",
+   "type": "netlabel",
+   "ref": "NET52",
+   "x": 880,
+   "y": 1020,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "XC2"
+   }
+  },
+  {
+   "id": "cgce0gtraor",
+   "type": "capacitor",
+   "ref": "C10",
+   "x": 640,
+   "y": 1080,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "12p",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "ct4qw7liaor",
+   "type": "netlabel",
+   "ref": "NET53",
+   "x": 660,
+   "y": 1050,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "XC1"
+   }
+  },
+  {
+   "id": "cv6gjazqaor",
+   "type": "ground",
+   "ref": "GND15",
+   "x": 640,
+   "y": 1140,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cwbbndi0aor",
+   "type": "capacitor",
+   "ref": "C11",
+   "x": 920,
+   "y": 1080,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "12p",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "c6kxu8lqaor",
+   "type": "netlabel",
+   "ref": "NET54",
+   "x": 940,
+   "y": 1050,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "XC2"
+   }
+  },
+  {
+   "id": "ch73szx3aor",
+   "type": "ground",
+   "ref": "GND16",
+   "x": 920,
+   "y": 1140,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "c4yhkbs9aor",
+   "type": "ic",
+   "ref": "Y2",
+   "x": 1240,
+   "y": 1020,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "Crystal 32.768 kHz",
+    "gpio": {},
+    "duty": {},
+    "title": "IC",
+    "pinCount": "8",
+    "pinNames": "",
+    "leftPins": "5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5",
+    "rightPins": "IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13",
+    "vlogic": "3.3",
+    "vinPin": "5V",
+    "railPin": "3V3"
+   }
+  },
+  {
+   "id": "ca54gizbaor",
+   "type": "netlabel",
+   "ref": "NET55",
+   "x": 1130,
+   "y": 1020,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "XL1"
+   }
+  },
+  {
+   "id": "c26i6eiyaor",
+   "type": "netlabel",
+   "ref": "NET56",
+   "x": 1350,
+   "y": 1020,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "XL2"
+   }
+  },
+  {
+   "id": "csielfr2aor",
+   "type": "capacitor",
+   "ref": "C13",
+   "x": 1100,
+   "y": 1080,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "12p",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "ctdb3ymcaor",
+   "type": "netlabel",
+   "ref": "NET57",
+   "x": 1120,
+   "y": 1050,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "XL1"
+   }
+  },
+  {
+   "id": "czckokp5aor",
+   "type": "ground",
+   "ref": "GND17",
+   "x": 1100,
+   "y": 1140,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cvlty62laor",
+   "type": "capacitor",
+   "ref": "C14",
+   "x": 1380,
+   "y": 1080,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "12p",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "cxy17uqgaor",
+   "type": "netlabel",
+   "ref": "NET58",
+   "x": 1400,
+   "y": 1050,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "XL2"
+   }
+  },
+  {
+   "id": "cbgttoxqaor",
+   "type": "ground",
+   "ref": "GND18",
+   "x": 1380,
+   "y": 1140,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cab46hlraor",
+   "type": "inductor",
+   "ref": "L3",
+   "x": 780,
+   "y": 1220,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "value": "3.9n",
+    "dcr": "0.1"
+   }
+  },
+  {
+   "id": "chp0isdvaor",
+   "type": "netlabel",
+   "ref": "NET59",
+   "x": 730,
+   "y": 1220,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "ANT"
+   }
+  },
+  {
+   "id": "cafuh4a8aor",
+   "type": "netlabel",
+   "ref": "NET60",
+   "x": 830,
+   "y": 1220,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "ANTF"
+   }
+  },
+  {
+   "id": "cf9dkvz3aor",
+   "type": "capacitor",
+   "ref": "C12",
+   "x": 940,
+   "y": 1240,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "0.8p",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "cpj5l3vdaor",
+   "type": "netlabel",
+   "ref": "NET61",
+   "x": 960,
+   "y": 1210,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "ANTF"
+   }
+  },
+  {
+   "id": "cbe4vkonaos",
+   "type": "ground",
+   "ref": "GND19",
+   "x": 940,
+   "y": 1300,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cyq3qnkvaos",
+   "type": "ic",
+   "ref": "AE1",
+   "x": 1300,
+   "y": 1220,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "PCB trace antenna",
+    "gpio": {},
+    "duty": {},
+    "title": "IC",
+    "pinCount": "8",
+    "pinNames": "",
+    "leftPins": "5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5",
+    "rightPins": "IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13",
+    "vlogic": "3.3",
+    "vinPin": "5V",
+    "railPin": "3V3"
+   }
+  },
+  {
+   "id": "cssz2lwlaos",
+   "type": "netlabel",
+   "ref": "NET62",
+   "x": 1190,
+   "y": 1220,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "ANTF"
+   }
+  },
+  {
+   "id": "cbk5i02gaos",
+   "type": "netlabel",
+   "ref": "NET63",
+   "x": 1410,
+   "y": 1220,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "cabbukqtaos",
+   "type": "button",
+   "ref": "SW2",
+   "x": 1520,
+   "y": 560,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "pressed": false,
+    "nc": false
+   }
+  },
+  {
+   "id": "crenf3hvaos",
+   "type": "netlabel",
+   "ref": "NET64",
+   "x": 1470,
+   "y": 560,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "BTN"
+   }
+  },
+  {
+   "id": "coug9oqnaos",
+   "type": "ground",
+   "ref": "GND20",
+   "x": 1550,
+   "y": 590,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "c3yvxlyfaos",
+   "type": "ic",
+   "ref": "J2",
+   "x": 1760,
+   "y": 700,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "SWD test pads",
+    "gpio": {},
+    "duty": {},
+    "title": "IC",
+    "pinCount": "8",
+    "pinNames": "",
+    "leftPins": "5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5",
+    "rightPins": "IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13",
+    "vlogic": "3.3",
+    "vinPin": "5V",
+    "railPin": "3V3"
+   }
+  },
+  {
+   "id": "ctlqqsudaot",
+   "type": "netlabel",
+   "ref": "NET65",
+   "x": 1660,
+   "y": 670,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "SWDCLK"
+   }
+  },
+  {
+   "id": "ctnhodw4aot",
+   "type": "netlabel",
+   "ref": "NET66",
+   "x": 1660,
+   "y": 690,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "SWDIO"
+   }
+  },
+  {
+   "id": "cpdptfwdaot",
+   "type": "netlabel",
+   "ref": "NET67",
+   "x": 1660,
+   "y": 710,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "cqfxa43vaot",
+   "type": "netlabel",
+   "ref": "NET68",
+   "x": 1660,
+   "y": 730,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "VDD"
+   }
+  },
+  {
+   "id": "cgvwpbrnaot",
+   "type": "resistor",
+   "ref": "R4",
+   "x": 1900,
+   "y": 900,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "10k",
+    "power": "0.25"
+   }
+  },
+  {
+   "id": "csn31bugaot",
+   "type": "netlabel",
+   "ref": "NET69",
+   "x": 1920,
+   "y": 870,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VDD"
+   }
+  },
+  {
+   "id": "cfvrdrn7aot",
+   "type": "netlabel",
+   "ref": "NET70",
+   "x": 1920,
+   "y": 930,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "nRESET"
+   }
+  },
+  {
+   "id": "csu9uzgpaot",
+   "type": "resistor",
+   "ref": "R5",
+   "x": 1520,
+   "y": 300,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "4.7k",
+    "power": "0.25"
+   }
+  },
+  {
+   "id": "cnoy2ucbaot",
+   "type": "netlabel",
+   "ref": "NET71",
+   "x": 1540,
+   "y": 270,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VDD"
+   }
+  },
+  {
+   "id": "cf9jv4lwaot",
+   "type": "netlabel",
+   "ref": "NET72",
+   "x": 1540,
+   "y": 330,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "SDA"
+   }
+  },
+  {
+   "id": "cgftzpvpaot",
+   "type": "resistor",
+   "ref": "R6",
+   "x": 1620,
+   "y": 300,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "4.7k",
+    "power": "0.25"
+   }
+  },
+  {
+   "id": "cgat7ypmaot",
+   "type": "netlabel",
+   "ref": "NET73",
+   "x": 1640,
+   "y": 270,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VDD"
+   }
+  },
+  {
+   "id": "c982x181aot",
+   "type": "netlabel",
+   "ref": "NET74",
+   "x": 1640,
+   "y": 330,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "SCL"
+   }
+  },
+  {
+   "id": "c3nsey9laot",
+   "type": "ic",
+   "ref": "U4",
+   "x": 2000,
+   "y": 300,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "HP5883 magnetometer (QMC5883-class)",
+    "gpio": {},
+    "duty": {},
+    "title": "IC",
+    "pinCount": "8",
+    "pinNames": "",
+    "leftPins": "5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5",
+    "rightPins": "IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13",
+    "vlogic": "3.3",
+    "vinPin": "5V",
+    "railPin": "3V3"
+   }
+  },
+  {
+   "id": "c7wmd15jaot",
+   "type": "netlabel",
+   "ref": "NET75",
+   "x": 1830,
+   "y": 260,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "SCL"
+   }
+  },
+  {
+   "id": "cozcksk7aot",
+   "type": "netlabel",
+   "ref": "NET76",
+   "x": 1830,
+   "y": 280,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "SDA"
+   }
+  },
+  {
+   "id": "c0i23orhaot",
+   "type": "netlabel",
+   "ref": "NET77",
+   "x": 1830,
+   "y": 300,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "VDD"
+   }
+  },
+  {
+   "id": "cbqjbjk9aot",
+   "type": "netlabel",
+   "ref": "NET78",
+   "x": 1830,
+   "y": 320,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "VDD"
+   }
+  },
+  {
+   "id": "cmjlhxq8aot",
+   "type": "netlabel",
+   "ref": "NET79",
+   "x": 1830,
+   "y": 340,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "cklvx6f3aot",
+   "type": "netlabel",
+   "ref": "NET80",
+   "x": 2170,
+   "y": 340,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "SETC"
+   }
+  },
+  {
+   "id": "cemp1pmyaot",
+   "type": "netlabel",
+   "ref": "NET81",
+   "x": 2170,
+   "y": 320,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "SETP"
+   }
+  },
+  {
+   "id": "cwm4otl9aot",
+   "type": "netlabel",
+   "ref": "NET82",
+   "x": 2170,
+   "y": 300,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "C1M"
+   }
+  },
+  {
+   "id": "cog5cgiqaot",
+   "type": "capacitor",
+   "ref": "C15",
+   "x": 1820,
+   "y": 120,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "4.7u",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "cir3kt0aaot",
+   "type": "netlabel",
+   "ref": "NET83",
+   "x": 1840,
+   "y": 90,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "C1M"
+   }
+  },
+  {
+   "id": "cpbu30uraot",
+   "type": "ground",
+   "ref": "GND21",
+   "x": 1820,
+   "y": 180,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "c94ftcg8aot",
+   "type": "capacitor",
+   "ref": "C16",
+   "x": 2260,
+   "y": 120,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "value": "220n",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "cnfv1yuzaot",
+   "type": "netlabel",
+   "ref": "NET84",
+   "x": 2210,
+   "y": 120,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "SETC"
+   }
+  },
+  {
+   "id": "cnhp638caot",
+   "type": "netlabel",
+   "ref": "NET85",
+   "x": 2310,
+   "y": 120,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "SETP"
+   }
+  },
+  {
+   "id": "cob14z4raot",
+   "type": "capacitor",
+   "ref": "C17",
+   "x": 1920,
+   "y": 120,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "100n",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "ccs7q6y8aot",
+   "type": "netlabel",
+   "ref": "NET86",
+   "x": 1940,
+   "y": 90,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VDD"
+   }
+  },
+  {
+   "id": "ce1sflylaot",
+   "type": "ground",
+   "ref": "GND22",
+   "x": 1920,
+   "y": 180,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cn6hor5uaot",
+   "type": "ic",
+   "ref": "U8",
+   "x": 2000,
+   "y": 520,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "U8 unidentified QFN (assumed I²C sensor)",
+    "gpio": {},
+    "duty": {},
+    "title": "IC",
+    "pinCount": "8",
+    "pinNames": "",
+    "leftPins": "5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5",
+    "rightPins": "IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13",
+    "vlogic": "3.3",
+    "vinPin": "5V",
+    "railPin": "3V3"
+   }
+  },
+  {
+   "id": "cw6evuu5aot",
+   "type": "netlabel",
+   "ref": "NET87",
+   "x": 1810,
+   "y": 500,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "VDD"
+   }
+  },
+  {
+   "id": "co8oo7seaot",
+   "type": "netlabel",
+   "ref": "NET88",
+   "x": 1810,
+   "y": 520,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "ckrvlch4aot",
+   "type": "netlabel",
+   "ref": "NET89",
+   "x": 1810,
+   "y": 540,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "SCL"
+   }
+  },
+  {
+   "id": "cp2qgzmnaot",
+   "type": "netlabel",
+   "ref": "NET90",
+   "x": 2190,
+   "y": 540,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "SDA"
+   }
+  },
+  {
+   "id": "c3ypfxhoaot",
+   "type": "netlabel",
+   "ref": "NET91",
+   "x": 2190,
+   "y": 520,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "INT"
+   }
+  },
+  {
+   "id": "c365ourzaot",
+   "type": "capacitor",
+   "ref": "C18",
+   "x": 2260,
+   "y": 520,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "100n",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "c1nc3bs2aot",
+   "type": "netlabel",
+   "ref": "NET92",
+   "x": 2280,
+   "y": 490,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VDD"
+   }
+  },
+  {
+   "id": "czgtmnyqaot",
+   "type": "ground",
+   "ref": "GND23",
+   "x": 2260,
+   "y": 580,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  }
+ ],
+ "wires": [
+  {
+   "id": "wznkfd4qaoo",
+   "a": {
+    "c": "co7ynx3daoo",
+    "p": 0
+   },
+   "b": {
+    "c": "cvrd3id6aoo",
+    "p": 0
+   }
+  },
+  {
+   "id": "wvbxni6vaoo",
+   "a": {
+    "c": "ch4rqtweaoo",
+    "p": 0
+   },
+   "b": {
+    "c": "chovy5gaaoo",
+    "p": 0
+   }
+  },
+  {
+   "id": "wtd1v84kaoo",
+   "a": {
+    "c": "ch4rqtweaoo",
+    "p": 1
+   },
+   "b": {
+    "c": "cjy627c0aoo",
+    "p": 0
+   }
+  },
+  {
+   "id": "wfh4wks3aoo",
+   "a": {
+    "c": "ch4rqtweaoo",
+    "p": 2
+   },
+   "b": {
+    "c": "c9oax582aoo",
+    "p": 0
+   }
+  },
+  {
+   "id": "wf2n1u15aoo",
+   "a": {
+    "c": "ch4rqtweaoo",
+    "p": 3
+   },
+   "b": {
+    "c": "c6rqvwuuaoo",
+    "p": 0
+   }
+  },
+  {
+   "id": "wixvsl9maoo",
+   "a": {
+    "c": "ch4rqtweaoo",
+    "p": 5
+   },
+   "b": {
+    "c": "cqp5f4dbaoo",
+    "p": 0
+   }
+  },
+  {
+   "id": "wftok9xmaoo",
+   "a": {
+    "c": "ch4rqtweaoo",
+    "p": 7
+   },
+   "b": {
+    "c": "c6u89j2uaoo",
+    "p": 0
+   }
+  },
+  {
+   "id": "womoytrcaoo",
+   "a": {
+    "c": "ch4rqtweaoo",
+    "p": 6
+   },
+   "b": {
+    "c": "c9l6srx3aoo",
+    "p": 0
+   }
+  },
+  {
+   "id": "wbfmmbssaoo",
+   "a": {
+    "c": "cokbkhpqaoo",
+    "p": 0
+   },
+   "b": {
+    "c": "cszwth6xaoo",
+    "p": 0
+   }
+  },
+  {
+   "id": "wscgic9faoo",
+   "a": {
+    "c": "cokbkhpqaoo",
+    "p": 1
+   },
+   "b": {
+    "c": "c2gpqdzpaoo",
+    "p": 0
+   }
+  },
+  {
+   "id": "w8dh9romaoo",
+   "a": {
+    "c": "cpkpz4p9aoo",
+    "p": 0
+   },
+   "b": {
+    "c": "cvqcyqrqaoo",
+    "p": 0
+   }
+  },
+  {
+   "id": "we7wqft7aoo",
+   "a": {
+    "c": "cpkpz4p9aoo",
+    "p": 1
+   },
+   "b": {
+    "c": "cjju52yoaoo",
+    "p": 0
+   }
+  },
+  {
+   "id": "wbjvs2pqaoo",
+   "a": {
+    "c": "cc6wt431aoo",
+    "p": 0
+   },
+   "b": {
+    "c": "ctk05glwaoo",
+    "p": 0
+   }
+  },
+  {
+   "id": "w2lkt4z0aoo",
+   "a": {
+    "c": "cc6wt431aoo",
+    "p": 1
+   },
+   "b": {
+    "c": "cihmjyudaoo",
+    "p": 0
+   }
+  },
+  {
+   "id": "wx6um3qbaop",
+   "a": {
+    "c": "c6xqeyusaoo",
+    "p": 3
+   },
+   "b": {
+    "c": "c30xvonsaop",
+    "p": 0
+   }
+  },
+  {
+   "id": "w78wsw1taop",
+   "a": {
+    "c": "c6xqeyusaoo",
+    "p": 2
+   },
+   "b": {
+    "c": "cbth69mnaop",
+    "p": 0
+   }
+  },
+  {
+   "id": "wjcj204saop",
+   "a": {
+    "c": "c6xqeyusaoo",
+    "p": 1
+   },
+   "b": {
+    "c": "cxqbbay8aop",
+    "p": 0
+   }
+  },
+  {
+   "id": "w7eg0jqwaop",
+   "a": {
+    "c": "c6xqeyusaoo",
+    "p": 0
+   },
+   "b": {
+    "c": "cuk0c2b1aop",
+    "p": 0
+   }
+  },
+  {
+   "id": "wugvycmmaop",
+   "a": {
+    "c": "c6xqeyusaoo",
+    "p": 4
+   },
+   "b": {
+    "c": "c2mly3cnaop",
+    "p": 0
+   }
+  },
+  {
+   "id": "wwoqljmhaop",
+   "a": {
+    "c": "c8u0gfthaop",
+    "p": 0
+   },
+   "b": {
+    "c": "cjh0r6pwaop",
+    "p": 0
+   }
+  },
+  {
+   "id": "wc2njbwcaop",
+   "a": {
+    "c": "c8u0gfthaop",
+    "p": 1
+   },
+   "b": {
+    "c": "cbhw7ubtaop",
+    "p": 0
+   }
+  },
+  {
+   "id": "w9dso4sgaop",
+   "a": {
+    "c": "c6z19l4uaop",
+    "p": 0
+   },
+   "b": {
+    "c": "cndhi6cfaop",
+    "p": 0
+   }
+  },
+  {
+   "id": "wdzf45w6aop",
+   "a": {
+    "c": "c6z19l4uaop",
+    "p": 1
+   },
+   "b": {
+    "c": "cmn8wbo8aop",
+    "p": 0
+   }
+  },
+  {
+   "id": "ws0qh9f9aop",
+   "a": {
+    "c": "cvysjz0zaop",
+    "p": 0
+   },
+   "b": {
+    "c": "cynrxlo5aop",
+    "p": 0
+   }
+  },
+  {
+   "id": "wxqhixz6aop",
+   "a": {
+    "c": "cvysjz0zaop",
+    "p": 1
+   },
+   "b": {
+    "c": "cbby4sa9aop",
+    "p": 0
+   }
+  },
+  {
+   "id": "wt8n4eh0aop",
+   "a": {
+    "c": "c51ik8ymaop",
+    "p": 0
+   },
+   "b": {
+    "c": "cgaeiwuoaop",
+    "p": 0
+   }
+  },
+  {
+   "id": "w9iak0cnaoq",
+   "a": {
+    "c": "c51ik8ymaop",
+    "p": 1
+   },
+   "b": {
+    "c": "c1troh2raop",
+    "p": 0
+   }
+  },
+  {
+   "id": "wjh2ud22aoq",
+   "a": {
+    "c": "c51ik8ymaop",
+    "p": 2
+   },
+   "b": {
+    "c": "c5sk7luyaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "woo7v82saoq",
+   "a": {
+    "c": "c697npmeaoq",
+    "p": 0
+   },
+   "b": {
+    "c": "cxsr7fmaaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "wrnoprwaaoq",
+   "a": {
+    "c": "c697npmeaoq",
+    "p": 1
+   },
+   "b": {
+    "c": "cnvn5rabaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "we2zhmt2aoq",
+   "a": {
+    "c": "cp1i8j5waoq",
+    "p": 0
+   },
+   "b": {
+    "c": "c3y8x0e0aoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "wyiepn32aoq",
+   "a": {
+    "c": "cp1i8j5waoq",
+    "p": 1
+   },
+   "b": {
+    "c": "cg9821pdaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "wkbu5yg3aoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 0
+   },
+   "b": {
+    "c": "c7jsszgaaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "wten9p1caoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 2
+   },
+   "b": {
+    "c": "cgd06bu2aoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "wu08dj6caoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 3
+   },
+   "b": {
+    "c": "cn8yazxbaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "wezppit3aoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 4
+   },
+   "b": {
+    "c": "cpqtjproaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "w2wu96cjaoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 5
+   },
+   "b": {
+    "c": "cv71p6ulaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "wnmm3ix9aoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 6
+   },
+   "b": {
+    "c": "cgs0rv3paoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "woxdlllqaoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 7
+   },
+   "b": {
+    "c": "ch82vpu1aoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "wppnwkzqaoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 8
+   },
+   "b": {
+    "c": "cl3kmd13aoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "w75e90seaoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 1
+   },
+   "b": {
+    "c": "cdo1fa2gaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "w1ufzwpxaoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 9
+   },
+   "b": {
+    "c": "ctnuxtkcaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "wnsyxge6aoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 10
+   },
+   "b": {
+    "c": "ccgwzhz9aoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "w2bp87xxaoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 11
+   },
+   "b": {
+    "c": "cw787hquaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "wwmtx3gvaoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 12
+   },
+   "b": {
+    "c": "cys0gaz4aoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "w3qfi17vaoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 13
+   },
+   "b": {
+    "c": "ccgaic4yaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "wu8sowxdaoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 14
+   },
+   "b": {
+    "c": "c8xkr5lmaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "whunoh9eaoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 15
+   },
+   "b": {
+    "c": "cuigj34haoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "w5m6q07gaoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 16
+   },
+   "b": {
+    "c": "c171i92faoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "w53yr423aoq",
+   "a": {
+    "c": "copti3u8aoq",
+    "p": 17
+   },
+   "b": {
+    "c": "c0rnw9pmaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "wib8rwxcaoq",
+   "a": {
+    "c": "ce01cm8zaoq",
+    "p": 0
+   },
+   "b": {
+    "c": "cil1ybtzaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "wbabmczzaoq",
+   "a": {
+    "c": "ce01cm8zaoq",
+    "p": 1
+   },
+   "b": {
+    "c": "cxxkklk7aoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "wtpeddpjaoq",
+   "a": {
+    "c": "cpwdep0maoq",
+    "p": 0
+   },
+   "b": {
+    "c": "ceis4h4xaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "w8vo1g0xaoq",
+   "a": {
+    "c": "cpwdep0maoq",
+    "p": 1
+   },
+   "b": {
+    "c": "c2617eraaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "wb7ibyyuaoq",
+   "a": {
+    "c": "cxg8fmwzaoq",
+    "p": 0
+   },
+   "b": {
+    "c": "cdwt2kyiaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "wg0eq4adaoq",
+   "a": {
+    "c": "cxg8fmwzaoq",
+    "p": 1
+   },
+   "b": {
+    "c": "ca34y3ayaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "w008xbxnaor",
+   "a": {
+    "c": "cjcvkptsaoq",
+    "p": 0
+   },
+   "b": {
+    "c": "cbicvlzuaoq",
+    "p": 0
+   }
+  },
+  {
+   "id": "wjfgyc39aor",
+   "a": {
+    "c": "cjcvkptsaoq",
+    "p": 1
+   },
+   "b": {
+    "c": "cyhhu9alaor",
+    "p": 0
+   }
+  },
+  {
+   "id": "ws4i7d4baor",
+   "a": {
+    "c": "cbh9t4mnaor",
+    "p": 0
+   },
+   "b": {
+    "c": "cdaa4tloaor",
+    "p": 0
+   }
+  },
+  {
+   "id": "wqdkpoa7aor",
+   "a": {
+    "c": "cbh9t4mnaor",
+    "p": 1
+   },
+   "b": {
+    "c": "c7u6gzvkaor",
+    "p": 0
+   }
+  },
+  {
+   "id": "w5c87u4oaor",
+   "a": {
+    "c": "c0ifouz0aor",
+    "p": 0
+   },
+   "b": {
+    "c": "cek9rx0xaor",
+    "p": 0
+   }
+  },
+  {
+   "id": "wq53kaq6aor",
+   "a": {
+    "c": "c0ifouz0aor",
+    "p": 1
+   },
+   "b": {
+    "c": "cscd2035aor",
+    "p": 0
+   }
+  },
+  {
+   "id": "wv7jjtvxaor",
+   "a": {
+    "c": "c11quv8aaor",
+    "p": 0
+   },
+   "b": {
+    "c": "caaj40blaor",
+    "p": 0
+   }
+  },
+  {
+   "id": "wa7cdblwaor",
+   "a": {
+    "c": "c11quv8aaor",
+    "p": 1
+   },
+   "b": {
+    "c": "c95y79isaor",
+    "p": 0
+   }
+  },
+  {
+   "id": "wu35shwraor",
+   "a": {
+    "c": "czmra8gdaor",
+    "p": 0
+   },
+   "b": {
+    "c": "c5bv05tdaor",
+    "p": 0
+   }
+  },
+  {
+   "id": "wlfut65zaor",
+   "a": {
+    "c": "czmra8gdaor",
+    "p": 1
+   },
+   "b": {
+    "c": "cxlp4o9naor",
+    "p": 0
+   }
+  },
+  {
+   "id": "wstvrledaor",
+   "a": {
+    "c": "cgce0gtraor",
+    "p": 0
+   },
+   "b": {
+    "c": "ct4qw7liaor",
+    "p": 0
+   }
+  },
+  {
+   "id": "wpru4krgaor",
+   "a": {
+    "c": "cgce0gtraor",
+    "p": 1
+   },
+   "b": {
+    "c": "cv6gjazqaor",
+    "p": 0
+   }
+  },
+  {
+   "id": "whqwamvqaor",
+   "a": {
+    "c": "cwbbndi0aor",
+    "p": 0
+   },
+   "b": {
+    "c": "c6kxu8lqaor",
+    "p": 0
+   }
+  },
+  {
+   "id": "wh0k7amsaor",
+   "a": {
+    "c": "cwbbndi0aor",
+    "p": 1
+   },
+   "b": {
+    "c": "ch73szx3aor",
+    "p": 0
+   }
+  },
+  {
+   "id": "w112tvsqaor",
+   "a": {
+    "c": "c4yhkbs9aor",
+    "p": 0
+   },
+   "b": {
+    "c": "ca54gizbaor",
+    "p": 0
+   }
+  },
+  {
+   "id": "wao9tjz8aor",
+   "a": {
+    "c": "c4yhkbs9aor",
+    "p": 1
+   },
+   "b": {
+    "c": "c26i6eiyaor",
+    "p": 0
+   }
+  },
+  {
+   "id": "w8u2sddgaor",
+   "a": {
+    "c": "csielfr2aor",
+    "p": 0
+   },
+   "b": {
+    "c": "ctdb3ymcaor",
+    "p": 0
+   }
+  },
+  {
+   "id": "wsxtknztaor",
+   "a": {
+    "c": "csielfr2aor",
+    "p": 1
+   },
+   "b": {
+    "c": "czckokp5aor",
+    "p": 0
+   }
+  },
+  {
+   "id": "wmfvr7r2aor",
+   "a": {
+    "c": "cvlty62laor",
+    "p": 0
+   },
+   "b": {
+    "c": "cxy17uqgaor",
+    "p": 0
+   }
+  },
+  {
+   "id": "w28bcjtdaor",
+   "a": {
+    "c": "cvlty62laor",
+    "p": 1
+   },
+   "b": {
+    "c": "cbgttoxqaor",
+    "p": 0
+   }
+  },
+  {
+   "id": "wm3zo1z3aor",
+   "a": {
+    "c": "cab46hlraor",
+    "p": 0
+   },
+   "b": {
+    "c": "chp0isdvaor",
+    "p": 0
+   }
+  },
+  {
+   "id": "w3xhmza3aor",
+   "a": {
+    "c": "cab46hlraor",
+    "p": 1
+   },
+   "b": {
+    "c": "cafuh4a8aor",
+    "p": 0
+   }
+  },
+  {
+   "id": "wp31kadfaos",
+   "a": {
+    "c": "cf9dkvz3aor",
+    "p": 0
+   },
+   "b": {
+    "c": "cpj5l3vdaor",
+    "p": 0
+   }
+  },
+  {
+   "id": "w2gkonsuaos",
+   "a": {
+    "c": "cf9dkvz3aor",
+    "p": 1
+   },
+   "b": {
+    "c": "cbe4vkonaos",
+    "p": 0
+   }
+  },
+  {
+   "id": "wu83l3a3aos",
+   "a": {
+    "c": "cyq3qnkvaos",
+    "p": 0
+   },
+   "b": {
+    "c": "cssz2lwlaos",
+    "p": 0
+   }
+  },
+  {
+   "id": "wvylw7wcaos",
+   "a": {
+    "c": "cyq3qnkvaos",
+    "p": 1
+   },
+   "b": {
+    "c": "cbk5i02gaos",
+    "p": 0
+   }
+  },
+  {
+   "id": "wa0t9kjkaos",
+   "a": {
+    "c": "cabbukqtaos",
+    "p": 0
+   },
+   "b": {
+    "c": "crenf3hvaos",
+    "p": 0
+   }
+  },
+  {
+   "id": "w2iarz11aos",
+   "a": {
+    "c": "cabbukqtaos",
+    "p": 1
+   },
+   "b": {
+    "c": "coug9oqnaos",
+    "p": 0
+   }
+  },
+  {
+   "id": "w0qymkj0aot",
+   "a": {
+    "c": "c3yvxlyfaos",
+    "p": 0
+   },
+   "b": {
+    "c": "ctlqqsudaot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wamqjzamaot",
+   "a": {
+    "c": "c3yvxlyfaos",
+    "p": 1
+   },
+   "b": {
+    "c": "ctnhodw4aot",
+    "p": 0
+   }
+  },
+  {
+   "id": "w9jx82h4aot",
+   "a": {
+    "c": "c3yvxlyfaos",
+    "p": 2
+   },
+   "b": {
+    "c": "cpdptfwdaot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wdssganeaot",
+   "a": {
+    "c": "c3yvxlyfaos",
+    "p": 3
+   },
+   "b": {
+    "c": "cqfxa43vaot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wovgv4u2aot",
+   "a": {
+    "c": "cgvwpbrnaot",
+    "p": 0
+   },
+   "b": {
+    "c": "csn31bugaot",
+    "p": 0
+   }
+  },
+  {
+   "id": "w6sksakdaot",
+   "a": {
+    "c": "cgvwpbrnaot",
+    "p": 1
+   },
+   "b": {
+    "c": "cfvrdrn7aot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wxdo5f7yaot",
+   "a": {
+    "c": "csu9uzgpaot",
+    "p": 0
+   },
+   "b": {
+    "c": "cnoy2ucbaot",
+    "p": 0
+   }
+  },
+  {
+   "id": "w06mrsmyaot",
+   "a": {
+    "c": "csu9uzgpaot",
+    "p": 1
+   },
+   "b": {
+    "c": "cf9jv4lwaot",
+    "p": 0
+   }
+  },
+  {
+   "id": "w5v529lqaot",
+   "a": {
+    "c": "cgftzpvpaot",
+    "p": 0
+   },
+   "b": {
+    "c": "cgat7ypmaot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wu0siz0uaot",
+   "a": {
+    "c": "cgftzpvpaot",
+    "p": 1
+   },
+   "b": {
+    "c": "c982x181aot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wgw9x7cjaot",
+   "a": {
+    "c": "c3nsey9laot",
+    "p": 0
+   },
+   "b": {
+    "c": "c7wmd15jaot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wryc3798aot",
+   "a": {
+    "c": "c3nsey9laot",
+    "p": 1
+   },
+   "b": {
+    "c": "cozcksk7aot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wv1xqjgeaot",
+   "a": {
+    "c": "c3nsey9laot",
+    "p": 2
+   },
+   "b": {
+    "c": "c0i23orhaot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wy068i9raot",
+   "a": {
+    "c": "c3nsey9laot",
+    "p": 3
+   },
+   "b": {
+    "c": "cbqjbjk9aot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wj3lm93daot",
+   "a": {
+    "c": "c3nsey9laot",
+    "p": 4
+   },
+   "b": {
+    "c": "cmjlhxq8aot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wuwl1227aot",
+   "a": {
+    "c": "c3nsey9laot",
+    "p": 5
+   },
+   "b": {
+    "c": "cklvx6f3aot",
+    "p": 0
+   }
+  },
+  {
+   "id": "w904hdeqaot",
+   "a": {
+    "c": "c3nsey9laot",
+    "p": 6
+   },
+   "b": {
+    "c": "cemp1pmyaot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wtc0gp3qaot",
+   "a": {
+    "c": "c3nsey9laot",
+    "p": 7
+   },
+   "b": {
+    "c": "cwm4otl9aot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wwljws01aot",
+   "a": {
+    "c": "cog5cgiqaot",
+    "p": 0
+   },
+   "b": {
+    "c": "cir3kt0aaot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wqh90kw6aot",
+   "a": {
+    "c": "cog5cgiqaot",
+    "p": 1
+   },
+   "b": {
+    "c": "cpbu30uraot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wj8vzi1iaot",
+   "a": {
+    "c": "c94ftcg8aot",
+    "p": 0
+   },
+   "b": {
+    "c": "cnfv1yuzaot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wm7e28bmaot",
+   "a": {
+    "c": "c94ftcg8aot",
+    "p": 1
+   },
+   "b": {
+    "c": "cnhp638caot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wbd6jucwaot",
+   "a": {
+    "c": "cob14z4raot",
+    "p": 0
+   },
+   "b": {
+    "c": "ccs7q6y8aot",
+    "p": 0
+   }
+  },
+  {
+   "id": "w0585og3aot",
+   "a": {
+    "c": "cob14z4raot",
+    "p": 1
+   },
+   "b": {
+    "c": "ce1sflylaot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wnj2s4t9aot",
+   "a": {
+    "c": "cn6hor5uaot",
+    "p": 0
+   },
+   "b": {
+    "c": "cw6evuu5aot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wzjejxnoaot",
+   "a": {
+    "c": "cn6hor5uaot",
+    "p": 1
+   },
+   "b": {
+    "c": "co8oo7seaot",
+    "p": 0
+   }
+  },
+  {
+   "id": "w1psmel0aot",
+   "a": {
+    "c": "cn6hor5uaot",
+    "p": 2
+   },
+   "b": {
+    "c": "ckrvlch4aot",
+    "p": 0
+   }
+  },
+  {
+   "id": "w0yqab6aaot",
+   "a": {
+    "c": "cn6hor5uaot",
+    "p": 3
+   },
+   "b": {
+    "c": "cp2qgzmnaot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wwaacy5faot",
+   "a": {
+    "c": "cn6hor5uaot",
+    "p": 4
+   },
+   "b": {
+    "c": "c3ypfxhoaot",
+    "p": 0
+   }
+  },
+  {
+   "id": "wjoa8fqiaot",
+   "a": {
+    "c": "c365ourzaot",
+    "p": 0
+   },
+   "b": {
+    "c": "c1nc3bs2aot",
+    "p": 0
+   }
+  },
+  {
+   "id": "w6mzg77haot",
+   "a": {
+    "c": "c365ourzaot",
+    "p": 1
+   },
+   "b": {
+    "c": "czgtmnyqaot",
+    "p": 0
+   }
+  }
+ ],
+ "juncs": [],
+ "boards": [],
+ "status": {},
+ "readings": [],
+ "notes": "RECONSTRUCTED FROM PHOTOS — NOT A VERIFIED NETLIST.\nSeen: nRF52832-QFAA SoC, USB-C (back), 3.7 V 100 mAh LiPo with its own protection board, tact switch SW2, 32 MHz crystal Y1, a second (32.768 kHz) crystal, HP5883 magnetometer, QFN at U8, 4 SWD pads on the back (clock / data / GND / VDD), meander PCB antenna with L3 and C12, inductors L1 / L2 on the back.\nAssumed: charger / LDO identity, all component values, which GPIO does what, the I²C and reset pull-ups, how L1 / L2 / L3 are used. Placeholder references: U1, U2, U4, U5, J1, J2, BT1, AE1 and the unnamed resistors / capacitors.\nNot modelled: U3 (pad groups at the top edge), R2/R5/R16–R18, C24 and other small parts whose function could not be read.\nVerify with a meter and the Nordic nRF52832 product specification before relying on any connection.",
+ "customParts": [
+  {
+   "name": "nRF52832-QFAA (functional)",
+   "cat": "MCU boards",
+   "desc": "Nordic nRF52832 BLE SoC (QFN48 6×6), only the pins this board uses — marked N52832 QFAA E1 2225BZ",
+   "pkg": "QFN48 (functional symbol)",
+   "layout": "dip",
+   "isMcu": false,
+   "vlogic": 3.3,
+   "railPin": "VDD",
+   "gndPin": "VSS",
+   "loadmA": 3,
+   "pins": [
+    [
+     "VDD",
+     "pwr"
+    ],
+    [
+     "VSS",
+     "gnd"
+    ],
+    [
+     "DEC1",
+     "io"
+    ],
+    [
+     "DEC3",
+     "io"
+    ],
+    [
+     "DEC4",
+     "io"
+    ],
+    [
+     "DCC",
+     "io"
+    ],
+    [
+     "ANT",
+     "io"
+    ],
+    [
+     "XC1",
+     "io"
+    ],
+    [
+     "XC2",
+     "io"
+    ],
+    [
+     "XL1",
+     "io"
+    ],
+    [
+     "XL2",
+     "io"
+    ],
+    [
+     "SWDIO",
+     "io"
+    ],
+    [
+     "SWDCLK",
+     "io"
+    ],
+    [
+     "nRESET",
+     "io"
+    ],
+    [
+     "SDA",
+     "io"
+    ],
+    [
+     "SCL",
+     "io"
+    ],
+    [
+     "BTN",
+     "io"
+    ],
+    [
+     "INT",
+     "io"
+    ]
+   ],
+   "specs": [
+    [
+     "Core",
+     "ARM Cortex-M4F 64 MHz, BLE 5, 512 kB flash / 64 kB RAM"
+    ],
+    [
+     "Supply",
+     "VDD 1.7–3.6 V (NOT directly from a 4.2 V LiPo)"
+    ],
+    [
+     "Clocks",
+     "32 MHz crystal on XC1/XC2, 32.768 kHz crystal on XL1/XL2"
+    ],
+    [
+     "DC/DC",
+     "DCC → 10 µH → 15 nH → DEC4 (optional)"
+    ]
+   ],
+   "notes": "Functional symbol — pin numbers here are just the order in this list, NOT the QFN48 pin numbers. GPIO names SDA/SCL/BTN/INT are assumed assignments. Check the Nordic product specification before probing the real chip."
+  },
+  {
+   "name": "USB-C receptacle (power)",
+   "cat": "ICs",
+   "desc": "USB Type-C receptacle, power only",
+   "pkg": "USB-C",
+   "layout": "dip",
+   "pins": [
+    [
+     "VBUS",
+     "pwr"
+    ],
+    [
+     "GND",
+     "gnd"
+    ],
+    [
+     "CC1",
+     "io"
+    ],
+    [
+     "CC2",
+     "io"
+    ],
+    [
+     "NC",
+     "nc"
+    ],
+    [
+     "SHELL",
+     "io"
+    ],
+    [
+     "D−",
+     "io"
+    ],
+    [
+     "D+",
+     "io"
+    ]
+   ],
+   "specs": [
+    [
+     "CC1/CC2",
+     "5.1 kΩ each to GND makes a sink (UFP)"
+    ]
+   ],
+   "notes": "Seen on the back of the board at the top edge."
+  },
+  {
+   "name": "Li-ion charger SOT-23-5 (TP4054-class)",
+   "cat": "ICs",
+   "desc": "Single-cell linear charger — assumed part (identity not read from the photos)",
+   "pkg": "SOT-23-5",
+   "layout": "dip",
+   "pins": [
+    [
+     "CHRG",
+     "out"
+    ],
+    [
+     "GND",
+     "gnd"
+    ],
+    [
+     "BAT",
+     "io"
+    ],
+    [
+     "VCC",
+     "pwr"
+    ],
+    [
+     "PROG",
+     "io"
+    ],
+    [
+     "NC",
+     "nc"
+    ]
+   ],
+   "specs": [
+    [
+     "Charge current",
+     "1000 / R_PROG(kΩ) mA"
+    ],
+    [
+     "Termination",
+     "4.2 V"
+    ]
+   ],
+   "notes": "ASSUMED. A 5-pin SMD IC sits next to the USB-C connector on the back; this is the usual part in that spot. Not modelled electrically in the simulation."
+  },
+  {
+   "name": "HP5883 magnetometer (QMC5883-class)",
+   "cat": "Sensors",
+   "desc": "3-axis magnetometer, I²C — marked \"HP 5883\"",
+   "pkg": "QFN-16 3×3",
+   "layout": "dip",
+   "loadmA": 0.1,
+   "vlogic": 3.3,
+   "railPin": "VDD",
+   "gndPin": "GND",
+   "pins": [
+    [
+     "SCL",
+     "in"
+    ],
+    [
+     "SDA",
+     "io"
+    ],
+    [
+     "VDD",
+     "pwr"
+    ],
+    [
+     "VDDIO",
+     "pwr"
+    ],
+    [
+     "GND",
+     "gnd"
+    ],
+    [
+     "SETC",
+     "io"
+    ],
+    [
+     "SETP",
+     "io"
+    ],
+    [
+     "C1",
+     "io"
+    ],
+    [
+     "DRDY",
+     "out"
+    ],
+    [
+     "NC",
+     "nc"
+    ]
+   ],
+   "specs": [
+    [
+     "Interface",
+     "I²C 0x0D (QMC5883 family)"
+    ],
+    [
+     "Supply",
+     "2.16–3.6 V"
+    ]
+   ],
+   "notes": "Functional pin list, not package pin numbers. Support parts (4.7 µF on C1, 0.22 µF SETC–SETP, 0.1 µF decoupling) follow the QMC5883L application note."
+  },
+  {
+   "name": "U8 unidentified QFN (assumed I²C sensor)",
+   "cat": "Sensors",
+   "desc": "Small QFN at U8, marking starts \"WT…\" — not identified",
+   "pkg": "QFN",
+   "layout": "dip",
+   "loadmA": 0.02,
+   "vlogic": 3.3,
+   "railPin": "VDD",
+   "gndPin": "GND",
+   "pins": [
+    [
+     "VDD",
+     "pwr"
+    ],
+    [
+     "GND",
+     "gnd"
+    ],
+    [
+     "SCL",
+     "in"
+    ],
+    [
+     "SDA",
+     "io"
+    ],
+    [
+     "INT",
+     "out"
+    ],
+    [
+     "NC",
+     "nc"
+    ]
+   ],
+   "specs": [
+    [
+     "Assumed",
+     "motion sensor on the same I²C bus"
+    ]
+   ],
+   "notes": "UNIDENTIFIED — read the full marking under magnification before trusting this symbol."
+  },
+  {
+   "name": "Crystal 32 MHz",
+   "cat": "Signal sources",
+   "desc": "2-pin crystal (SMD, 4-pad)",
+   "pkg": "SMD",
+   "layout": "dip",
+   "pins": [
+    [
+     "1",
+     "io"
+    ],
+    [
+     "2",
+     "io"
+    ]
+   ],
+   "specs": [
+    [
+     "Use",
+     "nRF52 HF clock, load ≈ 8–12 pF"
+    ]
+   ]
+  },
+  {
+   "name": "Crystal 32.768 kHz",
+   "cat": "Signal sources",
+   "desc": "2-pin watch crystal (SMD)",
+   "pkg": "SMD",
+   "layout": "dip",
+   "pins": [
+    [
+     "1",
+     "io"
+    ],
+    [
+     "2",
+     "io"
+    ]
+   ],
+   "specs": [
+    [
+     "Use",
+     "nRF52 LF clock, load ≈ 9–12.5 pF"
+    ]
+   ]
+  },
+  {
+   "name": "PCB trace antenna",
+   "cat": "Signal sources",
+   "desc": "2.4 GHz meander antenna etched on the board edge",
+   "pkg": "PCB",
+   "layout": "dip",
+   "pins": [
+    [
+     "FEED",
+     "io"
+    ],
+    [
+     "GND",
+     "gnd"
+    ]
+   ],
+   "specs": [
+    [
+     "Band",
+     "2.4 GHz"
+    ]
+   ]
+  },
+  {
+   "name": "SWD test pads",
+   "cat": "ICs",
+   "desc": "Four round test pads on the back: clock, data, ground, VDD",
+   "pkg": "pads",
+   "layout": "header",
+   "left": [
+    "SWDCLK",
+    "SWDIO",
+    "GND",
+    "VDD"
+   ],
+   "right": [],
+   "specs": [
+    [
+     "Use",
+     "Programming / debug (SWD)"
+    ]
+   ],
+   "notes": "Pad order read from the back-side silkscreen; confirm which pad is which with a meter."
+  }
+ ]
+}
