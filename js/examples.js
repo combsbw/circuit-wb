@@ -143,4 +143,9 @@ export const EXAMPLES = [
     file: './examples/ble-tag-board.cwb.json',
     build() { return newDesign('BLE IMU + magnetometer tag'); },
   },
+  {
+    name: 'ESP32-S3 IMU + magnetometer tag', desc: 'ESP32-S3-WROOM-1 + LSM6DS3 + QMC5883P, USB-C with ESD, TP4054 charging, USB/battery load sharing, AP2112K — redesign of the BLE tag',
+    file: './examples/esp32s3-imu-mag.cwb.json',
+    build() { return newDesign('ESP32-S3 IMU + magnetometer tag'); },
+  },
 ];

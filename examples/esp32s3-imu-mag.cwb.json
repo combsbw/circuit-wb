@@ -1,0 +1,3274 @@
+{
+ "v": 1,
+ "id": "dp2i29qepdr",
+ "name": "ESP32-S3 IMU + magnetometer tag",
+ "created": 1795625103807,
+ "updated": 1795625103807,
+ "comps": [
+  {
+   "id": "cdttk26apdr",
+   "type": "vdc",
+   "ref": "V_USB",
+   "x": 0,
+   "y": 120,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "volts": "5",
+    "rint": "0.1"
+   }
+  },
+  {
+   "id": "cmx46l2vpdr",
+   "type": "ground",
+   "ref": "GND1",
+   "x": 0,
+   "y": 180,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "ctxbth3tpdr",
+   "type": "switch",
+   "ref": "S_USB",
+   "x": 80,
+   "y": 60,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "closed": true
+   }
+  },
+  {
+   "id": "c9zowsj0pdr",
+   "type": "netlabel",
+   "ref": "NET1",
+   "x": 130,
+   "y": 60,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VBUS"
+   }
+  },
+  {
+   "id": "c0ung59updr",
+   "type": "ic",
+   "ref": "J1",
+   "x": 340,
+   "y": 120,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "USB-C receptacle (USB 2.0)",
+    "gpio": {},
+    "duty": {},
+    "title": "IC",
+    "pinCount": "8",
+    "pinNames": "",
+    "leftPins": "5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5",
+    "rightPins": "IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13",
+    "vlogic": "3.3",
+    "vinPin": "5V",
+    "railPin": "3V3"
+   }
+  },
+  {
+   "id": "cgbu7rkapds",
+   "type": "netlabel",
+   "ref": "NET2",
+   "x": 200,
+   "y": 90,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "VBUS"
+   }
+  },
+  {
+   "id": "cflu1dlopds",
+   "type": "netlabel",
+   "ref": "NET3",
+   "x": 200,
+   "y": 110,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "crkb38sjpds",
+   "type": "netlabel",
+   "ref": "NET4",
+   "x": 200,
+   "y": 130,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "CC1"
+   }
+  },
+  {
+   "id": "cml6gec8pds",
+   "type": "netlabel",
+   "ref": "NET5",
+   "x": 200,
+   "y": 150,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "CC2"
+   }
+  },
+  {
+   "id": "ccdwnt17pds",
+   "type": "netlabel",
+   "ref": "NET6",
+   "x": 480,
+   "y": 130,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "c226jbubpds",
+   "type": "netlabel",
+   "ref": "NET7",
+   "x": 480,
+   "y": 90,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "USB_DP"
+   }
+  },
+  {
+   "id": "ci7m4b1ypds",
+   "type": "netlabel",
+   "ref": "NET8",
+   "x": 480,
+   "y": 110,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "USB_DM"
+   }
+  },
+  {
+   "id": "c6f24kf1pds",
+   "type": "resistor",
+   "ref": "R1",
+   "x": 560,
+   "y": 100,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "5.1k",
+    "power": "0.25"
+   }
+  },
+  {
+   "id": "ceyim5ivpds",
+   "type": "netlabel",
+   "ref": "NET9",
+   "x": 580,
+   "y": 70,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "CC1"
+   }
+  },
+  {
+   "id": "chwbycanpds",
+   "type": "ground",
+   "ref": "GND2",
+   "x": 560,
+   "y": 160,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cr67izfvpds",
+   "type": "resistor",
+   "ref": "R2",
+   "x": 650,
+   "y": 100,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "5.1k",
+    "power": "0.25"
+   }
+  },
+  {
+   "id": "cqq7ac5kpds",
+   "type": "netlabel",
+   "ref": "NET10",
+   "x": 670,
+   "y": 70,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "CC2"
+   }
+  },
+  {
+   "id": "ci6kgd0dpds",
+   "type": "ground",
+   "ref": "GND3",
+   "x": 650,
+   "y": 160,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cyp55qmzpds",
+   "type": "capacitor",
+   "ref": "C1",
+   "x": 740,
+   "y": 100,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "10u",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "ci65r8hypds",
+   "type": "netlabel",
+   "ref": "NET11",
+   "x": 760,
+   "y": 70,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VBUS"
+   }
+  },
+  {
+   "id": "cp52yy8epds",
+   "type": "ground",
+   "ref": "GND4",
+   "x": 740,
+   "y": 160,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cijnt5njpds",
+   "type": "ic",
+   "ref": "U3",
+   "x": 340,
+   "y": 330,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "USBLC6-2SC6",
+    "gpio": {},
+    "duty": {},
+    "title": "IC",
+    "pinCount": "8",
+    "pinNames": "",
+    "leftPins": "5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5",
+    "rightPins": "IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13",
+    "vlogic": "3.3",
+    "vinPin": "5V",
+    "railPin": "3V3"
+   }
+  },
+  {
+   "id": "cf5qgvmrpds",
+   "type": "netlabel",
+   "ref": "NET12",
+   "x": 260,
+   "y": 310,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "USB_DP"
+   }
+  },
+  {
+   "id": "cmbjta8spds",
+   "type": "netlabel",
+   "ref": "NET13",
+   "x": 260,
+   "y": 330,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "ckvgfkzopds",
+   "type": "netlabel",
+   "ref": "NET14",
+   "x": 260,
+   "y": 350,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "USB_DM"
+   }
+  },
+  {
+   "id": "c4x8c42qpds",
+   "type": "netlabel",
+   "ref": "NET15",
+   "x": 420,
+   "y": 350,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "USB_DM"
+   }
+  },
+  {
+   "id": "c1c58wtrpds",
+   "type": "netlabel",
+   "ref": "NET16",
+   "x": 420,
+   "y": 330,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VBUS"
+   }
+  },
+  {
+   "id": "cicjxl7tpds",
+   "type": "netlabel",
+   "ref": "NET17",
+   "x": 420,
+   "y": 310,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "USB_DP"
+   }
+  },
+  {
+   "id": "cyz1jeqrpds",
+   "type": "ic",
+   "ref": "U2",
+   "x": 340,
+   "y": 540,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "TP4054",
+    "gpio": {},
+    "duty": {},
+    "title": "IC",
+    "pinCount": "8",
+    "pinNames": "",
+    "leftPins": "5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5",
+    "rightPins": "IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13",
+    "vlogic": "3.3",
+    "vinPin": "5V",
+    "railPin": "3V3"
+   }
+  },
+  {
+   "id": "cd8dxqtypdt",
+   "type": "netlabel",
+   "ref": "NET18",
+   "x": 420,
+   "y": 560,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VBUS"
+   }
+  },
+  {
+   "id": "c1aavvo2pdt",
+   "type": "netlabel",
+   "ref": "NET19",
+   "x": 260,
+   "y": 560,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "BAT"
+   }
+  },
+  {
+   "id": "cayfyfv6pdt",
+   "type": "netlabel",
+   "ref": "NET20",
+   "x": 260,
+   "y": 540,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "ckf56c02pdt",
+   "type": "netlabel",
+   "ref": "NET21",
+   "x": 260,
+   "y": 520,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "CHG"
+   }
+  },
+  {
+   "id": "ct9ruziwpdt",
+   "type": "netlabel",
+   "ref": "NET22",
+   "x": 420,
+   "y": 540,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "PROG"
+   }
+  },
+  {
+   "id": "ccbk82f7pdt",
+   "type": "resistor",
+   "ref": "R3",
+   "x": 560,
+   "y": 530,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "10k",
+    "power": "0.25"
+   }
+  },
+  {
+   "id": "c08lfml5pdt",
+   "type": "netlabel",
+   "ref": "NET23",
+   "x": 580,
+   "y": 500,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "PROG"
+   }
+  },
+  {
+   "id": "cm3f4ofkpdt",
+   "type": "ground",
+   "ref": "GND5",
+   "x": 560,
+   "y": 590,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "c4w4n6typdt",
+   "type": "vdc",
+   "ref": "BT1",
+   "x": 660,
+   "y": 530,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "volts": "3.7",
+    "rint": "0.3"
+   }
+  },
+  {
+   "id": "c6w5h4t2pdt",
+   "type": "netlabel",
+   "ref": "NET24",
+   "x": 680,
+   "y": 500,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "BAT"
+   }
+  },
+  {
+   "id": "cs0nrnswpdt",
+   "type": "ground",
+   "ref": "GND6",
+   "x": 660,
+   "y": 590,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cnsob3ohpdt",
+   "type": "ic",
+   "ref": "J3",
+   "x": 900,
+   "y": 530,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "Battery wire pads",
+    "gpio": {},
+    "duty": {},
+    "title": "IC",
+    "pinCount": "8",
+    "pinNames": "",
+    "leftPins": "5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5",
+    "rightPins": "IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13",
+    "vlogic": "3.3",
+    "vinPin": "5V",
+    "railPin": "3V3"
+   }
+  },
+  {
+   "id": "c52x1h93pdt",
+   "type": "netlabel",
+   "ref": "NET25",
+   "x": 790,
+   "y": 520,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "BAT"
+   }
+  },
+  {
+   "id": "ck5catxzpdu",
+   "type": "netlabel",
+   "ref": "NET26",
+   "x": 790,
+   "y": 540,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "c9hxivaapdu",
+   "type": "capacitor",
+   "ref": "C2",
+   "x": 1080,
+   "y": 530,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "4.7u",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "cqip6elupdu",
+   "type": "netlabel",
+   "ref": "NET27",
+   "x": 1100,
+   "y": 500,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "BAT"
+   }
+  },
+  {
+   "id": "c1eui2lvpdu",
+   "type": "ground",
+   "ref": "GND7",
+   "x": 1080,
+   "y": 590,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "co3jdtqipdu",
+   "type": "schottky",
+   "ref": "D1",
+   "x": 120,
+   "y": 760,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "1N5819"
+   }
+  },
+  {
+   "id": "cb6h02vkpdu",
+   "type": "netlabel",
+   "ref": "NET28",
+   "x": 70,
+   "y": 760,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "VBUS"
+   }
+  },
+  {
+   "id": "c7kvzuw8pdu",
+   "type": "netlabel",
+   "ref": "NET29",
+   "x": 170,
+   "y": 760,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VSYS"
+   }
+  },
+  {
+   "id": "c7nozkaipdu",
+   "type": "pmos",
+   "ref": "Q1",
+   "x": 360,
+   "y": 760,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "AO3401",
+    "vth": "900m",
+    "rds": "50m"
+   }
+  },
+  {
+   "id": "cvig39g2pdu",
+   "type": "netlabel",
+   "ref": "NET30",
+   "x": 310,
+   "y": 760,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "VBUS"
+   }
+  },
+  {
+   "id": "ccvage4npdu",
+   "type": "netlabel",
+   "ref": "NET31",
+   "x": 390,
+   "y": 790,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "BAT"
+   }
+  },
+  {
+   "id": "cxnxu94npdu",
+   "type": "netlabel",
+   "ref": "NET32",
+   "x": 390,
+   "y": 730,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VSYS"
+   }
+  },
+  {
+   "id": "c06x14cwpdu",
+   "type": "reg",
+   "ref": "U5",
+   "x": 160,
+   "y": 960,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "AP2112K-3.3"
+   }
+  },
+  {
+   "id": "cl44dkznpdu",
+   "type": "netlabel",
+   "ref": "NET33",
+   "x": 90,
+   "y": 960,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "VSYS"
+   }
+  },
+  {
+   "id": "cwclcm9ppdu",
+   "type": "netlabel",
+   "ref": "NET34",
+   "x": 90,
+   "y": 980,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "VSYS"
+   }
+  },
+  {
+   "id": "cywqcwxbpdu",
+   "type": "netlabel",
+   "ref": "NET35",
+   "x": 230,
+   "y": 960,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "3V3"
+   }
+  },
+  {
+   "id": "cdu6koq3pdu",
+   "type": "ground",
+   "ref": "GND8",
+   "x": 160,
+   "y": 1030,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cuyshokppdu",
+   "type": "capacitor",
+   "ref": "C3",
+   "x": 400,
+   "y": 960,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "4.7u",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "cef1onv9pdu",
+   "type": "netlabel",
+   "ref": "NET36",
+   "x": 420,
+   "y": 930,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VSYS"
+   }
+  },
+  {
+   "id": "cufmipmupdu",
+   "type": "ground",
+   "ref": "GND9",
+   "x": 400,
+   "y": 1020,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cegmrosnpdu",
+   "type": "capacitor",
+   "ref": "C4",
+   "x": 500,
+   "y": 960,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "22u",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "cdzs2dc0pdu",
+   "type": "netlabel",
+   "ref": "NET37",
+   "x": 520,
+   "y": 930,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "3V3"
+   }
+  },
+  {
+   "id": "cnfuq9pdpdu",
+   "type": "ground",
+   "ref": "GND10",
+   "x": 500,
+   "y": 1020,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "ca7c6i5jpdu",
+   "type": "capacitor",
+   "ref": "C5",
+   "x": 600,
+   "y": 960,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "100n",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "c1fh7bvfpdu",
+   "type": "netlabel",
+   "ref": "NET38",
+   "x": 620,
+   "y": 930,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "3V3"
+   }
+  },
+  {
+   "id": "cck0trfcpdu",
+   "type": "ground",
+   "ref": "GND11",
+   "x": 600,
+   "y": 1020,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "chml5623pdu",
+   "type": "ic",
+   "ref": "U1",
+   "x": 1320,
+   "y": 520,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "ESP32-S3-WROOM-1",
+    "gpio": {},
+    "duty": {},
+    "title": "IC",
+    "pinCount": "8",
+    "pinNames": "",
+    "leftPins": "5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5",
+    "rightPins": "IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13",
+    "vlogic": "3.3",
+    "vinPin": "5V",
+    "railPin": "3V3"
+   }
+  },
+  {
+   "id": "cs67bco0pdu",
+   "type": "netlabel",
+   "ref": "NET39",
+   "x": 1210,
+   "y": 320,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "cf66wum0pdu",
+   "type": "netlabel",
+   "ref": "NET40",
+   "x": 1210,
+   "y": 340,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "3V3"
+   }
+  },
+  {
+   "id": "cahy2vbhpdu",
+   "type": "netlabel",
+   "ref": "NET41",
+   "x": 1210,
+   "y": 360,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "EN"
+   }
+  },
+  {
+   "id": "czk3m28jpdu",
+   "type": "netlabel",
+   "ref": "NET42",
+   "x": 1210,
+   "y": 380,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "IMU_INT1"
+   }
+  },
+  {
+   "id": "c7vw9s70pdu",
+   "type": "netlabel",
+   "ref": "NET43",
+   "x": 1210,
+   "y": 400,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "IMU_INT2"
+   }
+  },
+  {
+   "id": "chkiwm3updv",
+   "type": "netlabel",
+   "ref": "NET44",
+   "x": 1210,
+   "y": 420,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "MAG_INT"
+   }
+  },
+  {
+   "id": "ctsafulapdv",
+   "type": "netlabel",
+   "ref": "NET45",
+   "x": 1210,
+   "y": 440,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "BTN"
+   }
+  },
+  {
+   "id": "ch43jvkopdv",
+   "type": "netlabel",
+   "ref": "NET46",
+   "x": 1210,
+   "y": 460,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "CHG"
+   }
+  },
+  {
+   "id": "cfqa7iwepdv",
+   "type": "netlabel",
+   "ref": "NET47",
+   "x": 1210,
+   "y": 480,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "LED"
+   }
+  },
+  {
+   "id": "czcy5x93pdv",
+   "type": "netlabel",
+   "ref": "NET48",
+   "x": 1210,
+   "y": 540,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "SDA"
+   }
+  },
+  {
+   "id": "c7lkufzfpdv",
+   "type": "netlabel",
+   "ref": "NET49",
+   "x": 1210,
+   "y": 560,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "USB_DM"
+   }
+  },
+  {
+   "id": "c1lganyrpdv",
+   "type": "netlabel",
+   "ref": "NET50",
+   "x": 1210,
+   "y": 580,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "USB_DP"
+   }
+  },
+  {
+   "id": "c2fozatnpdv",
+   "type": "netlabel",
+   "ref": "NET51",
+   "x": 1210,
+   "y": 640,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "SCL"
+   }
+  },
+  {
+   "id": "cng2ga08pdv",
+   "type": "netlabel",
+   "ref": "NET52",
+   "x": 1430,
+   "y": 440,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "BOOT"
+   }
+  },
+  {
+   "id": "csbdcomipdv",
+   "type": "netlabel",
+   "ref": "NET53",
+   "x": 1430,
+   "y": 660,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VBUS_SENSE"
+   }
+  },
+  {
+   "id": "c268v2nipdv",
+   "type": "netlabel",
+   "ref": "NET54",
+   "x": 1430,
+   "y": 680,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VBAT_ADC"
+   }
+  },
+  {
+   "id": "cdmxu2b6pdv",
+   "type": "netlabel",
+   "ref": "NET55",
+   "x": 1430,
+   "y": 700,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "ci7k9x44pdv",
+   "type": "netlabel",
+   "ref": "NET56",
+   "x": 1430,
+   "y": 720,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "cfgj0mnrpdv",
+   "type": "resistor",
+   "ref": "R4",
+   "x": 820,
+   "y": 760,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "10k",
+    "power": "0.25"
+   }
+  },
+  {
+   "id": "cr41cw0qpdv",
+   "type": "netlabel",
+   "ref": "NET57",
+   "x": 840,
+   "y": 730,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "3V3"
+   }
+  },
+  {
+   "id": "c04bo0i0pdv",
+   "type": "netlabel",
+   "ref": "NET58",
+   "x": 840,
+   "y": 790,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "EN"
+   }
+  },
+  {
+   "id": "cfmfek5spdv",
+   "type": "capacitor",
+   "ref": "C6",
+   "x": 920,
+   "y": 790,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "1u",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "cpf6nnk3pdv",
+   "type": "netlabel",
+   "ref": "NET59",
+   "x": 940,
+   "y": 760,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "EN"
+   }
+  },
+  {
+   "id": "cbkou7mfpdv",
+   "type": "ground",
+   "ref": "GND12",
+   "x": 920,
+   "y": 850,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "c99pw0tvpdv",
+   "type": "button",
+   "ref": "SW3",
+   "x": 1040,
+   "y": 760,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "pressed": false,
+    "nc": false
+   }
+  },
+  {
+   "id": "c2cpjaf0pdv",
+   "type": "netlabel",
+   "ref": "NET60",
+   "x": 990,
+   "y": 760,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "EN"
+   }
+  },
+  {
+   "id": "cm8bt24ipdv",
+   "type": "ground",
+   "ref": "GND13",
+   "x": 1070,
+   "y": 790,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cjyw4y2ipdw",
+   "type": "button",
+   "ref": "SW1",
+   "x": 1040,
+   "y": 880,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "pressed": false,
+    "nc": false
+   }
+  },
+  {
+   "id": "cxur7a3vpdw",
+   "type": "netlabel",
+   "ref": "NET61",
+   "x": 990,
+   "y": 880,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "BOOT"
+   }
+  },
+  {
+   "id": "cl8ijn9ipdw",
+   "type": "ground",
+   "ref": "GND14",
+   "x": 1070,
+   "y": 910,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "c0te7fjtpdw",
+   "type": "button",
+   "ref": "SW2",
+   "x": 1040,
+   "y": 1000,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "pressed": false,
+    "nc": false
+   }
+  },
+  {
+   "id": "c4dnc7kdpdw",
+   "type": "netlabel",
+   "ref": "NET62",
+   "x": 990,
+   "y": 1000,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "BTN"
+   }
+  },
+  {
+   "id": "crbt836rpdw",
+   "type": "ground",
+   "ref": "GND15",
+   "x": 1070,
+   "y": 1030,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "ck5fx062pdw",
+   "type": "resistor",
+   "ref": "R5",
+   "x": 800,
+   "y": 1100,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "value": "1k",
+    "power": "0.25"
+   }
+  },
+  {
+   "id": "c0muiqwipdw",
+   "type": "netlabel",
+   "ref": "NET63",
+   "x": 750,
+   "y": 1100,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "LED"
+   }
+  },
+  {
+   "id": "cjdxhe42pdw",
+   "type": "netlabel",
+   "ref": "NET64",
+   "x": 850,
+   "y": 1100,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "LED_A"
+   }
+  },
+  {
+   "id": "cneiz1jxpdw",
+   "type": "led",
+   "ref": "D2",
+   "x": 960,
+   "y": 1140,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "color": "green",
+    "imax": "20m"
+   }
+  },
+  {
+   "id": "cqe26zqfpdw",
+   "type": "netlabel",
+   "ref": "NET65",
+   "x": 980,
+   "y": 1110,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "LED_A"
+   }
+  },
+  {
+   "id": "cb0z5xc0pdw",
+   "type": "ground",
+   "ref": "GND16",
+   "x": 960,
+   "y": 1200,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "cyt6dv8fpdw",
+   "type": "resistor",
+   "ref": "R6",
+   "x": 1720,
+   "y": 820,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "1M",
+    "power": "0.25"
+   }
+  },
+  {
+   "id": "cw9dxtubpdw",
+   "type": "netlabel",
+   "ref": "NET66",
+   "x": 1740,
+   "y": 790,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "BAT"
+   }
+  },
+  {
+   "id": "c87sgdokpdw",
+   "type": "netlabel",
+   "ref": "NET67",
+   "x": 1740,
+   "y": 850,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VBAT_ADC"
+   }
+  },
+  {
+   "id": "c6mzm2i6pdw",
+   "type": "resistor",
+   "ref": "R7",
+   "x": 1720,
+   "y": 940,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "1M",
+    "power": "0.25"
+   }
+  },
+  {
+   "id": "c80qaktppdw",
+   "type": "netlabel",
+   "ref": "NET68",
+   "x": 1740,
+   "y": 910,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VBAT_ADC"
+   }
+  },
+  {
+   "id": "ce0gpmf9pdw",
+   "type": "ground",
+   "ref": "GND17",
+   "x": 1720,
+   "y": 1000,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "clx8pv3xpdw",
+   "type": "capacitor",
+   "ref": "C7",
+   "x": 1820,
+   "y": 940,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "100n",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "cihrqr9bpdw",
+   "type": "netlabel",
+   "ref": "NET69",
+   "x": 1840,
+   "y": 910,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VBAT_ADC"
+   }
+  },
+  {
+   "id": "cnfoxdx4pdw",
+   "type": "ground",
+   "ref": "GND18",
+   "x": 1820,
+   "y": 1000,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "ccdp81fhpdw",
+   "type": "resistor",
+   "ref": "R8",
+   "x": 1980,
+   "y": 820,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "100k",
+    "power": "0.25"
+   }
+  },
+  {
+   "id": "cxf9q1i9pdw",
+   "type": "netlabel",
+   "ref": "NET70",
+   "x": 2000,
+   "y": 790,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VBUS"
+   }
+  },
+  {
+   "id": "c4owzjjbpdw",
+   "type": "netlabel",
+   "ref": "NET71",
+   "x": 2000,
+   "y": 850,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VBUS_SENSE"
+   }
+  },
+  {
+   "id": "cv4mf7ffpdw",
+   "type": "resistor",
+   "ref": "R9",
+   "x": 1980,
+   "y": 940,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "100k",
+    "power": "0.25"
+   }
+  },
+  {
+   "id": "cpq078mzpdw",
+   "type": "netlabel",
+   "ref": "NET72",
+   "x": 2000,
+   "y": 910,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "VBUS_SENSE"
+   }
+  },
+  {
+   "id": "cpk8a1uypdw",
+   "type": "ground",
+   "ref": "GND19",
+   "x": 1980,
+   "y": 1000,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "c1vfx3glpdw",
+   "type": "resistor",
+   "ref": "R10",
+   "x": 1720,
+   "y": 120,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "4.7k",
+    "power": "0.25"
+   }
+  },
+  {
+   "id": "clwmib0bpdw",
+   "type": "netlabel",
+   "ref": "NET73",
+   "x": 1740,
+   "y": 90,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "3V3"
+   }
+  },
+  {
+   "id": "crnodq5ppdw",
+   "type": "netlabel",
+   "ref": "NET74",
+   "x": 1740,
+   "y": 150,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "SDA"
+   }
+  },
+  {
+   "id": "cmo6h8lppdw",
+   "type": "resistor",
+   "ref": "R11",
+   "x": 1820,
+   "y": 120,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "4.7k",
+    "power": "0.25"
+   }
+  },
+  {
+   "id": "c8hxz08bpdw",
+   "type": "netlabel",
+   "ref": "NET75",
+   "x": 1840,
+   "y": 90,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "3V3"
+   }
+  },
+  {
+   "id": "cnl3tbu9pdw",
+   "type": "netlabel",
+   "ref": "NET76",
+   "x": 1840,
+   "y": 150,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "SCL"
+   }
+  },
+  {
+   "id": "czxsv3tmpdw",
+   "type": "ic",
+   "ref": "U8",
+   "x": 2120,
+   "y": 380,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "LSM6DS3",
+    "gpio": {},
+    "duty": {},
+    "title": "IC",
+    "pinCount": "8",
+    "pinNames": "",
+    "leftPins": "5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5",
+    "rightPins": "IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13",
+    "vlogic": "3.3",
+    "vinPin": "5V",
+    "railPin": "3V3"
+   }
+  },
+  {
+   "id": "c8bn0ztopdw",
+   "type": "netlabel",
+   "ref": "NET77",
+   "x": 2020,
+   "y": 320,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "cipfyp3updw",
+   "type": "netlabel",
+   "ref": "NET78",
+   "x": 2020,
+   "y": 380,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "IMU_INT1"
+   }
+  },
+  {
+   "id": "c9ru1emipdw",
+   "type": "netlabel",
+   "ref": "NET79",
+   "x": 2020,
+   "y": 400,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "3V3"
+   }
+  },
+  {
+   "id": "co9z4lcwpdw",
+   "type": "netlabel",
+   "ref": "NET80",
+   "x": 2020,
+   "y": 420,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "c0955yqjpdw",
+   "type": "netlabel",
+   "ref": "NET81",
+   "x": 2020,
+   "y": 440,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "c7wg19eppdw",
+   "type": "netlabel",
+   "ref": "NET82",
+   "x": 2220,
+   "y": 440,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "3V3"
+   }
+  },
+  {
+   "id": "cu724fb6pdw",
+   "type": "netlabel",
+   "ref": "NET83",
+   "x": 2220,
+   "y": 420,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "IMU_INT2"
+   }
+  },
+  {
+   "id": "c4kb7pdrpdw",
+   "type": "netlabel",
+   "ref": "NET84",
+   "x": 2220,
+   "y": 400,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "3V3"
+   }
+  },
+  {
+   "id": "cmndxu6mpdw",
+   "type": "netlabel",
+   "ref": "NET85",
+   "x": 2220,
+   "y": 360,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "3V3"
+   }
+  },
+  {
+   "id": "cws6xmg3pdw",
+   "type": "netlabel",
+   "ref": "NET86",
+   "x": 2220,
+   "y": 340,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "SCL"
+   }
+  },
+  {
+   "id": "c4xyjw26pdw",
+   "type": "netlabel",
+   "ref": "NET87",
+   "x": 2220,
+   "y": 320,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "SDA"
+   }
+  },
+  {
+   "id": "ctfxpu9tpdw",
+   "type": "capacitor",
+   "ref": "C8",
+   "x": 2420,
+   "y": 380,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "100n",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "cfxmm957pdw",
+   "type": "netlabel",
+   "ref": "NET88",
+   "x": 2440,
+   "y": 350,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "3V3"
+   }
+  },
+  {
+   "id": "cr78i6swpdw",
+   "type": "ground",
+   "ref": "GND20",
+   "x": 2420,
+   "y": 440,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  },
+  {
+   "id": "c3vqba1gpdw",
+   "type": "ic",
+   "ref": "U4",
+   "x": 2120,
+   "y": 120,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "part": "QMC5883P",
+    "gpio": {},
+    "duty": {},
+    "title": "IC",
+    "pinCount": "8",
+    "pinNames": "",
+    "leftPins": "5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5",
+    "rightPins": "IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13",
+    "vlogic": "3.3",
+    "vinPin": "5V",
+    "railPin": "3V3"
+   }
+  },
+  {
+   "id": "ccma3l08pdw",
+   "type": "netlabel",
+   "ref": "NET89",
+   "x": 2040,
+   "y": 90,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "SCL"
+   }
+  },
+  {
+   "id": "c411tmknpdw",
+   "type": "netlabel",
+   "ref": "NET90",
+   "x": 2040,
+   "y": 110,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "SDA"
+   }
+  },
+  {
+   "id": "cffuvx1lpdw",
+   "type": "netlabel",
+   "ref": "NET91",
+   "x": 2040,
+   "y": 130,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "3V3"
+   }
+  },
+  {
+   "id": "ct35qctfpdw",
+   "type": "netlabel",
+   "ref": "NET92",
+   "x": 2040,
+   "y": 150,
+   "rot": 0,
+   "flip": true,
+   "props": {
+    "name": "3V3"
+   }
+  },
+  {
+   "id": "chd308j4pdw",
+   "type": "netlabel",
+   "ref": "NET93",
+   "x": 2200,
+   "y": 150,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "GND"
+   }
+  },
+  {
+   "id": "ckizehc6pdw",
+   "type": "netlabel",
+   "ref": "NET94",
+   "x": 2200,
+   "y": 130,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "MAG_INT"
+   }
+  },
+  {
+   "id": "cx0vs97zpdw",
+   "type": "capacitor",
+   "ref": "C9",
+   "x": 2420,
+   "y": 120,
+   "rot": 1,
+   "flip": false,
+   "props": {
+    "value": "100n",
+    "vmax": "50"
+   }
+  },
+  {
+   "id": "ckqz3iampdw",
+   "type": "netlabel",
+   "ref": "NET95",
+   "x": 2440,
+   "y": 90,
+   "rot": 0,
+   "flip": false,
+   "props": {
+    "name": "3V3"
+   }
+  },
+  {
+   "id": "cvamfmhfpdw",
+   "type": "ground",
+   "ref": "GND21",
+   "x": 2420,
+   "y": 180,
+   "rot": 0,
+   "flip": false,
+   "props": {}
+  }
+ ],
+ "wires": [
+  {
+   "id": "wwkgr216pdr",
+   "a": {
+    "c": "cdttk26apdr",
+    "p": 1
+   },
+   "b": {
+    "c": "cmx46l2vpdr",
+    "p": 0
+   }
+  },
+  {
+   "id": "wjejam5ypdr",
+   "a": {
+    "c": "cdttk26apdr",
+    "p": 0
+   },
+   "b": {
+    "c": "ctxbth3tpdr",
+    "p": 0
+   }
+  },
+  {
+   "id": "wyssdvqcpdr",
+   "a": {
+    "c": "ctxbth3tpdr",
+    "p": 1
+   },
+   "b": {
+    "c": "c9zowsj0pdr",
+    "p": 0
+   }
+  },
+  {
+   "id": "wqrybsq8pds",
+   "a": {
+    "c": "c0ung59updr",
+    "p": 0
+   },
+   "b": {
+    "c": "cgbu7rkapds",
+    "p": 0
+   }
+  },
+  {
+   "id": "wehb2r3kpds",
+   "a": {
+    "c": "c0ung59updr",
+    "p": 1
+   },
+   "b": {
+    "c": "cflu1dlopds",
+    "p": 0
+   }
+  },
+  {
+   "id": "wnc2mkaypds",
+   "a": {
+    "c": "c0ung59updr",
+    "p": 2
+   },
+   "b": {
+    "c": "crkb38sjpds",
+    "p": 0
+   }
+  },
+  {
+   "id": "wypyfoqupds",
+   "a": {
+    "c": "c0ung59updr",
+    "p": 3
+   },
+   "b": {
+    "c": "cml6gec8pds",
+    "p": 0
+   }
+  },
+  {
+   "id": "w6b0i4uapds",
+   "a": {
+    "c": "c0ung59updr",
+    "p": 5
+   },
+   "b": {
+    "c": "ccdwnt17pds",
+    "p": 0
+   }
+  },
+  {
+   "id": "wfe30kxwpds",
+   "a": {
+    "c": "c0ung59updr",
+    "p": 7
+   },
+   "b": {
+    "c": "c226jbubpds",
+    "p": 0
+   }
+  },
+  {
+   "id": "wptxpzi4pds",
+   "a": {
+    "c": "c0ung59updr",
+    "p": 6
+   },
+   "b": {
+    "c": "ci7m4b1ypds",
+    "p": 0
+   }
+  },
+  {
+   "id": "wl81msg1pds",
+   "a": {
+    "c": "c6f24kf1pds",
+    "p": 0
+   },
+   "b": {
+    "c": "ceyim5ivpds",
+    "p": 0
+   }
+  },
+  {
+   "id": "w7ek67m5pds",
+   "a": {
+    "c": "c6f24kf1pds",
+    "p": 1
+   },
+   "b": {
+    "c": "chwbycanpds",
+    "p": 0
+   }
+  },
+  {
+   "id": "wy1zts5ppds",
+   "a": {
+    "c": "cr67izfvpds",
+    "p": 0
+   },
+   "b": {
+    "c": "cqq7ac5kpds",
+    "p": 0
+   }
+  },
+  {
+   "id": "wdewawd7pds",
+   "a": {
+    "c": "cr67izfvpds",
+    "p": 1
+   },
+   "b": {
+    "c": "ci6kgd0dpds",
+    "p": 0
+   }
+  },
+  {
+   "id": "wwjexeinpds",
+   "a": {
+    "c": "cyp55qmzpds",
+    "p": 0
+   },
+   "b": {
+    "c": "ci65r8hypds",
+    "p": 0
+   }
+  },
+  {
+   "id": "w5jwxwsypds",
+   "a": {
+    "c": "cyp55qmzpds",
+    "p": 1
+   },
+   "b": {
+    "c": "cp52yy8epds",
+    "p": 0
+   }
+  },
+  {
+   "id": "wha6x6v9pds",
+   "a": {
+    "c": "cijnt5njpds",
+    "p": 0
+   },
+   "b": {
+    "c": "cf5qgvmrpds",
+    "p": 0
+   }
+  },
+  {
+   "id": "wr44x9wxpds",
+   "a": {
+    "c": "cijnt5njpds",
+    "p": 1
+   },
+   "b": {
+    "c": "cmbjta8spds",
+    "p": 0
+   }
+  },
+  {
+   "id": "wj9yykjbpds",
+   "a": {
+    "c": "cijnt5njpds",
+    "p": 2
+   },
+   "b": {
+    "c": "ckvgfkzopds",
+    "p": 0
+   }
+  },
+  {
+   "id": "wj1831pppds",
+   "a": {
+    "c": "cijnt5njpds",
+    "p": 3
+   },
+   "b": {
+    "c": "c4x8c42qpds",
+    "p": 0
+   }
+  },
+  {
+   "id": "wq4a8vtopds",
+   "a": {
+    "c": "cijnt5njpds",
+    "p": 4
+   },
+   "b": {
+    "c": "c1c58wtrpds",
+    "p": 0
+   }
+  },
+  {
+   "id": "wd4s4cvppds",
+   "a": {
+    "c": "cijnt5njpds",
+    "p": 5
+   },
+   "b": {
+    "c": "cicjxl7tpds",
+    "p": 0
+   }
+  },
+  {
+   "id": "wnzhmea3pdt",
+   "a": {
+    "c": "cyz1jeqrpds",
+    "p": 3
+   },
+   "b": {
+    "c": "cd8dxqtypdt",
+    "p": 0
+   }
+  },
+  {
+   "id": "w4e2fss1pdt",
+   "a": {
+    "c": "cyz1jeqrpds",
+    "p": 2
+   },
+   "b": {
+    "c": "c1aavvo2pdt",
+    "p": 0
+   }
+  },
+  {
+   "id": "w4f9oo2opdt",
+   "a": {
+    "c": "cyz1jeqrpds",
+    "p": 1
+   },
+   "b": {
+    "c": "cayfyfv6pdt",
+    "p": 0
+   }
+  },
+  {
+   "id": "w0um3nlupdt",
+   "a": {
+    "c": "cyz1jeqrpds",
+    "p": 0
+   },
+   "b": {
+    "c": "ckf56c02pdt",
+    "p": 0
+   }
+  },
+  {
+   "id": "w10a3e8epdt",
+   "a": {
+    "c": "cyz1jeqrpds",
+    "p": 4
+   },
+   "b": {
+    "c": "ct9ruziwpdt",
+    "p": 0
+   }
+  },
+  {
+   "id": "wjo91zo8pdt",
+   "a": {
+    "c": "ccbk82f7pdt",
+    "p": 0
+   },
+   "b": {
+    "c": "c08lfml5pdt",
+    "p": 0
+   }
+  },
+  {
+   "id": "w2bqsm6xpdt",
+   "a": {
+    "c": "ccbk82f7pdt",
+    "p": 1
+   },
+   "b": {
+    "c": "cm3f4ofkpdt",
+    "p": 0
+   }
+  },
+  {
+   "id": "wnpx9y9mpdt",
+   "a": {
+    "c": "c4w4n6typdt",
+    "p": 0
+   },
+   "b": {
+    "c": "c6w5h4t2pdt",
+    "p": 0
+   }
+  },
+  {
+   "id": "w23ka4nkpdt",
+   "a": {
+    "c": "c4w4n6typdt",
+    "p": 1
+   },
+   "b": {
+    "c": "cs0nrnswpdt",
+    "p": 0
+   }
+  },
+  {
+   "id": "waz5ukm4pdu",
+   "a": {
+    "c": "cnsob3ohpdt",
+    "p": 0
+   },
+   "b": {
+    "c": "c52x1h93pdt",
+    "p": 0
+   }
+  },
+  {
+   "id": "wiuwktw6pdu",
+   "a": {
+    "c": "cnsob3ohpdt",
+    "p": 1
+   },
+   "b": {
+    "c": "ck5catxzpdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "w1g3i56epdu",
+   "a": {
+    "c": "c9hxivaapdu",
+    "p": 0
+   },
+   "b": {
+    "c": "cqip6elupdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "w8cxgx97pdu",
+   "a": {
+    "c": "c9hxivaapdu",
+    "p": 1
+   },
+   "b": {
+    "c": "c1eui2lvpdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "wmtyixp0pdu",
+   "a": {
+    "c": "co3jdtqipdu",
+    "p": 0
+   },
+   "b": {
+    "c": "cb6h02vkpdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "wv7rkwcxpdu",
+   "a": {
+    "c": "co3jdtqipdu",
+    "p": 1
+   },
+   "b": {
+    "c": "c7kvzuw8pdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "wanvughwpdu",
+   "a": {
+    "c": "c7nozkaipdu",
+    "p": 0
+   },
+   "b": {
+    "c": "cvig39g2pdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "w2zfhfripdu",
+   "a": {
+    "c": "c7nozkaipdu",
+    "p": 1
+   },
+   "b": {
+    "c": "ccvage4npdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "wvsjv1jdpdu",
+   "a": {
+    "c": "c7nozkaipdu",
+    "p": 2
+   },
+   "b": {
+    "c": "cxnxu94npdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "w28e5tyxpdu",
+   "a": {
+    "c": "c06x14cwpdu",
+    "p": 0
+   },
+   "b": {
+    "c": "cl44dkznpdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "wk45meefpdu",
+   "a": {
+    "c": "c06x14cwpdu",
+    "p": 3
+   },
+   "b": {
+    "c": "cwclcm9ppdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "wzvd1q6updu",
+   "a": {
+    "c": "c06x14cwpdu",
+    "p": 1
+   },
+   "b": {
+    "c": "cywqcwxbpdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "wg6nwvsjpdu",
+   "a": {
+    "c": "c06x14cwpdu",
+    "p": 2
+   },
+   "b": {
+    "c": "cdu6koq3pdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "wpxp9f50pdu",
+   "a": {
+    "c": "cuyshokppdu",
+    "p": 0
+   },
+   "b": {
+    "c": "cef1onv9pdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "wxdvdbiqpdu",
+   "a": {
+    "c": "cuyshokppdu",
+    "p": 1
+   },
+   "b": {
+    "c": "cufmipmupdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "w5uvh2qkpdu",
+   "a": {
+    "c": "cegmrosnpdu",
+    "p": 0
+   },
+   "b": {
+    "c": "cdzs2dc0pdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "w5qdgldfpdu",
+   "a": {
+    "c": "cegmrosnpdu",
+    "p": 1
+   },
+   "b": {
+    "c": "cnfuq9pdpdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "wg12er6spdu",
+   "a": {
+    "c": "ca7c6i5jpdu",
+    "p": 0
+   },
+   "b": {
+    "c": "c1fh7bvfpdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "wz8v2p3ypdu",
+   "a": {
+    "c": "ca7c6i5jpdu",
+    "p": 1
+   },
+   "b": {
+    "c": "cck0trfcpdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "wyutand9pdu",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 0
+   },
+   "b": {
+    "c": "cs67bco0pdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "w7axzw27pdu",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 1
+   },
+   "b": {
+    "c": "cf66wum0pdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "w7izlklhpdu",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 2
+   },
+   "b": {
+    "c": "cahy2vbhpdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "wr2aydijpdu",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 3
+   },
+   "b": {
+    "c": "czk3m28jpdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "wjs6oflqpdv",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 4
+   },
+   "b": {
+    "c": "c7vw9s70pdu",
+    "p": 0
+   }
+  },
+  {
+   "id": "wxb855yfpdv",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 5
+   },
+   "b": {
+    "c": "chkiwm3updv",
+    "p": 0
+   }
+  },
+  {
+   "id": "w4ighakgpdv",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 6
+   },
+   "b": {
+    "c": "ctsafulapdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "wseoili0pdv",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 7
+   },
+   "b": {
+    "c": "ch43jvkopdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "wiiiohzjpdv",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 8
+   },
+   "b": {
+    "c": "cfqa7iwepdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "wgv8qfokpdv",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 11
+   },
+   "b": {
+    "c": "czcy5x93pdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "wb9ojt6rpdv",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 12
+   },
+   "b": {
+    "c": "c7lkufzfpdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "wk1bsr25pdv",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 13
+   },
+   "b": {
+    "c": "c1lganyrpdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "wtj6i53lpdv",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 16
+   },
+   "b": {
+    "c": "c2fozatnpdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "wcxaodgypdv",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 26
+   },
+   "b": {
+    "c": "cng2ga08pdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "wpyfc3yhpdv",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 37
+   },
+   "b": {
+    "c": "csbdcomipdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "wcduboripdv",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 38
+   },
+   "b": {
+    "c": "c268v2nipdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "wp6f0g0fpdv",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 39
+   },
+   "b": {
+    "c": "cdmxu2b6pdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "w9f6nhf7pdv",
+   "a": {
+    "c": "chml5623pdu",
+    "p": 40
+   },
+   "b": {
+    "c": "ci7k9x44pdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "wpsslgrgpdv",
+   "a": {
+    "c": "cfgj0mnrpdv",
+    "p": 0
+   },
+   "b": {
+    "c": "cr41cw0qpdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "wcg44t4gpdv",
+   "a": {
+    "c": "cfgj0mnrpdv",
+    "p": 1
+   },
+   "b": {
+    "c": "c04bo0i0pdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "wgy0stbspdv",
+   "a": {
+    "c": "cfmfek5spdv",
+    "p": 0
+   },
+   "b": {
+    "c": "cpf6nnk3pdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "w11w481jpdv",
+   "a": {
+    "c": "cfmfek5spdv",
+    "p": 1
+   },
+   "b": {
+    "c": "cbkou7mfpdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "wg4hvr8mpdv",
+   "a": {
+    "c": "c99pw0tvpdv",
+    "p": 0
+   },
+   "b": {
+    "c": "c2cpjaf0pdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "wjffo2bkpdw",
+   "a": {
+    "c": "c99pw0tvpdv",
+    "p": 1
+   },
+   "b": {
+    "c": "cm8bt24ipdv",
+    "p": 0
+   }
+  },
+  {
+   "id": "wt0rf3gdpdw",
+   "a": {
+    "c": "cjyw4y2ipdw",
+    "p": 0
+   },
+   "b": {
+    "c": "cxur7a3vpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wra4eijupdw",
+   "a": {
+    "c": "cjyw4y2ipdw",
+    "p": 1
+   },
+   "b": {
+    "c": "cl8ijn9ipdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wr0pwmf5pdw",
+   "a": {
+    "c": "c0te7fjtpdw",
+    "p": 0
+   },
+   "b": {
+    "c": "c4dnc7kdpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wannrnxepdw",
+   "a": {
+    "c": "c0te7fjtpdw",
+    "p": 1
+   },
+   "b": {
+    "c": "crbt836rpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "winfth2fpdw",
+   "a": {
+    "c": "ck5fx062pdw",
+    "p": 0
+   },
+   "b": {
+    "c": "c0muiqwipdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wbofkfjmpdw",
+   "a": {
+    "c": "ck5fx062pdw",
+    "p": 1
+   },
+   "b": {
+    "c": "cjdxhe42pdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "woygp8trpdw",
+   "a": {
+    "c": "cneiz1jxpdw",
+    "p": 0
+   },
+   "b": {
+    "c": "cqe26zqfpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wwvuyp6vpdw",
+   "a": {
+    "c": "cneiz1jxpdw",
+    "p": 1
+   },
+   "b": {
+    "c": "cb0z5xc0pdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "w1586sdwpdw",
+   "a": {
+    "c": "cyt6dv8fpdw",
+    "p": 0
+   },
+   "b": {
+    "c": "cw9dxtubpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wqhqpf7ppdw",
+   "a": {
+    "c": "cyt6dv8fpdw",
+    "p": 1
+   },
+   "b": {
+    "c": "c87sgdokpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wfrq3505pdw",
+   "a": {
+    "c": "c6mzm2i6pdw",
+    "p": 0
+   },
+   "b": {
+    "c": "c80qaktppdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wxtimgh9pdw",
+   "a": {
+    "c": "c6mzm2i6pdw",
+    "p": 1
+   },
+   "b": {
+    "c": "ce0gpmf9pdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wjiyx2d9pdw",
+   "a": {
+    "c": "clx8pv3xpdw",
+    "p": 0
+   },
+   "b": {
+    "c": "cihrqr9bpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "w9t5sb2rpdw",
+   "a": {
+    "c": "clx8pv3xpdw",
+    "p": 1
+   },
+   "b": {
+    "c": "cnfoxdx4pdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wwgjdcm8pdw",
+   "a": {
+    "c": "ccdp81fhpdw",
+    "p": 0
+   },
+   "b": {
+    "c": "cxf9q1i9pdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "w6vrbjs9pdw",
+   "a": {
+    "c": "ccdp81fhpdw",
+    "p": 1
+   },
+   "b": {
+    "c": "c4owzjjbpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wmywwhaspdw",
+   "a": {
+    "c": "cv4mf7ffpdw",
+    "p": 0
+   },
+   "b": {
+    "c": "cpq078mzpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "w5szrjhvpdw",
+   "a": {
+    "c": "cv4mf7ffpdw",
+    "p": 1
+   },
+   "b": {
+    "c": "cpk8a1uypdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wsin1jhapdw",
+   "a": {
+    "c": "c1vfx3glpdw",
+    "p": 0
+   },
+   "b": {
+    "c": "clwmib0bpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wdus9z28pdw",
+   "a": {
+    "c": "c1vfx3glpdw",
+    "p": 1
+   },
+   "b": {
+    "c": "crnodq5ppdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wb1u9p82pdw",
+   "a": {
+    "c": "cmo6h8lppdw",
+    "p": 0
+   },
+   "b": {
+    "c": "c8hxz08bpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wr4kdi8wpdw",
+   "a": {
+    "c": "cmo6h8lppdw",
+    "p": 1
+   },
+   "b": {
+    "c": "cnl3tbu9pdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "w834zrhgpdw",
+   "a": {
+    "c": "czxsv3tmpdw",
+    "p": 0
+   },
+   "b": {
+    "c": "c8bn0ztopdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wcimzov2pdw",
+   "a": {
+    "c": "czxsv3tmpdw",
+    "p": 3
+   },
+   "b": {
+    "c": "cipfyp3updw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wjfh7yqfpdw",
+   "a": {
+    "c": "czxsv3tmpdw",
+    "p": 4
+   },
+   "b": {
+    "c": "c9ru1emipdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wbnspiqzpdw",
+   "a": {
+    "c": "czxsv3tmpdw",
+    "p": 5
+   },
+   "b": {
+    "c": "co9z4lcwpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wcz1uiiepdw",
+   "a": {
+    "c": "czxsv3tmpdw",
+    "p": 6
+   },
+   "b": {
+    "c": "c0955yqjpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wv3vihy0pdw",
+   "a": {
+    "c": "czxsv3tmpdw",
+    "p": 7
+   },
+   "b": {
+    "c": "c7wg19eppdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wcajrcx2pdw",
+   "a": {
+    "c": "czxsv3tmpdw",
+    "p": 8
+   },
+   "b": {
+    "c": "cu724fb6pdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wbd31018pdw",
+   "a": {
+    "c": "czxsv3tmpdw",
+    "p": 9
+   },
+   "b": {
+    "c": "c4kb7pdrpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wskf345lpdw",
+   "a": {
+    "c": "czxsv3tmpdw",
+    "p": 11
+   },
+   "b": {
+    "c": "cmndxu6mpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "w0obol3tpdw",
+   "a": {
+    "c": "czxsv3tmpdw",
+    "p": 12
+   },
+   "b": {
+    "c": "cws6xmg3pdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wg972v4fpdw",
+   "a": {
+    "c": "czxsv3tmpdw",
+    "p": 13
+   },
+   "b": {
+    "c": "c4xyjw26pdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wqubfpuqpdw",
+   "a": {
+    "c": "ctfxpu9tpdw",
+    "p": 0
+   },
+   "b": {
+    "c": "cfxmm957pdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wzh0v5y7pdw",
+   "a": {
+    "c": "ctfxpu9tpdw",
+    "p": 1
+   },
+   "b": {
+    "c": "cr78i6swpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wuxlowkgpdw",
+   "a": {
+    "c": "c3vqba1gpdw",
+    "p": 0
+   },
+   "b": {
+    "c": "ccma3l08pdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wgehvjvmpdw",
+   "a": {
+    "c": "c3vqba1gpdw",
+    "p": 1
+   },
+   "b": {
+    "c": "c411tmknpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wty5b4arpdw",
+   "a": {
+    "c": "c3vqba1gpdw",
+    "p": 2
+   },
+   "b": {
+    "c": "cffuvx1lpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "w3nmdsqipdw",
+   "a": {
+    "c": "c3vqba1gpdw",
+    "p": 3
+   },
+   "b": {
+    "c": "ct35qctfpdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wlxcrtf2pdw",
+   "a": {
+    "c": "c3vqba1gpdw",
+    "p": 4
+   },
+   "b": {
+    "c": "chd308j4pdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wbl8icslpdw",
+   "a": {
+    "c": "c3vqba1gpdw",
+    "p": 5
+   },
+   "b": {
+    "c": "ckizehc6pdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "w9n5zplvpdw",
+   "a": {
+    "c": "cx0vs97zpdw",
+    "p": 0
+   },
+   "b": {
+    "c": "ckqz3iampdw",
+    "p": 0
+   }
+  },
+  {
+   "id": "wed4d35tpdw",
+   "a": {
+    "c": "cx0vs97zpdw",
+    "p": 1
+   },
+   "b": {
+    "c": "cvamfmhfpdw",
+    "p": 0
+   }
+  }
+ ],
+ "juncs": [],
+ "boards": [],
+ "status": {},
+ "readings": [],
+ "notes": "ESP32-S3 version of the BLE IMU + magnetometer tag (derived from the photo reconstruction). Verify before building.\nRadio: the ESP32-S3-WROOM-1 module brings its own crystal, flash, RF matching and PCB antenna — the nRF52832 crystals, DC/DC inductors, DEC capacitors, antenna match and SWD pads are gone. Programming and serial are over native USB (IO19/IO20) through the USB-C port, protected by U3 (USBLC6-2).\nPower: TP4054 charges the cell at 100 mA. D1 + Q1 share the load: with USB plugged the system runs from VBUS through D1 and Q1 isolates the battery; unplugged, Q1 turns on (its gate is pulled down by the VBUS-sense divider) and the cell feeds VSYS. AP2112K-3.3 (600 mA) replaces the 250 mA MCP1700 because Wi-Fi transmit bursts reach ≈ 350 mA; 22 µF + 100 nF sit at the module.\nRemoved as unnecessary: CHG and button pull-ups (use the ESP32 internal pull-ups), the 10 µF on the IMU, the reset pull-up (replaced by the EN RC), duplicated sensor caps (VDD and VDDIO share one 100 nF per sensor).\nAdded: EN reset RC (10 kΩ + 1 µF) with a RESET button, BOOT button on IO0, status LED on IO16, USB-present sense (100 k/100 k on IO2), battery sense moved behind the power path on IO1 (ADC1, works with Wi-Fi on), USB ESD protection, 10 µF on VBUS.\nGPIO map: SDA IO8, SCL IO9, IMU INT1/INT2 IO4/IO5, MAG INT IO6, button IO7, CHG IO15, LED IO16, VBAT ADC IO1, VBUS sense IO2. Strapping pins IO0, IO3, IO45, IO46 are left free (IO0 only on the BOOT button).\nBattery: the ESP32-S3 averages ≈ 80 mA with Wi-Fi and ≈ 30–60 mA with BLE only, so a 100 mAh cell lasts about 1–3 h awake; use deep sleep (≈ 8 µA) and IMU wake-on-motion interrupts for long life. See Calculators → Power budget.\nToggle S_USB in the schematic (simulation only) to watch the power path switch between USB and battery.",
+ "customParts": [
+  {
+   "name": "USB-C receptacle (USB 2.0)",
+   "cat": "ICs",
+   "desc": "USB Type-C receptacle, USB 2.0 data + power",
+   "pkg": "USB-C",
+   "layout": "dip",
+   "footprint": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
+   "functional": true,
+   "pins": [
+    [
+     "VBUS",
+     "pwr"
+    ],
+    [
+     "GND",
+     "gnd"
+    ],
+    [
+     "CC1",
+     "io"
+    ],
+    [
+     "CC2",
+     "io"
+    ],
+    [
+     "NC",
+     "nc"
+    ],
+    [
+     "SHELL",
+     "io"
+    ],
+    [
+     "D−",
+     "io"
+    ],
+    [
+     "D+",
+     "io"
+    ]
+   ],
+   "specs": [
+    [
+     "CC1/CC2",
+     "5.1 kΩ each to GND makes a sink (UFP)"
+    ],
+    [
+     "Data",
+     "D+/D− (both A and B row contacts tied together on the PCB)"
+    ]
+   ],
+   "notes": "Functional symbol: pad names depend on the connector you choose."
+  },
+  {
+   "name": "Battery wire pads",
+   "cat": "ICs",
+   "desc": "Two pads where the LiPo leads are soldered",
+   "pkg": "pads",
+   "layout": "header",
+   "left": [
+    "BT+",
+    "BT−"
+   ],
+   "right": [],
+   "footprint": "Connector_PinHeader_1.27mm:PinHeader_1x02_P1.27mm_Vertical",
+   "nums": [
+    "1",
+    "2"
+   ],
+   "specs": [
+    [
+     "Cell",
+     "3.7 V LiPo with protection board"
+    ]
+   ]
+  }
+ ]
+}

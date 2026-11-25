@@ -19,6 +19,13 @@ Pages and from the iOS Home Screen with no connection.
   - **Transistors**: 2N2222A, 2N3904, BC547, TIP31C, TIP120, 2N3906, BC557, TIP42C.
   - **MOSFETs**: IRLZ44N, IRFB4410, IRF540N, IRFZ44N, IRF3205, IRLB8721, IRFP260N, 2N7000, BSS138,
     AO3400, IRF9540N, IRF4905, AO3401.
+  - **Comparators**: LM393, LM339, LM311, LMV393 (open collector) and MCP6561, TLV3201, TLV7011 (push-pull),
+    all simulated.
+  - **Common ICs**: 74HC595 shift register, 74HC14 Schmitt inverters (simulated), ULN2003A Darlington driver
+    (simulated), L293D motor driver, TL431 reference (simulated), LM386 audio amp, TP4056 / TP4054 chargers,
+    MCP23017 I/O expander, USBLC6-2 USB ESD protection, DS18B20 and LM35 (simulated) temperature sensors,
+    INA219 current monitor, LSM6DS3 IMU, QMC5883P magnetometer, ESP32-S3-WROOM-1 module, and AP2112K-3.3 /
+    ME6211C33 LDOs with enable pins.
   - **Op-amps** (symbol + real packages): TL072/TL074/TL082, LM358/LM324, NE5532, LM741, OPA2134 and
     low-voltage / rail-to-rail MCP6001/6002/6004, LMV358, TLV9002, TLV2372, OPA2340, AD8606; LM393.
   - **Sensors**: photoresistors (GL55xx, light slider), photodiodes (BPW34, SFH203, BPW21),
@@ -183,6 +190,32 @@ Pages and from the iOS Home Screen with no connection.
   received-power-versus-distance plot and a table of what each fix buys (retune the match, +4 dBm, clear the
   antenna of metal, chip antenna). Enter the range you measured and it reports the loss the model can't
   explain, which is how to tell a detuned antenna from a weak link.
+
+- **Power budget**: the power every part dissipates or delivers, taken from the live simulation (P = V × I at
+  each pin), for the whole circuit, the current selection (**Power** button in the selection sheet) or one
+  board, with resistor-rating warnings. A battery-life planner then lists each load with its active and
+  sleep current and % of time awake (pre-filled from the simulation and typical datasheet figures for MCUs,
+  radios, sensors and regulators), for linear or switching regulation, and gives the average current,
+  battery life, peak current and energy per day.
+
+**Reference** (book button in the top bar)
+- A searchable guide to every kind of part in the library and the theory behind the simulator and the
+  calculators, written for curious non-engineers: what each part is for, how it works, how it is wired in,
+  the circuits it appears in, wiring tips, traps and common mistakes, what it is used with, and links to
+  related topics.
+- Category buttons (including **★ In this design**), full-text search with highlighting, and a "search in"
+  filter for purpose, how it works, integration, circuits, tips, traps, companions or theory.
+- Theory topics include Ohm's and Kirchhoff's laws (and how the solver works), dividers, RC/RL timing,
+  impedance, filters, resonance, decibels, op-amps, comparators and hysteresis, semiconductors, transistor
+  switching, PWM, oscillators, power supplies, decoupling, batteries and power budgets, ADCs, noise, radio
+  links, wire gauge, measurement and digital buses, each with formulas, a worked example and pitfalls.
+- Open it from a part's sheet (**Learn**) or info card, and from each calculator ("The theory behind this
+  calculator"); part-library chips in an entry add that part to the design.
+
+**Examples** (Files → Examples) include two complete designs: a BLE IMU + magnetometer tag reconstructed from
+photos (nRF52832, LSM6DS3, QMC5883P, LiPo charging) and its ESP32-S3 redesign (ESP32-S3-WROOM-1, native USB
+with ESD protection, USB/battery load sharing, AP2112K LDO, reset/boot buttons, battery and USB sensing). Toggle
+S_USB in the ESP32 design to watch the power path switch between USB and battery.
 
 **Files**
 - Saved designs live in IndexedDB on the device. You can name, rename, open, duplicate and delete them.

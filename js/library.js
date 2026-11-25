@@ -100,6 +100,8 @@ export const PARTS = {
   'AMS1117-3.3': { type: 'reg', desc: 'LDO 3.3 V, 1 A', pkg: 'SOT-223', vout: 3.3, drop: 1.1, iq: 5e-3, ilim: 1.0, vinMax: 15, nums: ['3', '2', '1'], pinout: [['1', 'GND/ADJ'], ['2', 'OUT (tab)'], ['3', 'IN']], specs: [['Vout', '3.3 V ±1%'], ['Vin', '4.5–15 V'], ['Dropout', '1.1 V typ @ 800 mA'], ['Iout', '1 A'], ['Iq', '5 mA'], ['Caps', '≥10 µF tantalum out (ESR!)']] },
   'AMS1117-5.0': { type: 'reg', desc: 'LDO 5.0 V, 1 A', pkg: 'SOT-223', vout: 5.0, drop: 1.1, iq: 5e-3, ilim: 1.0, vinMax: 15, nums: ['3', '2', '1'], pinout: [['1', 'GND/ADJ'], ['2', 'OUT (tab)'], ['3', 'IN']], specs: [['Vout', '5.0 V'], ['Vin', '6.5–15 V'], ['Dropout', '1.1 V'], ['Iout', '1 A']] },
   'LM2940-5': { type: 'reg', desc: 'Low-dropout 5 V, 1 A', pkg: 'TO-220', vout: 5, drop: 0.5, iq: 10e-3, ilim: 1.0, vinMax: 26, nums: ['1', '3', '2'], pinout: [['1', 'IN'], ['2', 'GND (tab)'], ['3', 'OUT']], specs: [['Vout', '5 V'], ['Dropout', '0.5 V @ 1 A'], ['Iout', '1 A'], ['Cout', '≥22 µF required']] },
+  'AP2112K-3.3': { type: 'reg', desc: 'LDO 3.3 V, 600 mA, 250 mV dropout, enable pin', pkg: 'SOT-23-5', vout: 3.3, drop: 0.25, iq: 55e-6, ilim: 0.6, vinMax: 6, en: true, nums: ['1', '5', '2', '3'], pinout: [['1', 'VIN'], ['2', 'GND'], ['3', 'EN'], ['4', 'NC'], ['5', 'VOUT']], specs: [['Vout', '3.3 V ±1.5%'], ['Vin', '2.5–6 V'], ['Dropout', '250 mV @ 600 mA'], ['Iout', '600 mA'], ['Iq', '55 µA'], ['EN', 'high = on (tie to VIN if unused)'], ['Caps', '1 µF in, 1 µF out (ceramic OK)']] },
+  'ME6211C33': { type: 'reg', desc: 'LDO 3.3 V, 500 mA, enable pin, low quiescent', pkg: 'SOT-23-5', vout: 3.3, drop: 0.1, iq: 40e-6, ilim: 0.5, vinMax: 6.5, en: true, nums: ['1', '5', '2', '3'], pinout: [['1', 'VIN'], ['2', 'VSS'], ['3', 'CE'], ['4', 'NC'], ['5', 'VOUT']], specs: [['Vout', '3.3 V ±2%'], ['Vin', '2–6 V'], ['Dropout', '100 mV @ 100 mA'], ['Iout', '500 mA'], ['Iq', '40 µA'], ['Caps', '1 µF in, 1 µF out']] },
   'MCP1700-3302': { type: 'reg', desc: 'Micro-power LDO 3.3 V, 250 mA', pkg: 'TO-92', vout: 3.3, drop: 0.178, iq: 1.6e-6, ilim: 0.25, vinMax: 6, nums: ['2', '3', '1'], pinout: [['1', 'GND'], ['2', 'IN'], ['3', 'OUT']], specs: [['Vout', '3.3 V'], ['Vin', '≤ 6 V'], ['Dropout', '178 mV @ 250 mA'], ['Iq', '1.6 µA'], ['Caps', '1 µF in/out']] },
 };
 
@@ -166,7 +168,7 @@ export const ICS = {
     pins: [['OUT1', 'out'], ['IN1−', 'in'], ['IN1+', 'in'], ['V+', 'pwr'], ['IN2+', 'in'], ['IN2−', 'in'], ['OUT2', 'out'], ['OUT3', 'out'], ['IN3−', 'in'], ['IN3+', 'in'], ['V−', 'pwr'], ['IN4+', 'in'], ['IN4−', 'in'], ['OUT4', 'out']],
     units: [1, 2, 3, 4].map((i) => ({ k: 'opamp', model: 'TL072', inp: `IN${i}+`, inn: `IN${i}−`, out: `OUT${i}`, vp: 'V+', vn: 'V−' })),
     specs: [['Supply', '±3.5 … ±18 V'], ['GBW', '3 MHz'], ['Slew rate', '13 V/µs'], ['Note', 'V+ is pin 4, V− pin 11']] },
-  'LM393-IC': { cat: 'Op-amps', name: 'LM393', desc: 'Dual open-collector comparator', pkg: 'DIP-8', layout: 'dip',
+  'LM393-IC': { cat: 'Comparators', name: 'LM393', desc: 'Dual open-collector comparator', pkg: 'DIP-8', layout: 'dip',
     pins: [['OUT1', 'out'], ['IN1−', 'in'], ['IN1+', 'in'], ['GND', 'gnd'], ['IN2+', 'in'], ['IN2−', 'in'], ['OUT2', 'out'], ['VCC', 'pwr']],
     units: [{ k: 'cmp', inp: 'IN1+', inn: 'IN1−', out: 'OUT1', vp: 'VCC', vn: 'GND' }, { k: 'cmp', inp: 'IN2+', inn: 'IN2−', out: 'OUT2', vp: 'VCC', vn: 'GND' }],
     specs: [['Supply', '2–36 V'], ['Output', 'open collector — needs pull-up'], ['Sink', '16 mA typ'], ['Response', '1.3 µs'], ['Input CM', '0 to VCC−1.5 V']] },
@@ -433,6 +435,106 @@ Object.assign(ICS, {
   'Custom board': { cat: 'MCU boards', desc: 'Define your own board — edit the pin lists in properties, or use “New custom part” to save it to your library', pkg: 'header', layout: 'header', customInline: true,
     left: ['5V', 'GND', '3V3', 'IO1', 'IO2'], right: ['IO3', 'IO4', 'IO5', 'IO6', 'IO7'],
     units: [{ k: 'mcu', vlogic: 3.3, v5: '5V', v3: '3V3', gnd: 'GND', drop: 0.3, ilim: 0.5, load: 0.05 }], specs: [] },
+});
+// ---------- comparators, logic, drivers, power, interface, sensors, modules ----------
+const cmpPP = (o) => ({ k: 'cmp', pp: true, inp: 'IN+', inn: 'IN−', out: 'OUT', vp: 'V+', vn: 'V−', ...o });
+Object.assign(ICS, {
+  'LM339': { cat: 'Comparators', name: 'LM339', desc: 'Quad open-collector comparator', pkg: 'DIP-14 / SOIC-14', layout: 'dip',
+    pins: [['OUT2', 'out'], ['OUT1', 'out'], ['VCC', 'pwr'], ['IN1−', 'in'], ['IN1+', 'in'], ['IN2−', 'in'], ['IN2+', 'in'], ['IN3−', 'in'], ['IN3+', 'in'], ['IN4−', 'in'], ['IN4+', 'in'], ['GND', 'gnd'], ['OUT4', 'out'], ['OUT3', 'out']],
+    units: [1, 2, 3, 4].map((i) => ({ k: 'cmp', inp: `IN${i}+`, inn: `IN${i}−`, out: `OUT${i}`, vp: 'VCC', vn: 'GND', vmin: 2, iq: 0.2e-3 })),
+    specs: [['Supply', '2–36 V (±1–18 V)'], ['Output', 'open collector — needs a pull-up (1–10 kΩ)'], ['Sink', '16 mA typ'], ['Response', '1.3 µs'], ['Input CM', '0 to VCC − 1.5 V'], ['Iq', '0.8 mA (all four)']],
+    notes: 'Unused comparators: tie both inputs to GND. Add hysteresis with a resistor from OUT to IN+ if the input is slow or noisy.' },
+  'LM311': { cat: 'Comparators', name: 'LM311', desc: 'Single fast comparator, open-collector output with separate emitter', pkg: 'DIP-8 / SOIC-8', layout: 'dip',
+    pins: [['GND', 'gnd'], ['IN+', 'in'], ['IN−', 'in'], ['V−', 'pwr'], ['BAL', 'io'], ['BAL/STB', 'io'], ['OUT', 'out'], ['V+', 'pwr']],
+    units: [{ k: 'cmp', inp: 'IN+', inn: 'IN−', out: 'OUT', vp: 'V+', vn: 'GND', vmin: 3.5, isink: 0.05, iq: 5e-3 }],
+    specs: [['Supply', '5–30 V single or ±15 V'], ['Output', 'open collector, 50 mA sink; emitter on pin 1 (usually GND)'], ['Response', '200 ns'], ['Strobe', 'pull pin 6 low to force the output off']],
+    notes: 'Pin 1 is the output transistor emitter — connect it to ground for logic outputs. Leave BAL pins open unless trimming offset.' },
+  'LMV393': { cat: 'Comparators', name: 'LMV393', desc: 'Dual low-voltage open-collector comparator (LM393 pinout)', pkg: 'SOIC-8 / MSOP-8', layout: 'dip',
+    pins: [['OUT1', 'out'], ['IN1−', 'in'], ['IN1+', 'in'], ['GND', 'gnd'], ['IN2+', 'in'], ['IN2−', 'in'], ['OUT2', 'out'], ['VCC', 'pwr']],
+    units: [1, 2].map((i) => ({ k: 'cmp', inp: `IN${i}+`, inn: `IN${i}−`, out: `OUT${i}`, vp: 'VCC', vn: 'GND', vmin: 2.7, iq: 60e-6, isink: 0.01 })),
+    specs: [['Supply', '2.7–5.5 V'], ['Output', 'open collector — pull up to the logic rail'], ['Response', '≈ 600 ns'], ['Iq', '≈ 100 µA per channel']] },
+  'MCP6561': { cat: 'Comparators', name: 'MCP6561', desc: 'Low-power push-pull comparator, rail-to-rail input', pkg: 'SOT-23-5', layout: 'dip', nums: ['1', '2', '3', '4', '5', ''],
+    pins: [['OUT', 'out'], ['VSS', 'gnd'], ['IN+', 'in'], ['IN−', 'in'], ['VDD', 'pwr'], ['NC', 'nc']],
+    units: [cmpPP({ vp: 'VDD', vn: 'VSS', vmin: 1.8, iq: 100e-6 })],
+    specs: [['Supply', '1.8–5.5 V'], ['Output', 'push-pull, no pull-up needed'], ['Response', '≈ 50 ns'], ['Iq', '100 µA'], ['Hysteresis', '≈ 3.5 mV built in']] },
+  'TLV3201': { cat: 'Comparators', name: 'TLV3201', desc: 'Fast push-pull comparator, rail-to-rail input', pkg: 'SOT-23-5', layout: 'dip', nums: ['1', '2', '3', '4', '5', ''],
+    pins: [['OUT', 'out'], ['V−', 'gnd'], ['IN+', 'in'], ['IN−', 'in'], ['V+', 'pwr'], ['NC', 'nc']],
+    units: [cmpPP({ vmin: 2.7, iq: 40e-6 })],
+    specs: [['Supply', '2.7–5.5 V'], ['Output', 'push-pull'], ['Propagation', '40 ns'], ['Iq', '40 µA'], ['Hysteresis', '≈ 1.2 mV built in']] },
+  'TLV7011': { cat: 'Comparators', name: 'TLV7011', desc: 'Nanopower push-pull comparator (0.3 µA) for battery wake-up / threshold detectors', pkg: 'SOT-23-5', layout: 'dip', nums: ['1', '2', '3', '4', '5', ''],
+    pins: [['OUT', 'out'], ['V−', 'gnd'], ['IN+', 'in'], ['IN−', 'in'], ['V+', 'pwr'], ['NC', 'nc']],
+    units: [cmpPP({ vmin: 1.6, iq: 0.335e-6, rout: 200 })],
+    specs: [['Supply', '1.6–5.5 V'], ['Output', 'push-pull'], ['Propagation', '≈ 260 ns'], ['Iq', '335 nA']], notes: 'Pinout as for the SOT-23-5 version — check the TI datasheet for the package you buy.' },
+  '74HC595': { cat: 'Logic & interface', name: '74HC595', desc: '8-bit serial-in, parallel-out shift register with output latch', pkg: 'DIP-16 / SOIC-16', layout: 'dip',
+    pins: [['QB', 'out'], ['QC', 'out'], ['QD', 'out'], ['QE', 'out'], ['QF', 'out'], ['QG', 'out'], ['QH', 'out'], ['GND', 'gnd'], ["QH'", 'out'], ['SRCLR', 'in'], ['SRCLK', 'in'], ['RCLK', 'in'], ['OE', 'in'], ['SER', 'in'], ['QA', 'out'], ['VCC', 'pwr']],
+    units: [{ k: 'mod', vcc: 'VCC', gnd: 'GND', i: 80e-6, vnom: 5 }],
+    specs: [['Supply', '2–6 V'], ['Outputs', '±6 mA each (≈ 70 mA total)'], ['SRCLR', 'active low — tie to VCC'], ['OE', 'active low — tie to GND to enable'], ['Chain', "QH' → SER of the next chip"]],
+    notes: 'Clock data in on SRCLK, then pulse RCLK to copy it to the outputs. 100 nF from VCC to GND at the chip.' },
+  '74HC14': { cat: 'Logic & interface', name: '74HC14', desc: 'Hex Schmitt-trigger inverter (cleans slow or noisy edges, debounce)', pkg: 'DIP-14 / SOIC-14', layout: 'dip',
+    pins: [['1A', 'in'], ['1Y', 'out'], ['2A', 'in'], ['2Y', 'out'], ['3A', 'in'], ['3Y', 'out'], ['GND', 'gnd'], ['4Y', 'out'], ['4A', 'in'], ['5Y', 'out'], ['5A', 'in'], ['6Y', 'out'], ['6A', 'in'], ['VCC', 'pwr']],
+    units: [1, 2, 3, 4, 5, 6].map((i) => ({ k: 'logic', inv: true, in: `${i}A`, out: `${i}Y`, vdd: 'VCC', gnd: 'GND' })),
+    specs: [['Supply', '2–6 V'], ['Thresholds @5 V', '≈ 2.9 V rising / 1.8 V falling'], ['Output', '±4 mA (±25 mA abs max)']], notes: 'Tie unused inputs to GND or VCC — floating CMOS inputs oscillate and waste current.' },
+  'ULN2003A': { cat: 'Drivers', name: 'ULN2003A', desc: '7-channel Darlington sink driver with flyback diodes', pkg: 'DIP-16 / SOIC-16', layout: 'dip',
+    pins: [['IN1', 'in'], ['IN2', 'in'], ['IN3', 'in'], ['IN4', 'in'], ['IN5', 'in'], ['IN6', 'in'], ['IN7', 'in'], ['GND', 'gnd'], ['COM', 'io'], ['OUT7', 'out'], ['OUT6', 'out'], ['OUT5', 'out'], ['OUT4', 'out'], ['OUT3', 'out'], ['OUT2', 'out'], ['OUT1', 'out']],
+    units: [1, 2, 3, 4, 5, 6, 7].map((i) => ({ k: 'sink', in: `IN${i}`, out: `OUT${i}`, gnd: 'GND' })),
+    specs: [['Outputs', '500 mA sink each, 50 V'], ['Input', '5 V / 3.3 V logic (2.7 kΩ inside)'], ['Saturation', '≈ 0.9–1.1 V'], ['COM', 'flyback diode common — connect to the load supply']],
+    notes: 'Loads go between the supply and OUTx; tie COM to that supply when driving relays, solenoids or steppers.' },
+  'L293D': { cat: 'Drivers', name: 'L293D', desc: 'Quad half-H driver (two DC motors or one stepper), clamp diodes built in', pkg: 'DIP-16', layout: 'dip',
+    pins: [['EN12', 'in'], ['1A', 'in'], ['1Y', 'out'], ['GND', 'gnd'], ['GND', 'gnd'], ['2Y', 'out'], ['2A', 'in'], ['VCC2', 'pwr'], ['EN34', 'in'], ['3A', 'in'], ['3Y', 'out'], ['GND', 'gnd'], ['GND', 'gnd'], ['4Y', 'out'], ['4A', 'in'], ['VCC1', 'pwr']],
+    units: [{ k: 'mod', vcc: 'VCC1', gnd: 'GND', i: 0.024, vnom: 5 }],
+    specs: [['VCC1 (logic)', '4.5–7 V'], ['VCC2 (motor)', '4.5–36 V'], ['Current', '600 mA per channel (1.2 A peak)'], ['Drop', '≈ 1.4 V high side + 1.2 V low side'], ['Heat', 'GND pins 4,5,12,13 are the heatsink']] },
+  'TL431': { cat: 'Power ICs', name: 'TL431', desc: 'Adjustable shunt voltage reference (2.495 V)', pkg: 'TO-92', layout: 'dip', nums: ['1', '2', '3', ''],
+    pins: [['REF', 'in'], ['ANODE', 'gnd'], ['CATHODE', 'io'], ['NC', 'nc']],
+    units: [{ k: 'tl431', ref: 'REF', k2: 'CATHODE', a: 'ANODE' }],
+    specs: [['Vref', '2.495 V ±0.5–2 %'], ['Cathode', '1 mA … 100 mA, up to 36 V'], ['Set', 'Vout = 2.495 × (1 + R1/R2)']], notes: 'Needs at least 1 mA through it (series resistor from the supply). TO-92 pin order REF, ANODE, CATHODE — check your package.' },
+  'LM386': { cat: 'Drivers', name: 'LM386', desc: 'Low-voltage audio power amplifier (gain 20–200)', pkg: 'DIP-8', layout: 'dip',
+    pins: [['GAIN1', 'io'], ['IN−', 'in'], ['IN+', 'in'], ['GND', 'gnd'], ['VOUT', 'out'], ['VS', 'pwr'], ['BYPASS', 'io'], ['GAIN8', 'io']],
+    units: [{ k: 'mod', vcc: 'VS', gnd: 'GND', i: 4e-3, vnom: 9 }],
+    specs: [['Supply', '4–12 V'], ['Gain', '20 (pins 1/8 open) … 200 (10 µF across 1–8)'], ['Output', '≈ 0.3–1 W into 8 Ω'], ['Parts', '250 µF out to speaker, 10 Ω + 47 nF Zobel, 10 µF on BYPASS']] },
+  'TP4056': { cat: 'Power ICs', name: 'TP4056', desc: '1 A linear Li-ion charger, CC/CV to 4.2 V', pkg: 'SOP-8 (exposed pad)', layout: 'dip',
+    pins: [['TEMP', 'in'], ['PROG', 'io'], ['GND', 'gnd'], ['VCC', 'pwr'], ['BAT', 'io'], ['STDBY', 'out'], ['CHRG', 'out'], ['CE', 'in']],
+    units: [{ k: 'mod', vcc: 'VCC', gnd: 'GND', i: 0.3e-3, vnom: 5 }],
+    specs: [['Charge current', '1200 / R_PROG(kΩ) mA (1.2 kΩ → 1 A)'], ['Float voltage', '4.2 V ±1 %'], ['Status', 'CHRG / STDBY open-drain (LEDs)'], ['TEMP', 'tie to GND if no NTC'], ['CE', 'tie high to enable']], notes: 'Charges only — add a protection IC (DW01 + MOSFETs) unless the cell has one, and a load-sharing path if the circuit runs while charging.' },
+  'TP4054': { cat: 'Power ICs', name: 'TP4054', desc: '500 mA linear Li-ion charger, CC/CV to 4.2 V', pkg: 'SOT-23-5', layout: 'dip', nums: ['1', '2', '3', '4', '5', ''],
+    pins: [['CHRG', 'out'], ['GND', 'gnd'], ['BAT', 'io'], ['VCC', 'pwr'], ['PROG', 'io'], ['NC', 'nc']],
+    units: [{ k: 'mod', vcc: 'VCC', gnd: 'GND', i: 0.2e-3, vnom: 5 }],
+    specs: [['Charge current', '1000 / R_PROG(kΩ) mA'], ['Float voltage', '4.2 V'], ['Status', 'CHRG open-drain, low while charging']] },
+  'MCP23017': { cat: 'Logic & interface', name: 'MCP23017', desc: '16-bit I²C GPIO expander with interrupts', pkg: 'DIP-28 / SOIC-28', layout: 'dip',
+    pins: [['GPB0', 'io'], ['GPB1', 'io'], ['GPB2', 'io'], ['GPB3', 'io'], ['GPB4', 'io'], ['GPB5', 'io'], ['GPB6', 'io'], ['GPB7', 'io'], ['VDD', 'pwr'], ['VSS', 'gnd'], ['NC', 'nc'], ['SCL', 'in'], ['SDA', 'io'], ['NC', 'nc'], ['A0', 'in'], ['A1', 'in'], ['A2', 'in'], ['RESET', 'in'], ['INTB', 'out'], ['INTA', 'out'], ['GPA0', 'io'], ['GPA1', 'io'], ['GPA2', 'io'], ['GPA3', 'io'], ['GPA4', 'io'], ['GPA5', 'io'], ['GPA6', 'io'], ['GPA7', 'io']],
+    units: [{ k: 'mod', vcc: 'VDD', gnd: 'VSS', i: 1e-3, vnom: 3.3 }],
+    specs: [['Supply', '1.8–5.5 V'], ['I²C', '0x20–0x27 (A2..A0), up to 1.7 MHz'], ['Outputs', '25 mA each'], ['RESET', 'active low — tie to VDD']] },
+  'USBLC6-2SC6': { cat: 'Power ICs', name: 'USBLC6-2', desc: 'Low-capacitance ESD protection for USB D+/D− and VBUS', pkg: 'SOT-23-6', layout: 'dip',
+    pins: [['IO1', 'io'], ['GND', 'gnd'], ['IO2', 'io'], ['IO2', 'io'], ['VBUS', 'pwr'], ['IO1', 'io']],
+    units: [],
+    specs: [['Lines', '2 data lines + VBUS rail'], ['Capacitance', '≈ 3.5 pF per line'], ['ESD', '±15 kV air / ±8 kV contact']], notes: 'Pins 1/6 and 3/4 are the same line (flow-through). Place right next to the connector.' },
+  'DS18B20': { cat: 'Sensors', name: 'DS18B20', desc: '1-Wire digital temperature sensor (−55…125 °C)', pkg: 'TO-92', layout: 'dip', nums: ['1', '2', '3', ''],
+    pins: [['GND', 'gnd'], ['DQ', 'io'], ['VDD', 'pwr'], ['NC', 'nc']],
+    units: [{ k: 'mod', vcc: 'VDD', gnd: 'GND', i: 1e-3, vnom: 3.3, pullups: [] }],
+    specs: [['Accuracy', '±0.5 °C (−10…85 °C)'], ['Bus', '1-Wire, 4.7 kΩ pull-up DQ → VDD'], ['Supply', '3.0–5.5 V'], ['Conversion', '750 ms at 12 bits']] },
+  'LM35': { cat: 'Sensors', name: 'LM35', desc: 'Analog temperature sensor, 10 mV/°C', pkg: 'TO-92', layout: 'dip', nums: ['1', '2', '3', ''],
+    pins: [['+VS', 'pwr'], ['VOUT', 'out'], ['GND', 'gnd'], ['NC', 'nc']],
+    extraProps: [opt('temp', 'Temperature', '25', { unit: '°C', eng: true })],
+    units: [{ k: 'lm35', vs: '+VS', out: 'VOUT', gnd: 'GND' }],
+    specs: [['Output', '10 mV/°C (250 mV at 25 °C)'], ['Supply', '4–30 V'], ['Accuracy', '±0.5 °C at 25 °C'], ['Load', 'keep capacitive load < 50 pF, or add 75 Ω + 1 µF']] },
+  'INA219 module': { cat: 'Sensors', name: 'INA219', desc: 'High-side current / power monitor, I²C (breakout with 0.1 Ω shunt)', pkg: 'breakout', layout: 'header',
+    left: ['VCC', 'GND', 'SCL', 'SDA'], right: ['VIN+', 'VIN−'],
+    units: [{ k: 'mod', vcc: 'VCC', gnd: 'GND', i: 1e-3, vnom: 3.3, pullups: ['SDA', 'SCL'], rpu: 10e3 }, { k: 'shunt', a: 'VIN+', b: 'VIN−', r: 0.1 }],
+    specs: [['Range', '±3.2 A with 0.1 Ω shunt, bus up to 26 V'], ['Interface', 'I²C 0x40–0x4F'], ['Supply', '3–5.5 V']], notes: 'The load current flows VIN+ → VIN− through the shunt; put it in the positive supply line.' },
+  'LSM6DS3': { cat: 'Sensors', name: 'LSM6DS3', desc: '6-axis IMU: 3-axis accelerometer + 3-axis gyroscope, I²C/SPI', pkg: 'LGA-14 2.5×3 mm', layout: 'dip', footprint: 'Package_LGA:LGA-14_3x2.5mm_P0.5mm_LayoutBorder3x4y',
+    pins: [['SDO/SA0', 'in'], ['SDx', 'io'], ['SCx', 'io'], ['INT1', 'out'], ['VDDIO', 'pwr'], ['GND', 'gnd'], ['GND', 'gnd'], ['VDD', 'pwr'], ['INT2', 'out'], ['OCS_Aux', 'in'], ['SDO_Aux', 'out'], ['CS', 'in'], ['SCL', 'in'], ['SDA', 'io']],
+    units: [{ k: 'mod', vcc: 'VDD', gnd: 'GND', i: 0.9e-3, vnom: 3.3 }],
+    specs: [['Accel', '±2/4/8/16 g'], ['Gyro', '±125…±2000 dps'], ['I²C', '0x6A (SA0 low) / 0x6B'], ['Supply', 'VDD 1.71–3.6 V, VDDIO 1.62–3.6 V'], ['Current', '0.9 mA both on, 6 µA power-down']],
+    notes: 'CS high selects I²C. Pin order follows the ST LGA-14 numbering — verify against the datasheet.' },
+  'QMC5883P': { cat: 'Sensors', name: 'QMC5883P', desc: '3-axis magnetometer, I²C 0x2C (newer QMC5883L successor)', pkg: 'LGA-16 3×3 mm', layout: 'dip',
+    pins: [['SCL', 'in'], ['SDA', 'io'], ['VDD', 'pwr'], ['VDDIO', 'pwr'], ['GND', 'gnd'], ['INT', 'out'], ['NC', 'nc'], ['NC', 'nc']],
+    units: [{ k: 'mod', vcc: 'VDD', gnd: 'GND', i: 0.2e-3, vnom: 3.3 }],
+    specs: [['Range', '±30 G / ±8 G'], ['I²C', '0x2C'], ['Supply', '2.5–3.6 V'], ['ODR', 'up to 200 Hz']], notes: 'Functional pin list (not package pad numbers).' },
+  'ESP32-S3-WROOM-1': { cat: 'MCU boards', name: 'ESP32-S3-WROOM-1', desc: 'ESP32-S3 module (Wi-Fi + BLE 5, PCB antenna, flash) for your own PCB — 3.3 V only', pkg: 'module 18×25.5 mm, 41 pads', layout: 'header', footprint: 'RF_Module:ESP32-S3-WROOM-1',
+    left: ['GND', '3V3', 'EN', 'IO4', 'IO5', 'IO6', 'IO7', 'IO15', 'IO16', 'IO17', 'IO18', 'IO8', 'IO19', 'IO20', 'IO3', 'IO46', 'IO9', 'IO10', 'IO11', 'IO12'],
+    right: ['IO13', 'IO14', 'IO21', 'IO47', 'IO48', 'IO45', 'IO0', 'IO35', 'IO36', 'IO37', 'IO38', 'IO39', 'IO40', 'IO41', 'IO42', 'RXD0', 'TXD0', 'IO2', 'IO1', 'GND', 'GND'],
+    units: [{ k: 'mod', vcc: '3V3', gnd: 'GND', i: 0.08, vnom: 3.3 }],
+    specs: [['Supply', '3.0–3.6 V, ≥ 500 mA peaks (Wi-Fi TX ≈ 350 mA)'], ['Current', 'Wi-Fi ≈ 80–110 mA avg, light sleep ≈ 0.24 mA, deep sleep ≈ 8 µA'], ['EN', '10 kΩ pull-up + 1 µF to GND (reset delay)'], ['Strapping', 'IO0 (boot), IO3, IO45, IO46 — leave free'], ['USB', 'native USB D−/D+ on IO19/IO20'], ['ADC', 'ADC1 = IO1–IO10 (usable with Wi-Fi)']],
+    notes: 'Pads in datasheet order (1 GND, 2 3V3, 3 EN … 40 GND, 41 exposed pad GND). Keep the antenna end over the board edge with no copper underneath.' },
 });
 export const CUSTOM_INLINE_PROPS = [opt('title', 'Board name', 'My ESP32'), opt('leftPins', 'Left header (top→bottom, comma/newline)', '5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5'), opt('rightPins', 'Right header (top→bottom)', 'IO6, IO7, IO8, IO9, IO10, IO11, IO12, IO13'), opt('vlogic', 'Logic level', '3.3', { unit: 'V', eng: true }), opt('vinPin', 'USB / VIN pin name', '5V'), opt('railPin', '3.3 V rail pin name', '3V3')];
 
@@ -769,16 +871,28 @@ export const TYPES = {
   },
   reg: {
     name: 'Voltage regulator', prefix: 'U', cat: 'Regulators', nonlinear: true,
-    pins: (c) => { const m = PARTS[c.props.part] || PARTS['7805']; const nn = m.nums || ['1', '3', '2']; return [{ x: -50, y: 0, name: 'IN', num: nn[0] }, { x: 50, y: 0, name: 'OUT', num: nn[1] }, { x: 0, y: 40, name: m.adj ? 'ADJ' : 'GND', num: nn[2] }]; },
+    pins: (c) => { const m = PARTS[c.props.part] || PARTS['7805']; const nn = m.nums || ['1', '3', '2']; const p = [{ x: -50, y: 0, name: 'IN', num: nn[0] }, { x: 50, y: 0, name: 'OUT', num: nn[1] }, { x: 0, y: 40, name: m.adj ? 'ADJ' : 'GND', num: nn[2] }]; if (m.en) p.push({ x: -50, y: 20, name: 'EN', num: nn[3] }); return p; },
     bbox: { x: -50, y: -20, w: 100, h: 60 },
     props: [opt('part', 'Part', '7805', { parts: 'reg' })],
     draw: (c) => {
       const m = PARTS[c.props.part] || PARTS['7805'];
+      if (m.en) return { s: `<rect class="s body" x="-36" y="-20" width="72" height="44" rx="3"/>` + P('M-50,0H-36M36,0H50M0,24V40M-50,20H-36'), t: [T(0, -8, c.props.part, 'tic'), T(-31, 4, 'IN', 'tpin', 'start'), T(31, 4, 'OUT', 'tpin', 'end'), T(-31, 18, 'EN', 'tpin', 'start'), T(8, 18, 'GND', 'tpin')] };
       return { s: `<rect class="s body" x="-36" y="-20" width="72" height="40" rx="3"/>` + P('M-50,0H-36M36,0H50M0,20V40'), t: [T(0, -6, c.props.part, 'tic'), T(-31, 9, 'IN', 'tpin', 'start'), T(31, 9, 'OUT', 'tpin', 'end'), T(0, 15, m.adj ? 'ADJ' : 'GND', 'tpin')] };
     },
     label: () => '',
     stamp: (S, n, c) => {
       const m = PARTS[c.props.part] || PARTS['7805'];
+      if (m.en) {
+        S.nl([n[0], n[1], n[2], n[3]], (v) => {
+          const [vi, vo, vg, ven] = v;
+          const on = sig((ven - vg - 0.9) / 0.05);
+          const vt = vg + on * spos(smin(m.vout, vi - vg - m.drop), 0.02);
+          const s = drive(vo, vt, 0.05, m.ilim), sp = fromRail(s, vi, vo);
+          const iq = (on * m.iq + 0.1e-6) * Math.tanh(spos(vi - vg, 0.01) / 3), ien = (ven - vg) * 1e-7;
+          return [sp + iq, -s, s - sp - iq - ien, ien];
+        });
+        return;
+      }
       S.nl([n[0], n[1], n[2]], (v) => {
         const [vi, vo, vg] = v;
         let vt;
@@ -868,12 +982,62 @@ function icStamp(S, n, c, e) {
       const m = PARTS[u.model] || PARTS.TL072;
       S.nl([node(u.inp), node(u.inn), node(u.out), node(u.vp), node(u.vn)], opampFn(m, null, gainOf(S)), { acScale: opampAC(m.gbw) });
     } else if (u.k === 'cmp') {
-      S.nl([node(u.inp), node(u.inn), node(u.out), node(u.vp), node(u.vn)], (v) => {
-        const on = sig(-(v[0] - v[1]) / w1) * sig((v[3] - v[4] - 1.5) / 0.1);
-        const isink = 0.016 * Math.tanh((v[2] - v[4]) / (50 * 0.016)) * on;
-        const iq = 0.4e-3 * Math.tanh(spos(v[3] - v[4], 0.01) / 2);
-        return [v[0] * 1e-12, v[1] * 1e-12, isink, iq, -isink - iq];
+      const vmin = u.vmin ?? 1.5, ik = u.isink ?? 0.016, iq0 = u.iq ?? 0.4e-3;
+      if (u.pp) {
+        // push-pull output: drives to the rails through a small output resistance
+        S.nl([node(u.inp), node(u.inn), node(u.out), node(u.vp), node(u.vn)], (v) => {
+          const sup = sig((v[3] - v[4] - vmin) / 0.1), hi = sig((v[0] - v[1]) / w1);
+          const vt = v[4] + hi * (v[3] - v[4]);
+          const s = drive(v[2], vt, u.rout ?? 60, u.ilim ?? 0.025) * sup, sp = fromRail(s, v[3], v[2]);
+          const iq = iq0 * Math.tanh(spos(v[3] - v[4], 0.01) / 2);
+          return [v[0] * 1e-12, v[1] * 1e-12, -s, sp + iq, s - sp - iq];
+        });
+      } else {
+        S.nl([node(u.inp), node(u.inn), node(u.out), node(u.vp), node(u.vn)], (v) => {
+          const on = sig(-(v[0] - v[1]) / w1) * sig((v[3] - v[4] - vmin) / 0.1);
+          const isink = ik * Math.tanh((v[2] - v[4]) / (50 * ik)) * on;
+          const iq = iq0 * Math.tanh(spos(v[3] - v[4], 0.01) / 2);
+          return [v[0] * 1e-12, v[1] * 1e-12, isink, iq, -isink - iq];
+        });
+      }
+    } else if (u.k === 'logic') {
+      // CMOS gate (inverter or buffer); threshold at half supply, Schmitt hysteresis ignored in DC
+      S.nl([node(u.in), node(u.out), node(u.vdd), node(u.gnd)], (v) => {
+        const [vin, vo, vdd, vg] = v;
+        let l = sig((vin - vg - 0.5 * (vdd - vg)) / w5);
+        if (u.inv) l = 1 - l;
+        l *= sig((vdd - vg - 1.5) / 0.1);
+        const s = drive(vo, vg + l * (vdd - vg), u.rout ?? 50, u.ilim ?? 0.025), sp = fromRail(s, vdd, vo);
+        const iq = 1e-6 * Math.tanh(spos(vdd - vg, 0.01));
+        return [vin * 1e-12, -s, sp + iq, s - sp - iq];
       });
+    } else if (u.k === 'sink') {
+      // Darlington low-side sink (ULN2003 channel): 2.7 kΩ base resistor, ≈ 0.9 V saturation
+      S.nl([node(u.in), node(u.out), node(u.gnd)], (v) => {
+        const vb = v[0] - v[2];
+        const on = sig((vb - 1.4) / 0.08), iin = spos(vb - 1.4, 0.01) / 2700;
+        const isk = (u.imax ?? 0.5) * Math.tanh(spos(v[1] - v[2] - 0.85, 0.02) / 0.25) * on;
+        return [iin, isk, -iin - isk];
+      });
+    } else if (u.k === 'tl431') {
+      // shunt regulator: sinks cathode current until REF sits 2.495 V above the anode
+      S.nl([node(u.ref), node(u.k2), node(u.a)], (v) => {
+        const x = v[0] - v[2] - 2.495, en = sig((v[1] - v[2] - 1.0) / 0.1);
+        const ik = 0.1 * Math.tanh((8 * spos(x, 1e-4)) / 0.1) * en + 0.3e-3 * Math.tanh(spos(v[1] - v[2], 0.01));
+        const iref = 2e-6 * Math.tanh(v[0] - v[2]);
+        return [iref, ik, -ik - iref];
+      });
+    } else if (u.k === 'lm35') {
+      const t = num(c.props.temp, 25);
+      S.nl([node(u.vs), node(u.out), node(u.gnd)], (v) => {
+        const vt = v[2] + 0.01 * t * sig((v[0] - v[2] - 3.5) / 0.1);
+        const s = drive(v[1], vt, 1, 0.01), sp = fromRail(s, v[0], v[1]);
+        const iq = 60e-6 * Math.tanh(spos(v[0] - v[2], 0.01));
+        return [sp + iq, -s, s - sp - iq];
+      });
+    } else if (u.k === 'shunt') {
+      const ia = idx(u.a), ib = idx(u.b);
+      if (ia >= 0 && ib >= 0) S.R(n[ia], n[ib], u.r);
     } else if (u.k === 'drv') {
       S.nl([node(u.in), node(u.out), node(u.vdd), node(u.gnd)], (v) => {
         const [vin, vo, vdd, vg] = v;
@@ -1137,7 +1301,7 @@ export const PALETTE = [
   ...['IRLZ44N', 'IRFB4410', 'IRF540N', 'IRFZ44N', 'IRF3205', 'IRLB8721', 'IRFP260N', '2N7000', 'BSS138', 'AO3400'].map((p) => ({ type: 'nmos', part: p, label: p, cat: 'MOSFETs', kw: p === 'IRFB4410' ? 'IRBF4410 nmos n-channel' : 'nmos n-channel' })),
   ...['IRF9540N', 'IRF4905', 'AO3401'].map((p) => ({ type: 'pmos', part: p, label: p, cat: 'MOSFETs' })),
   ...['TL072', 'LM358', 'NE5532', 'MCP6002', 'LM741', 'Ideal'].map((p) => ({ type: 'opamp', part: p, label: p === 'Ideal' ? 'Ideal op-amp' : p + ' (symbol)', cat: 'Op-amps' })),
-  ...['TL072-IC', 'LM358-IC', 'NE5532-IC', 'MCP6002-IC', 'TL074-IC', 'LM393-IC'].map((p) => ({ type: 'ic', part: p, label: ICS[p].name + ' ' + ICS[p].pkg.split(' ')[0], cat: 'Op-amps' })),
+  ...['TL072-IC', 'LM358-IC', 'NE5532-IC', 'MCP6002-IC', 'TL074-IC'].map((p) => ({ type: 'ic', part: p, label: ICS[p].name + ' ' + ICS[p].pkg.split(' ')[0], cat: 'Op-amps' })),
   ...['7805', '7809', '7812', '7815', 'LM317', 'AMS1117-3.3', 'AMS1117-5.0', 'LM2940-5', 'MCP1700-3302'].map((p) => ({ type: 'reg', part: p, label: p, cat: 'Regulators' })),
   ...['TC4420', 'TC4429', 'TC4427', 'TC4426', 'IR2110', 'IR2104'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'Gate drivers' })),
   ...['ESP32-S3 SuperMini', 'ESP32-S3-DevKitC-1', 'ESP32 DevKit V1 (30p)', 'ESP32-C3 SuperMini', 'Arduino Nano'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'MCU boards' })),
@@ -1157,8 +1321,15 @@ export const PALETTE = [
   ...['ADXL335 (GY-61)', 'ADXL345 (GY-291)', 'MPU-6050 (GY-521)'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'Sensors', kw: 'accelerometer imu gyro ' + ICS[p].desc })),
   ...['QMC5883L (GY-271)', 'HMC5883L (GY-271)'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'Sensors', kw: 'magnetometer compass ' + ICS[p].desc })),
   ...['ADS1115 module', 'ADS1115 (chip)', 'ADS1220', 'ADS1256'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'ADCs', kw: 'adc analog digital converter ads ' + ICS[p].desc })),
+  ...['LM393-IC', 'LM339', 'LM311', 'LMV393', 'MCP6561', 'TLV3201', 'TLV7011'].map((p) => ({ type: 'ic', part: p, label: (ICS[p].name || p) + ' ' + ICS[p].pkg.split(' ')[0], cat: 'Comparators', kw: 'comparator threshold schmitt ' + ICS[p].desc })),
+  ...['74HC595', '74HC14', 'MCP23017'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'Logic & interface', kw: 'logic cmos digital ' + ICS[p].desc })),
+  ...['ULN2003A', 'L293D', 'LM386'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'Drivers', kw: 'driver motor relay audio ' + ICS[p].desc })),
+  ...['TL431', 'TP4056', 'TP4054', 'USBLC6-2SC6'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'Power ICs', kw: 'power reference charger esd ' + ICS[p].desc })),
+  ...['AP2112K-3.3', 'ME6211C33'].map((p) => ({ type: 'reg', part: p, label: p, cat: 'Regulators', kw: 'ldo regulator 3.3 enable' })),
+  ...['DS18B20', 'LM35', 'INA219 module', 'LSM6DS3', 'QMC5883P'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'Sensors', kw: 'sensor ' + ICS[p].desc })),
+  { type: 'ic', part: 'ESP32-S3-WROOM-1', label: 'ESP32-S3-WROOM-1 module', cat: 'MCU boards', kw: 'esp32 s3 module wroom wifi bluetooth ble' },
   ...['Si5351 module', 'Si5351A (chip)'].map((p) => ({ type: 'ic', part: p, label: p, cat: 'Signal sources', kw: 'si5351 clock generator signal generator oscillator rf' })),
 ];
-export const CATEGORIES = ['Basic', 'Coils', 'Switches', 'Fuses', 'Sources', 'LEDs', 'Diodes', 'Zeners', 'TVS', 'Transistors', 'MOSFETs', 'Op-amps', 'Sensors', 'ADCs', 'Signal sources', 'Regulators', 'Gate drivers', 'MCU boards', 'ICs'];
+export const CATEGORIES = ['Basic', 'Coils', 'Switches', 'Fuses', 'Sources', 'LEDs', 'Diodes', 'Zeners', 'TVS', 'Transistors', 'MOSFETs', 'Op-amps', 'Comparators', 'Sensors', 'ADCs', 'Signal sources', 'Regulators', 'Power ICs', 'Logic & interface', 'Drivers', 'Gate drivers', 'MCU boards', 'ICs'];
 
 export const helpers = { sig, spos, smin, diodeI, num, fmt };

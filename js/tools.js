@@ -7,6 +7,7 @@ import { bode, classify, logspace } from './analysis.js';
 import { PARTS } from './library.js';
 import { drawPlot } from './plot.js';
 import { icon } from './icons.js';
+import { powerCalc } from './power.js';
 import { designDecoupling, designSensor, IC_PRESETS, MOUNTS, BULK_TECH, DIELECTRICS, SOURCES, ADCS, OPAMPS } from './design.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -668,7 +669,8 @@ const rfCalc = {
   },
 };
 
-CALCS.push(decoupleCalc, sensorCalc, rfCalc);
+CALCS.push(decoupleCalc, sensorCalc, rfCalc, powerCalc);
+const THEORY_OF = { filter: 'theory-filters', opamp: 'theory-opamps', divider: 'theory-voltage-divider', led: 'theory-semiconductors', ohm: 'theory-ohms-law', react: 'theory-reactance-impedance', lm317: 'theory-power-supplies', 555: 'theory-oscillators-timers', gate: 'theory-transistor-switching', decap: 'theory-decoupling', sensor: 'theory-adc-sampling', rf: 'theory-rf-link-budget', power: 'theory-batteries-power-budget' };
 
 function simTemplate(t) {
   try {
@@ -700,12 +702,16 @@ const fromSlider = (i, s) => {
 };
 const show = (i, x) => (i.unit === '' ? String(x) : fmt(x, i.unit, 4).replace(' ', ' '));
 
-export function openTools(app) {
+export function openTools(app, tab) {
+  if (tab && CALCS.some((c) => c.id === tab)) state.tab = tab;
   const render = () => {
     const calc = CALCS.find((c) => c.id === state.tab);
     const v = vals(calc);
     const hidden = calc.hide ? calc.hide(v) : [];
-    let h = `<div class="tabs">${CALCS.map((c) => `<button data-tab="${c.id}" class="${c.id === state.tab ? 'on' : ''}">${esc(c.name)}</button>`).join('')}</div><div class="calc">`;
+    let h = `<div class="tabs">${CALCS.map((c) => `<button data-tab="${c.id}" class="${c.id === state.tab ? 'on' : ''}">${esc(c.name)}</button>`).join('')}</div>`;
+    if (THEORY_OF[calc.id] && !calc.custom) h += `<div class="calc-theory"><span class="lnk" data-ref="${THEORY_OF[calc.id]}">📖 The theory behind this calculator</span></div>`;
+    if (calc.custom) return h + `<div class="calc" id="customCalc">${calc.custom.render(app)}</div>`;
+    h += `<div class="calc">`;
     for (const i of calc.inputs) {
       if (hidden.includes(i.k)) continue;
       if (i.options) { h += `<div class="ctl"><div class="top"><label>${esc(i.label)}</label><select class="inp" style="width:auto;flex:1" data-k="${i.k}">${i.options.map((o) => `<option ${o === v[i.k] ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div></div>`; continue; }
@@ -746,7 +752,14 @@ export function openTools(app) {
   const bind = (body) => {
     const on = body.querySelector('.tabs button.on'); if (on) on.scrollIntoView({ block: 'nearest', inline: 'center' });
     body.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; body.innerHTML = render(); bind(body); });
+    body.querySelectorAll('[data-ref]').forEach((b) => b.addEventListener('click', () => app.openReference?.(b.dataset.ref)));
     const calc = CALCS.find((c) => c.id === state.tab);
+    if (calc.custom) {
+      const el = body.querySelector('#customCalc');
+      const rerender = () => { const y = body.scrollTop; el.innerHTML = calc.custom.render(app); calc.custom.bind(el, app, rerender); el.querySelectorAll('[data-ref]').forEach((b) => b.addEventListener('click', () => app.openReference?.(b.dataset.ref))); body.scrollTop = y; };
+      calc.custom.bind(el, app, rerender);
+      return;
+    }
     const v = vals(calc);
     body.querySelectorAll('select[data-k]').forEach((s) => s.onchange = () => { v[s.dataset.k] = s.value; const i = calc.inputs.find((x) => x.k === s.dataset.k); if (i && i.onSelect) i.onSelect(v, s.value); body.innerHTML = render(); bind(body); });
     body.querySelectorAll('input[data-s]').forEach((s) => s.oninput = () => {

@@ -24,6 +24,7 @@ export const FP_SUGGEST = [
 
 const PKG_FP = [
   [/SOT-?23-?5/i, 'Package_TO_SOT_SMD:SOT-23-5'], [/SOT-?23-?6/i, 'Package_TO_SOT_SMD:SOT-23-6'], [/SOT-?223/i, 'Package_TO_SOT_SMD:SOT-223-3_TabPin2'], [/SOT-?23/i, 'Package_TO_SOT_SMD:SOT-23'],
+  [/DIP-?16/i, 'Package_DIP:DIP-16_W7.62mm'], [/DIP-?14/i, 'Package_DIP:DIP-14_W7.62mm'], [/DIP-?28/i, 'Package_DIP:DIP-28_W7.62mm'], [/SOP-?8/i, 'Package_SO:SOIC-8-1EP_3.9x4.9mm_P1.27mm_EP2.41x3.3mm'], [/TO-?92/i, 'Package_TO_SOT_THT:TO-92_Inline'],
   [/SOIC-?8|SO-?8/i, 'Package_SO:SOIC-8_3.9x4.9mm_P1.27mm'], [/TSSOP-?16/i, 'Package_SO:TSSOP-16_4.4x5mm_P0.65mm'], [/MSOP-?10/i, 'Package_SO:MSOP-10_3x3mm_P0.5mm'], [/DIP-?8/i, 'Package_DIP:DIP-8_W7.62mm'],
 ];
 
@@ -51,11 +52,12 @@ export function defaultFootprint(c) {
         const pads = d.nums ? d.nums.map((n) => String(n)) : nums;
         return { fp: d.footprint || '', pads, status: d.functional || !d.footprint ? 'check' : 'ok', why: d.functional ? 'pin numbers in the symbol are NOT package pad numbers — enter the real pads' : !d.footprint ? 'no footprint chosen' : '' };
       }
+      if (d.footprint) return { fp: d.footprint, pads: nums, status: 'ok' };
       if (d.layout === 'header') return { fp: `Connector_PinHeader_2.54mm:PinHeader_1x${pins.length}_P2.54mm_Vertical`, pads: nums, status: 'check', why: 'a module on headers — pick a footprint for the module' };
       const hit = PKG_FP.find(([re]) => re.test(d.pkg || ''));
       return { fp: hit ? hit[1] : '', pads: nums, status: hit ? 'ok' : 'check', why: hit ? '' : 'package not recognised' };
     }
-    case 'reg': { const m = PARTS[c.props.part] || {}; const hit = PKG_FP.find(([re]) => re.test(m.pkg || '')); return { fp: hit ? hit[1] : 'Package_TO_SOT_SMD:SOT-23', pads: pins.map((p) => p.num), status: 'check', why: `pad numbers follow the library's ${m.pkg || ''} package — check them against the footprint you choose (SMD versions number the pins differently)` }; }
+    case 'reg': { const m = PARTS[c.props.part] || {}; const hit = PKG_FP.find(([re]) => re.test(m.pkg || '')); return { fp: hit ? hit[1] : 'Package_TO_SOT_SMD:SOT-23', pads: pins.map((p) => p.num), status: hit && /SOT/.test(m.pkg || '') && m.nums ? 'ok' : 'check', why: `pad numbers follow the library's ${m.pkg || ''} package — check them against the footprint you choose (SMD versions number the pins differently)` }; }
     case 'opamp': return { fp: 'Package_TO_SOT_SMD:SOT-23-5', pads: sequential, status: 'check', why: 'symbol pins are not package pads' };
     default: return { fp: '', pads: pins.map((p) => p.num), status: 'check', why: 'choose a footprint' };
   }

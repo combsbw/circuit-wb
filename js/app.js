@@ -11,6 +11,8 @@ import { fmt, parseEng, stepE } from './units.js';
 import { drawPlot } from './plot.js';
 import { openTools } from './tools.js';
 import { openFab } from './fab.js';
+import { setPowerScope } from './power.js';
+import { openReference as openRef, closeReference as closeRef, isReferenceOpen, entryForComp } from './refView.js';
 import { EXAMPLES } from './examples.js';
 import { infoHtml } from './info.js';
 import { openBoard, closeBoard, isBoardOpen } from './boardView.js';
@@ -82,7 +84,7 @@ class App {
 
   _decorate() {
     const set = (sel, name) => { const el = $(sel); if (el) el.innerHTML = icon(name); };
-    set('#btnFiles', 'folder'); set('#btnUndo', 'undo'); set('#btnRedo', 'redo'); set('#btnSim', 'bolt'); set('#btnTools', 'calc'); set('#btnBoards', 'chip'); set('#btnInstall', 'download');
+    set('#btnFiles', 'folder'); set('#btnUndo', 'undo'); set('#btnRedo', 'redo'); set('#btnSim', 'bolt'); set('#btnTools', 'calc'); set('#btnRef', 'book'); set('#btnBoards', 'chip'); set('#btnInstall', 'download');
     set('#btnAdd', 'plus'); set('#btnBox', 'box'); set('#btnZoomIn', 'zin'); set('#btnZoomOut', 'zout'); set('#btnFit', 'fit'); set('#partsClose', 'x'); set('#modalClose', 'x');
     document.querySelectorAll('.mi[data-icon]').forEach((el) => { el.innerHTML = icon(el.dataset.icon); });
   }
@@ -93,6 +95,7 @@ class App {
     $('#btnRedo').onclick = () => this.redo();
     $('#btnSim').onclick = () => { this.simOn = !this.simOn; this.toast(this.simOn ? 'Live voltages on' : 'Live voltages off'); this.render(); this.saveSession(); };
     $('#btnTools').onclick = () => openTools(this);
+    $('#btnRef').onclick = () => this.openReference();
     $('#btnBoards').onclick = () => this.openBoardMenu();
     $('#btnInstall').onclick = () => this.openInstall();
     $('#btnFiles').onclick = () => this.openFiles();
@@ -124,6 +127,7 @@ class App {
 
   _key(e) {
     if (e.target.matches('input, textarea, select')) { if (e.key === 'Escape') e.target.blur(); return; }
+    if (isReferenceOpen()) { if (e.key === 'Escape') closeRef(); return; }
     if (isBoardOpen()) { if (e.key === 'Escape') closeBoard(); return; }
     const mod = e.metaKey || e.ctrlKey;
     if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? this.redo() : this.undo(); return; }
@@ -441,7 +445,7 @@ class App {
     if (s.comps.size === 1) return this.propSheet(this.comp([...s.comps][0]));
     if (s.comps.size > 1) {
       return `<div class="sh-head"><h3>${s.comps.size} components selected</h3></div>
-      <div class="actions">${this.btn('mkboard', 'Build board', 'chip', 'pri')}${(this.doc.boards || []).length ? this.btn('addtoboard', 'Add to board', 'chip') : ''}${this.boardsOf([...s.comps]).length ? this.btn('rmfromboard', 'Remove from board', 'x') : ''}${this.btn('rotate', 'Rotate', 'rotate')}${this.btn('dup', 'Duplicate', 'copy')}${this.btn('delete', 'Delete', 'trash', 'danger')}${this.btn('clearsel', 'Clear', 'x')}</div>
+      <div class="actions">${this.btn('mkboard', 'Build board', 'chip', 'pri')}${(this.doc.boards || []).length ? this.btn('addtoboard', 'Add to board', 'chip') : ''}${this.boardsOf([...s.comps]).length ? this.btn('rmfromboard', 'Remove from board', 'x') : ''}${this.btn('power', 'Power', 'bolt')}${this.btn('rotate', 'Rotate', 'rotate')}${this.btn('dup', 'Duplicate', 'copy')}${this.btn('delete', 'Delete', 'trash', 'danger')}${this.btn('clearsel', 'Clear', 'x')}</div>
       <div class="hint"><b>Build board</b> lays these parts out on a new board. <b>Add to board</b> puts them on an existing board (or moves them from another one). <b>Remove from board</b> takes them off their board but keeps them in the design.${this.boardsLine([...s.comps])} In <b>Measure</b> mode you can analyse just this selection (“Isolate”).</div>`;
     }
     if (s.wire) {
@@ -493,7 +497,7 @@ class App {
     if (def.toggle) h += this.btn('toggle', 'Toggle', 'toggle', 'pri');
     if ((this.doc.boards || []).length && PHYSICAL(c)) h += this.btn('addtoboard', this.boardsOf([c.id]).length ? 'Move to board' : 'Add to board', 'chip');
     if (this.boardsOf([c.id]).length) h += this.btn('rmfromboard', 'Remove from board', 'x');
-    h += this.btn('rotate', 'Rotate', 'rotate') + this.btn('flip', 'Flip', 'flip') + this.btn('dup', 'Duplicate', 'copy') + this.btn('detach', 'Detach', 'unlink') + this.btn('delete', 'Delete', 'trash', 'danger');
+    h += this.btn('learn', 'Learn', 'book') + this.btn('rotate', 'Rotate', 'rotate') + this.btn('flip', 'Flip', 'flip') + this.btn('dup', 'Duplicate', 'copy') + this.btn('detach', 'Detach', 'unlink') + this.btn('delete', 'Delete', 'trash', 'danger');
     h += `</div>`;
     if (PHYSICAL(c) && (this.doc.boards || []).length) { const bl = this.boardsLine([c.id]); h += `<div class="hint">${bl || 'This part is not on any board.'}</div>`; }
     h += `<div class="sec">Operating point</div><div data-live="comp" data-cid="${c.id}" class="kv"></div><div data-live="compwarn" data-cid="${c.id}"></div>`;
@@ -937,6 +941,8 @@ class App {
       case 'addpart': this.openParts(); break;
       case 'examples': this.openFiles('examples'); break;
       case 'tools': openTools(this); break;
+      case 'learn': if (sel1) entryForComp(sel1).then((id) => openRef(this, id, id ? null : (sel1.props.part || TYPES[sel1.type]?.name || sel1.type))); break;
+      case 'power': setPowerScope(this.sel.comps.size ? 'sel' : 'all'); openTools(this, 'power'); break;
       case 'clearsel': this.select({}); break;
       case 'rotate':
         if (!selIds.length) return;
@@ -1325,8 +1331,16 @@ class App {
     this.openModal(partInfo(c).title, infoHtml(c, this.settings.autoInfo), (body) => {
       const cb = body.querySelector('#autoInfo');
       if (cb) cb.onchange = () => { this.settings.autoInfo = cb.checked; this.saveSession(); };
+      entryForComp(c).then((id) => {
+        if (!id || !body.isConnected) return;
+        const b = document.createElement('button');
+        b.className = 'btn small'; b.style.marginTop = '8px'; b.innerHTML = icon('book') + 'Reference: how to use it, tips and traps';
+        b.onclick = () => { this.closeModal(); this.openReference(id); };
+        body.prepend(b);
+      });
     });
   }
+  openReference(id) { if (!$('#modal').hidden) this.closeModal(); openRef(this, id); }
 
   rename() {
     const n = prompt('Design name', this.doc.name);

@@ -1,5 +1,5 @@
 // Offline-first service worker: precache the whole app, serve cache-first, refresh in background.
-const VERSION = 'cwb-v1.11.0';
+const VERSION = 'cwb-v1.12.0';
 const ASSETS = [
   './',
   './index.html',
@@ -24,6 +24,12 @@ const ASSETS = [
   './js/design.js',
   './js/fab.js',
   './examples/ble-tag-board.cwb.json',
+  './examples/esp32s3-imu-mag.cwb.json',
+  './js/power.js',
+  './js/refView.js',
+  './js/ref/components-a.js',
+  './js/ref/components-b.js',
+  './js/ref/theory.js',
   './js/units.js',
   './icons/icon-192.png',
   './icons/icon-512.png',

@@ -131,7 +131,7 @@ export function footprint(c) {
     }
     case 'reg': {
       const pk = m.pinout || [['1', 'IN'], ['2', 'GND'], ['3', 'OUT']];
-      const order = pk.map(([, n]) => (/^IN/.test(n) ? 0 : /^OUT/.test(n) ? 1 : 2));
+      const order = pk.map(([, n]) => (/^V?IN/.test(n) ? 0 : /^V?OUT/.test(n) ? 1 : /^(GND|VSS|ADJ)/.test(n) ? 2 : /^(EN|CE)/.test(n) && m.en ? 3 : -1));
       return { kind: 'inline', map: order, style: /TO-92/.test(m.pkg || '') ? 'to92' : 'to220', note: /SOT/.test(m.pkg || '') ? 'SMD part — use a breakout' : '' };
     }
     case 'opamp': return { kind: 'dip', map: [-1, idx('−'), idx('+'), idx('V−'), -1, idx('OUT'), idx('V+'), -1], style: 'dip', label: (c.props.part || 'op-amp') + ' (single, DIP-8)' };
