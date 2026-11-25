@@ -248,10 +248,10 @@ export function icGeom(c) {
   if (icCache.has(key)) return icCache.get(key);
   let pins = [], left = [], right = [];
   if (d.layout === 'header') {
-    d.left.forEach((n, i) => { pins.push({ name: n, num: String(i + 1), fn: pinFn(n) }); left.push(pins.length - 1); });
-    (d.right || []).forEach((n, i) => { pins.push({ name: n, num: String(d.left.length + i + 1), fn: pinFn(n) }); right.push(pins.length - 1); });
+    d.left.forEach((n, i) => { pins.push({ name: n, num: String(d.nums?.[i] ?? i + 1), fn: pinFn(n) }); left.push(pins.length - 1); });
+    (d.right || []).forEach((n, i) => { pins.push({ name: n, num: String(d.nums?.[d.left.length + i] ?? d.left.length + i + 1), fn: pinFn(n) }); right.push(pins.length - 1); });
   } else {
-    d.pins.forEach(([n, fn], i) => pins.push({ name: n, num: String(i + 1), fn }));
+    d.pins.forEach(([n, fn], i) => pins.push({ name: n, num: String(d.nums?.[i] ?? i + 1), fn }));
     const h = pins.length / 2;
     for (let i = 0; i < h; i++) left.push(i);
     for (let i = pins.length - 1; i >= h; i--) right.push(i);

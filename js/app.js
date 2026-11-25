@@ -10,6 +10,7 @@ import { icon } from './icons.js';
 import { fmt, parseEng, stepE } from './units.js';
 import { drawPlot } from './plot.js';
 import { openTools } from './tools.js';
+import { openFab } from './fab.js';
 import { EXAMPLES } from './examples.js';
 import { infoHtml } from './info.js';
 import { openBoard, closeBoard, isBoardOpen } from './boardView.js';
@@ -1338,7 +1339,7 @@ class App {
     let h = tabs;
     if (tab === 'designs') {
       h += `<div class="card"><div class="row" style="justify-content:space-between"><div style="min-width:0"><b>${esc(this.doc.name)}</b><div class="t2" style="color:var(--muted);font-size:13px">${this.doc.comps.length} parts · ${this.dirty ? 'unsaved changes' : 'saved'}</div></div></div>
-        <div class="actions">${this.btn('f-save', 'Save', 'save', 'pri')}${this.btn('f-saveas', 'Save as…', 'copy')}${this.btn('f-new', 'New', 'file')}${this.btn('f-export', 'Export file', 'download')}${this.btn('f-import', 'Import', 'upload')}${this.btn('f-svg', 'SVG', 'image')}${this.btn('f-png', 'PNG', 'image')}</div></div>`;
+        <div class="actions">${this.btn('f-save', 'Save', 'save', 'pri')}${this.btn('f-saveas', 'Save as…', 'copy')}${this.btn('f-new', 'New', 'file')}${this.btn('f-export', 'Export file', 'download')}${this.btn('f-import', 'Import', 'upload')}${this.btn('f-svg', 'SVG', 'image')}${this.btn('f-png', 'PNG', 'image')}${this.btn('f-fab', 'PCB fab export', 'chip')}</div></div>`;
       h += `<div class="sec">Saved on this device (${list.length})</div><div class="list dlist">`;
       h += list.map((d) => `<div class="li" data-open="${d.id}"><div class="thumb">${d.thumb || ''}</div><div class="grow"><div class="t1">${esc(d.name)}${d.id === this.doc.id ? ' <span class="pf io">open</span>' : ''}</div><div class="t2">${new Date(d.updated).toLocaleString()} · ${d.comps?.length || 0} parts${buildPct(d)}</div></div>
         <button class="ib" data-ren="${d.id}" title="Rename">${icon('edit')}</button><button class="ib" data-exp="${d.id}" title="Export">${icon('download')}</button><button class="ib" data-del="${d.id}" title="Delete">${icon('trash')}</button></div>`).join('') || '<div class="hint">Nothing saved yet. Tap <b>Save</b> to keep this design in the on-device library (IndexedDB). Your current work is also auto-saved continuously.</div>';
@@ -1384,6 +1385,7 @@ class App {
         this.closeModal(); this.select({}); this.changed(null, { noDirty: true }); this.editor.fit(); break;
       case 'f-export': this.doc.customParts = customDefsFor(this.doc); this.download(slug(this.doc.name) + '.cwb.json', JSON.stringify(stripDesign(this.doc), null, 1), 'application/json'); break;
       case 'f-import': $('#fileImport').value = ''; $('#fileImport').click(); break;
+      case 'f-fab': this.closeModal(); openFab(this); break;
       case 'f-svg': this.download(slug(this.doc.name) + '.svg', designSvg(this.doc), 'image/svg+xml'); break;
       case 'f-png': this.exportPng(); break;
       case 'f-backup': { const all = await store.listDesigns(); this.download('circuit-workbench-backup.json', JSON.stringify({ backup: true, designs: all.map(stripDesign) }, null, 1), 'application/json'); break; }
@@ -1410,7 +1412,15 @@ class App {
   }
   loadExample(i) {
     if (this.dirty && this.doc.comps.length && !confirm('Open the example? Unsaved changes to the current design will be lost.')) return;
-    const d = EXAMPLES[i].build();
+    const ex = EXAMPLES[i];
+    if (ex.file) {
+      fetch(ex.file).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).then((d) => {
+        d.id = uid('d'); d.created = d.updated = Date.now();
+        this._setDoc(d); this.dirty = true; this._updateTitle(); this.closeModal?.();
+      }).catch(() => this.toast('Could not load that example (offline and not cached yet?)'));
+      return;
+    }
+    const d = ex.build();
     this._setDoc(d);
     this.dirty = true;
     this._updateTitle();

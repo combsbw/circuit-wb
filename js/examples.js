@@ -138,4 +138,9 @@ export const EXAMPLES = [
       return d;
     },
   },
+  {
+    name: 'BLE IMU + magnetometer tag (from photos)', desc: 'nRF52832 + LSM6DS3 + QMC5883P, USB-C + LiPo charging, PCB antenna — reconstructed, verify before building',
+    file: './examples/ble-tag-board.cwb.json',
+    build() { return newDesign('BLE IMU + magnetometer tag'); },
+  },
 ];

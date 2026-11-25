@@ -63,7 +63,7 @@ function paint(cv) {
   for (let e = Math.ceil(lf0); e <= Math.floor(lf1); e++) {
     const x = X(Math.pow(10, e));
     g.beginPath(); g.moveTo(x, pt); g.lineTo(x, pt + h); g.stroke();
-    g.textAlign = 'center'; g.fillText(fmt(Math.pow(10, e), 'Hz', 1).replace(' ', ''), x, Hh - 7);
+    g.textAlign = 'center'; g.fillText(fmt(Math.pow(10, e), d.xUnit || 'Hz', 1).replace(' ', ''), x, Hh - 7);
     g.globalAlpha = 0.35;
     for (let k = 2; k < 10; k++) { const xx = X(k * Math.pow(10, e)); if (xx < pl + w) { g.beginPath(); g.moveTo(xx, pt); g.lineTo(xx, pt + h); g.stroke(); } }
     g.globalAlpha = 1;
@@ -111,7 +111,7 @@ function paint(cv) {
     g.beginPath(); g.moveTo(x, pt); g.lineTo(x, pt + h); g.stroke();
     const yv = d.y1[i];
     if (Number.isFinite(yv)) { g.fillStyle = accent; g.beginPath(); g.arc(x, Y1(yv), 3.5, 0, 7); g.fill(); }
-    const label = `${fmt(f[i], 'Hz', 3)}  ${d.y1Log ? fmt(Math.pow(10, yv), 'Ω', 3) : (yv ?? 0).toFixed(2) + ' dB'}  ${!d.noPhase && Number.isFinite(d.y2[i]) ? d.y2[i].toFixed(1) + '°' : ''}`;
+    const label = `${fmt(f[i], d.xUnit || 'Hz', 3)}  ${d.y1Log ? fmt(Math.pow(10, yv), 'Ω', 3) : (yv ?? 0).toFixed(2) + ' ' + (d.yUnit || 'dB')}  ${!d.noPhase && Number.isFinite(d.y2[i]) ? d.y2[i].toFixed(1) + '°' : ''}`;
     g.font = '600 11px -apple-system, system-ui, sans-serif';
     const tw = g.measureText(label).width + 12;
     const bx = Math.min(Math.max(x - tw / 2, pl), pl + w - tw);

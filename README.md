@@ -178,12 +178,31 @@ Pages and from the iOS Home Screen with no connection.
   dominates it, and the offset and gain errors. The designed path can be inserted into the circuit and its
   frequency response is simulated with the real solver.
 
+- **RF link budget**: transmit power, installed antenna gain, return loss (|S11|), enclosure/battery/body loss,
+  receiver gain and sensitivity, environment exponent and fade margin give the estimated range, the
+  received-power-versus-distance plot and a table of what each fix buys (retune the match, +4 dBm, clear the
+  antenna of metal, chip antenna). Enter the range you measured and it reports the loss the model can't
+  explain, which is how to tell a detuned antenna from a weak link.
+
 **Files**
 - Saved designs live in IndexedDB on the device. You can name, rename, open, duplicate and delete them.
 - Your working session (including build and debug progress) autosaves continuously, so closing the app
   loses nothing.
 - Export/import `.cwb.json`, back up all designs at once, and export SVG or PNG images. On iOS these go
   through the share sheet.
+
+## PCB fab hand-off
+
+Files → **PCB fab export** turns the schematic into what a PCB tool needs: a **KiCad netlist** (`.net`) with
+footprints, pad numbers and nets, a **JLCPCB-format BOM** (Comment, Designator, Footprint, LCSC Part #) and a
+plain pin–net CSV. Footprints default by part (0402 / 0603 / 0805 by value, SOT-23, QFN …) and can be edited,
+as can pad numbers and LCSC part numbers. Rows marked ⚠ (functional symbols, polarised parts, guessed
+footprints) must be checked: a symbol's pin numbers are not package pad numbers unless the part says so.
+
+The app has no copper layout, so it does not write Gerbers, drill files or pick-and-place data. Import the
+netlist into KiCad (Pcbnew → File → Import → Netlist), place and route, then Plot / Fabrication Outputs for
+Gerbers, drill and the `.pos` placement file, or import into EasyEDA and order from JLCPCB. Custom parts can
+carry `footprint`, `nums` (pad numbers per pin) and `functional` / `fabSkip` flags so they export correctly.
 
 ## Deploy to GitHub Pages
 
@@ -222,6 +241,7 @@ python3 -m http.server 8000   # then open http://localhost:8000
 | `js/doc.js` | Design document operations and geometry |
 | `js/app.js` | App controller: modes, panels, meter, build/debug tracking, files |
 | `js/tools.js` | Calculators and circuit templates |
+| `js/fab.js` | KiCad netlist, JLCPCB BOM and pin–net exports |
 | `js/design.js` | Decoupling and sensor-interface design maths (no DOM) |
 | `js/store.js` | IndexedDB persistence |
 | `js/partEditor.js` | Custom part / board editor and library |

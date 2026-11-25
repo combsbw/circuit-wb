@@ -17,7 +17,7 @@ async function saveList() {
 }
 function serial(d) {
   const o = {};
-  for (const k of ['name', 'cat', 'desc', 'pkg', 'layout', 'left', 'right', 'pins', 'isMcu', 'vlogic', 'vinPin', 'railPin', 'gndPin', 'loadmA', 'notes', 'specs', 'rowSpacing']) if (d[k] != null) o[k] = d[k];
+  for (const k of ['name', 'cat', 'desc', 'pkg', 'layout', 'left', 'right', 'pins', 'isMcu', 'vlogic', 'vinPin', 'railPin', 'gndPin', 'loadmA', 'notes', 'specs', 'rowSpacing', 'nums', 'footprint', 'functional', 'fabSkip']) if (d[k] != null) o[k] = d[k];
   return o;
 }
 /** Custom definitions used by a design (embedded on save/export so the file is portable). */

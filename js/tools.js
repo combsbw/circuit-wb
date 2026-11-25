@@ -600,7 +600,75 @@ function sensorTemplate(v, o) {
   return { d, inRef: pe(src, 0), outRef: last };
 }
 
-CALCS.push(decoupleCalc, sensorCalc);
+// ---------- RF link budget ----------
+const ENVS = { 'Free space (n = 2.0)': 2, 'Open indoor / line of sight (n = 2.5)': 2.5, 'Typical indoor (n = 3.0)': 3, 'Cluttered: walls, body (n = 3.5)': 3.5 };
+const RF_PRESETS = {
+  'Custom': null,
+  'BLE tag, etched meander (as built, ≈5 m)': { pt: 0, gt: -5, rl: 3, body: 3, gr: -3, sens: -94, env: 'Typical indoor (n = 3.0)', margin: 10, meas: 5 },
+  'BLE tag, tuned antenna + 4 dBm': { pt: 4, gt: -3, rl: 10, body: 2, gr: -3, sens: -94, env: 'Typical indoor (n = 3.0)', margin: 10, meas: 0 },
+  'BLE tag, ceramic chip antenna': { pt: 4, gt: 0, rl: 10, body: 2, gr: -3, sens: -94, env: 'Typical indoor (n = 3.0)', margin: 10, meas: 0 },
+};
+function rfLink(v, extra = 0) {
+  const lam = 3e8 / v.f, pl1 = 20 * Math.log10((4 * Math.PI) / lam);
+  const mm = -10 * Math.log10(1 - Math.pow(10, -v.rl / 10));
+  const budget = v.pt - mm + v.gt - v.body + v.gr - v.sens - v.margin + extra;
+  const n = ENVS[v.env] || 3;
+  return { pl1, mm, budget, n, d: Math.pow(10, (budget - pl1) / (10 * n)), pr: (d) => v.pt - mm + v.gt - v.body + v.gr + extra - (pl1 + 10 * n * Math.log10(d)) };
+}
+const rfCalc = {
+  id: 'rf', name: 'RF link budget', inputs: [
+    { k: 'preset', label: 'Starting point', options: Object.keys(RF_PRESETS), def: 'BLE tag, etched meander (as built, ≈5 m)', onSelect: (v, val) => { const p = RF_PRESETS[val]; if (p) Object.assign(v, p); } },
+    { k: 'f', label: 'Frequency', unit: 'Hz', range: [0.4e9, 6e9], log: true, def: 2.44e9 },
+    { k: 'pt', label: 'TX power at the chip (dBm)', unit: '', range: [-20, 10], step: 0.5, def: 0 },
+    { k: 'gt', label: 'TX antenna gain as installed (dBi)', unit: '', range: [-20, 6], step: 0.5, def: -5 },
+    { k: 'rl', label: 'Return loss at the feed, |S11| (dB, higher = better match)', unit: '', range: [0.5, 30], step: 0.5, def: 3 },
+    { k: 'body', label: 'Enclosure / battery / body loss (dB)', unit: '', range: [0, 20], step: 0.5, def: 3 },
+    { k: 'gr', label: 'RX antenna gain, e.g. phone (dBi)', unit: '', range: [-10, 6], step: 0.5, def: -3 },
+    { k: 'sens', label: 'RX sensitivity (dBm)  — nRF52832 1M ≈ −96, phone ≈ −90…−95', unit: '', range: [-110, -70], step: 1, def: -94 },
+    { k: 'env', label: 'Environment', options: Object.keys(ENVS), def: 'Typical indoor (n = 3.0)' },
+    { k: 'margin', label: 'Fade margin to keep (dB)', unit: '', range: [0, 30], step: 1, def: 10 },
+    { k: 'meas', label: 'Range you actually measured (m, 0 = unknown)', unit: '', range: [0, 100], step: 0.5, allowZero: true, def: 5 },
+  ],
+  compute: (v) => {
+    const r = rfLink(v);
+    const rows = [
+      ['__h', 'Link'],
+      ['Radiated power (EIRP)', `${(v.pt - r.mm + v.gt - v.body).toFixed(1)} dBm  (${v.pt} dBm − ${r.mm.toFixed(1)} mismatch ${v.gt >= 0 ? '+' : '−'} ${Math.abs(v.gt)} antenna − ${v.body} enclosure)`],
+      ['Mismatch loss at the feed', `${r.mm.toFixed(2)} dB   (|S11| ${v.rl} dB)`],
+      ['Allowed path loss', `${r.budget.toFixed(1)} dB   (after ${v.margin} dB margin)`],
+      ['Free-space loss at 1 m', `${r.pl1.toFixed(1)} dB`],
+      ['Range, same link in free space', fmt(rfLink({ ...v, env: 'Free space (n = 2.0)' }).d, 'm')],
+    ];
+    if (v.meas > 0) {
+      const plm = r.pl1 + 10 * r.n * Math.log10(v.meas);
+      const excess = r.budget - plm;
+      rows.push(['Your measured range', fmt(v.meas, 'm')], [excess > 0 ? 'Extra loss vs this model' : 'Margin vs this model', `${Math.abs(excess).toFixed(1)} dB ${excess > 0 ? '— look for a detuned antenna, shadowing or a weak receiver' : '(the model is pessimistic)'}`]);
+    }
+    rows.push(['__h', 'What would help (each on its own)']);
+    const mmAt = (rl) => -10 * Math.log10(1 - Math.pow(10, -rl / 10));
+    const scen = [
+      ['Retune the match to |S11| = 10 dB', Math.max(0, r.mm - mmAt(10))],
+      ['TX power +4 dBm (nRF52832 maximum)', 4 - v.pt],
+      ['Move antenna clear of battery / metal (−3 dB)', Math.min(3, v.body)],
+      ['Ceramic chip antenna, 0 dBi installed', Math.max(0, 0 - v.gt)],
+      ['All four together', Math.max(0, r.mm - mmAt(10)) + (4 - v.pt) + Math.min(3, v.body) + Math.max(0, 0 - v.gt)],
+    ];
+    const table = { head: ['Change', 'Gain', 'Range', '×'], rows: scen.map(([n, g]) => { const d2 = rfLink(v, g).d; return [n, `+${g.toFixed(1)} dB`, fmt(d2, 'm'), (d2 / r.d).toFixed(2)]; }) };
+    const ds = [], pr = [];
+    for (let i = 0; i < 120; i++) { const d = 0.5 * Math.pow(200, i / 119); ds.push(d); pr.push(r.pr(d)); }
+    const warns = [];
+    if (v.rl < 6) warns.push('A return loss under 6 dB wastes more than 1.2 dB and usually means the antenna is detuned — measure S11 with a NanoVNA, closed case, and retune L/C.');
+    if (v.body >= 6) warns.push('A large enclosure/body loss: keep the antenna clear of the cell, USB shell and ground pour, and check it with the case closed.');
+    warns.push('nRF52832 has no Coded PHY. Use the 1 Mbps PHY for range; 2 Mbps costs about 4 dB of sensitivity.');
+    return {
+      main: ['Estimated range', fmt(r.d, 'm')], rows, table, warns,
+      freqPlot: { f: ds, y1: pr, y2: [], noPhase: true, xUnit: 'm', yUnit: 'dBm', y1Label: 'received power', hlines: [{ y: v.sens + v.margin, label: `sensitivity + ${v.margin} dB margin` }], markers: v.meas > 0 ? [v.meas] : [] },
+      note: 'Log-distance model: PL(d) = 20·log10(4π/λ) + 10·n·log10(d). Indoor exponents, antenna gains and enclosure loss are rough — use the measured-range row to calibrate.',
+    };
+  },
+};
+
+CALCS.push(decoupleCalc, sensorCalc, rfCalc);
 
 function simTemplate(t) {
   try {
